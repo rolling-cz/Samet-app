@@ -7,7 +7,7 @@ import AppBar from '@mui/material/AppBar'
 import Chip from '@mui/material/Chip'
 import Toolbar from '@mui/material/Toolbar'
 import Link from 'next/link'
-import { HOME_ROUTE, type ChapterSummary } from '@/core'
+import { defaultChapterNumber, HOME_ROUTE, type ChapterSummary } from '@/core'
 import type { RunSummary } from '@/db'
 import { common } from '@/locales/cs/common'
 import { navigation } from '@/locales/cs/navigation'
@@ -45,13 +45,13 @@ export const AppHeader = ({ run, runs, chapters = [], author }: AppHeaderProps) 
         />
       )}
 
-      {chapters.length > 0 && <ChapterStatuses chapters={chapters} />}
+      {run && chapters.length > 0 && <ChapterStatuses runId={run.id} chapters={chapters} />}
 
       <span className={styles.spacer} />
 
       <IdentityMenu author={author} />
     </Toolbar>
 
-    {run && <SectionNav runId={run.id} />}
+    {run && <SectionNav runId={run.id} defaultChapter={defaultChapterNumber(chapters)} />}
   </AppBar>
 )

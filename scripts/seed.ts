@@ -13,25 +13,18 @@
  * because it is a seed run in a local database.
  */
 import 'dotenv/config'
-import { eq, sql } from 'drizzle-orm'
 import { unscopedDb, rawSql } from '../src/db/client'
-import type { RunScopedTable } from '../src/db/run-scope'
 import {
   answerOptions,
-  answerSelectedOptions,
-  answers,
   auditLog,
   blockVariations,
   characterResourceValues,
   characterResources,
   characterScaleValues,
   characterScales,
-  characterVariables,
   characters,
   chapters,
-  computations,
   contentBlocks,
-  diceRolls,
   effectInputs,
   effects,
   groups,
@@ -42,10 +35,9 @@ import {
   resources,
   scales,
   runs,
-  templates,
-  uploadedFiles,
 } from '../src/db/schema'
 import { householdExternalId } from '../src/engine'
+import { wipeRun } from './lib/wipe-run'
 
 const RUN_ID = '2026-09-12_A'
 const AUTHOR = 'seed skript'
@@ -101,52 +93,8 @@ const CHARACTER_SEED = [
   { externalId: 'Karel', firstName: 'Karel', lastName: 'Novák', birthYear: 1950 },
 ]
 
-const wipeSeedRun = async () => {
-  // Delete dependents first — the foreign keys are `restrict`.
-  const order: RunScopedTable[] = [
-    auditLog,
-    characterVariables,
-    characterScaleValues,
-    characterResourceValues,
-    householdResourceValues,
-    householdMemberships,
-    households,
-    diceRolls,
-    answerSelectedOptions,
-    answers,
-    computations,
-    effectInputs,
-    effects,
-    answerOptions,
-    questions,
-    blockVariations,
-    contentBlocks,
-    templates,
-    characterScales,
-    characterResources,
-    scales,
-    resources,
-    characters,
-    groups,
-    uploadedFiles,
-    chapters,
-  ]
-
-  await unscopedDb.transaction(async (tx) => {
-    // The append-only trigger (`db/sql/001_audit_append_only.sql`) would refuse
-    // the audit delete. `alter table` holds an exclusive lock until commit, so
-    // nothing else can touch `audit_log` while the trigger is off.
-    await tx.execute(sql`alter table audit_log disable trigger user`)
-    for (const table of order) {
-      await tx.delete(table).where(eq(table.runId, RUN_ID))
-    }
-    await tx.delete(runs).where(eq(runs.id, RUN_ID))
-    await tx.execute(sql`alter table audit_log enable trigger user`)
-  })
-}
-
 const main = async () => {
-  await wipeSeedRun()
+  await wipeRun(RUN_ID)
 
   await unscopedDb.insert(runs).values({
     id: RUN_ID,

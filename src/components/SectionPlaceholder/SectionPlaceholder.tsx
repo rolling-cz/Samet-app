@@ -1,16 +1,22 @@
-import Typography from '@mui/material/Typography'
 import type { RunSection } from '@/core'
 import { navigation } from '@/locales/cs/navigation'
-import styles from './SectionPlaceholder.module.css'
+import { PageNote } from '../PageNote/PageNote'
+
+interface SectionPlaceholderProps {
+  section: RunSection
+  /** Absent for a section that belongs to the run, not to a chapter. */
+  chapter?: number
+}
 
 /** A section whose screen comes in a later session; the navigation to it already stands (§6.4). */
-export const SectionPlaceholder = ({ section }: { section: RunSection }) => (
-  <section className={styles.section} data-testid={`section-placeholder--${section}`}>
-    <Typography variant="h5" component="h1">
-      {navigation.sections[section]}
-    </Typography>
-    <Typography variant="body2" className={styles.body}>
-      {navigation.sectionPlaceholders[section]}
-    </Typography>
-  </section>
+export const SectionPlaceholder = ({ section, chapter }: SectionPlaceholderProps) => (
+  <PageNote
+    title={
+      chapter === undefined
+        ? navigation.sections[section]
+        : navigation.sectionInChapter(navigation.sections[section], chapter)
+    }
+    body={navigation.sectionPlaceholders[section]}
+    testId={`section-placeholder--${section}`}
+  />
 )

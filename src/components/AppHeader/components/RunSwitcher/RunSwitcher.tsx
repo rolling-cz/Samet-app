@@ -3,9 +3,10 @@
 import Button from '@mui/material/Button'
 import NativeSelect from '@mui/material/NativeSelect'
 import Link from 'next/link'
-import { useRouter, useSelectedLayoutSegment } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useCallback, type ChangeEvent } from 'react'
-import { DEFAULT_RUN_SECTION, HOME_ROUTE, isRunSection, runRoute } from '@/core'
+import { HOME_ROUTE, switchRunRoute } from '@/core'
+import { useRunLocation } from '@/core/hooks/useRunLocation'
 import type { RunSummary } from '@/db'
 import { navigation } from '@/locales/cs/navigation'
 import { statuses } from '@/locales/cs/statuses'
@@ -21,17 +22,17 @@ interface RunSwitcherProps {
   runId: string | undefined
 }
 
-/** Switching keeps the section, so the org stays on the same screen of the other run. */
+/**
+ * Switching keeps the section and the chapter, so the org stays on the same
+ * screen of the other run — but drops the character: IDs need not match across runs.
+ */
 export const RunSwitcher = ({ runs, runId }: RunSwitcherProps) => {
   const router = useRouter()
-  const segment = useSelectedLayoutSegment()
+  const location = useRunLocation()
 
   const handleChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const section = isRunSection(segment) ? segment : DEFAULT_RUN_SECTION
-      router.push(runRoute(event.target.value, section))
-    },
-    [router, segment],
+    (event: ChangeEvent<HTMLSelectElement>) => router.push(switchRunRoute(location, event.target.value)),
+    [router, location],
   )
 
   return (

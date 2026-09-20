@@ -1,18 +1,23 @@
 /**
- * Left panel with the run's characters (§6.4). It lives in the run layout, so it
- * keeps its scroll position while the org moves between screens. Completion
+ * Left panel with the run's characters (§6.4). It lives in the run layout, above
+ * the chapter in the route tree, so it stays mounted and keeps its scroll
+ * position while the org moves between characters and chapters. Completion
  * indicators, search and the "only unfilled" filter come with answer entry.
  */
 import Drawer from '@mui/material/Drawer'
-import List from '@mui/material/List'
-import ListItem from '@mui/material/ListItem'
-import ListItemText from '@mui/material/ListItemText'
 import Typography from '@mui/material/Typography'
 import { postavy } from '@/locales/cs/postavy'
 import type { CharacterListItem } from '../../types/character-list-item'
 import styles from './CharacterPanel.module.css'
+import { CharacterLinks } from './components/CharacterLinks/CharacterLinks'
 
-export const CharacterPanel = ({ characters }: { characters: CharacterListItem[] }) => (
+interface CharacterPanelProps {
+  runId: string
+  characters: CharacterListItem[]
+  defaultChapter: number
+}
+
+export const CharacterPanel = ({ runId, characters, defaultChapter }: CharacterPanelProps) => (
   <Drawer
     variant="permanent"
     className={styles.drawer}
@@ -33,13 +38,7 @@ export const CharacterPanel = ({ characters }: { characters: CharacterListItem[]
         {postavy.empty}
       </Typography>
     ) : (
-      <List disablePadding>
-        {characters.map((character) => (
-          <ListItem key={character.id} data-testid={`character-panel--${character.externalId}`}>
-            <ListItemText primary={postavy.fullName(character.firstName, character.lastName)} />
-          </ListItem>
-        ))}
-      </List>
+      <CharacterLinks runId={runId} characters={characters} defaultChapter={defaultChapter} />
     )}
   </Drawer>
 )

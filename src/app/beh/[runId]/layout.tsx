@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { AppHeader, RunThemeRoot } from '@/components'
+import { defaultChapterNumber } from '@/core'
 import { loadRunShell } from '@/core/services/load-run-shell'
 import { readAuthor } from '@/core/services/auth-cookies'
 import { CharacterPanel, loadCharacterList } from '@/features/postavy'
@@ -26,7 +27,11 @@ const RunLayout = async ({ children, params }: RunLayoutProps) => {
     <RunThemeRoot themeKey={runThemeKey(shell.run.letter)}>
       <AppHeader run={shell.run} runs={shell.runs} chapters={shell.chapters} author={author} />
       <div className={styles.body}>
-        <CharacterPanel characters={characters} />
+        <CharacterPanel
+          runId={shell.run.id}
+          characters={characters}
+          defaultChapter={defaultChapterNumber(shell.chapters)}
+        />
         <main className={styles.main} data-testid="run-main">
           {children}
         </main>

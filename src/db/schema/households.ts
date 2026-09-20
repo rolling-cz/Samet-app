@@ -1,5 +1,6 @@
 import { foreignKey, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
 import { createdAt } from './columns'
+import { stateSource } from './enums'
 import { chapters, runs } from './runs'
 
 /**
@@ -34,6 +35,12 @@ export const households = pgTable(
     /** For the org only; never enters documents. */
     label: text('label'),
     createdInChapterId: uuid('created_in_chapter_id').notNull(),
+    /**
+     * `initial` comes from the `Household` column, `computation` was founded in
+     * play. Only the first kind is config: a re-import must not take a marriage
+     * for an entity the sheet dropped.
+     */
+    source: stateSource('source').notNull().default('initial'),
     createdAt: createdAt(),
   },
   (t) => [
