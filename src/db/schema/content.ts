@@ -113,6 +113,9 @@ export const blockVariations = pgTable(
   (t) => [
     unique('block_variations_run_id_key').on(t.runId, t.id),
     unique('block_variations_run_external_key').on(t.runId, t.externalId),
+    // Target of `selected_variations`, so a selection cannot name a variant of
+    // another block.
+    unique('block_variations_run_block_id_key').on(t.runId, t.blockId, t.id),
     unique('block_variations_block_ordinal_key').on(t.runId, t.blockId, t.ordinal),
     // Two variants of one block with the same priority would make the result
     // depend on row order (§11, 6e). Partial, because "no priority at all" is

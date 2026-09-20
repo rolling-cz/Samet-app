@@ -8,6 +8,20 @@
       "when": 1789901579352,
       "tag": "0000_magical_hobgoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789903553368,
+      "tag": "0001_block_variation_block_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789903558611,
+      "tag": "0002_selected_variations",
+      "breakpoints": true
     }
   ]
 }

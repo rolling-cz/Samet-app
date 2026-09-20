@@ -51,6 +51,7 @@ const writeQuestions = async (
         type: question.type,
         source: question.source,
         isPrivate: question.isPrivate,
+        conditionVariationId: conditionVariationIdOf(question, refs),
         pollQuestionId: question.pollRef ? (refs.questionIds.get(question.pollRef) ?? null) : null,
         text: question.text,
         targetScaleId:
@@ -73,6 +74,21 @@ const writeQuestions = async (
       refs.questionIds.set(question.externalId, row.id)
     }
   }
+}
+
+/**
+ * NULL means "always asked", so a variant that cannot be found must not fall
+ * back to it: the validation guarantees the row, and anything else is a bug.
+ */
+const conditionVariationIdOf = (question: ParsedQuestion, refs: EntityIds): string | null => {
+  if (!question.condition) return null
+
+  const variationId = refs.variationIds.get(question.condition.raw)
+  if (!variationId) {
+    throw new Error(`${question.externalId}: variant ${question.condition.raw} was not written`)
+  }
+
+  return variationId
 }
 
 const upsertAnswerOptions = async (

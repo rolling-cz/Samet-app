@@ -10,6 +10,8 @@ export interface EntityIds {
   resourceIds: IdMap
   chapterIds: IdMap<number>
   blockIds: IdMap
+  /** `Variation ID` → database ID, so a question's `Condition` can point at its variant (§4.5). */
+  variationIds: IdMap
   /** Question source ID → database ID, so a `poll-answer` can point at its poll. */
   questionIds: IdMap
 }

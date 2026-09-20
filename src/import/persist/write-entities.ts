@@ -22,7 +22,7 @@ export const writeEntities = async (scope: RunScope, config: ParsedConfig): Prom
   const scaleIds = await upsertScales(scope, config, written, characterIds)
   const resourceIds = await upsertResources(scope, config, written, characterIds, householdIds)
 
-  const blockIds = await upsertBlocks(scope, config, written, characterIds, groupIds, chapterIds)
+  const { blockIds, variationIds } = await upsertBlocks(scope, config, written, characterIds, groupIds, chapterIds)
 
   await upsertQuestions(scope, config, written, {
     characterIds,
@@ -31,6 +31,7 @@ export const writeEntities = async (scope: RunScope, config: ParsedConfig): Prom
     resourceIds,
     chapterIds,
     blockIds,
+    variationIds,
     questionIds: new Map(),
   })
 

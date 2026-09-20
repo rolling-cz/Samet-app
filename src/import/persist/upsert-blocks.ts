@@ -4,6 +4,11 @@ import type { ParsedConfig } from '../types/parsed-config'
 import type { IdMap } from './entity-ids'
 import type { WrittenRows } from './written-rows'
 
+export interface BlockIds {
+  blockIds: IdMap
+  variationIds: IdMap
+}
+
 /** Blocks and their variants (layer 3, §8.2). */
 export const upsertBlocks = async (
   scope: RunScope,
@@ -12,8 +17,9 @@ export const upsertBlocks = async (
   characterIds: IdMap,
   groupIds: IdMap,
   chapterIds: IdMap<number>,
-): Promise<IdMap> => {
+): Promise<BlockIds> => {
   const blockIds: IdMap = new Map()
+  const variationIds: IdMap = new Map()
 
   for (const [chapter, blocks] of config.blocks) {
     const chapterId = chapterIds.get(chapter)
@@ -64,10 +70,13 @@ export const upsertBlocks = async (
             set: values,
           })
           .returning({ id: blockVariations.id })
-        if (row) written.blockVariations.add(row.id)
+        if (!row) continue
+
+        written.blockVariations.add(row.id)
+        variationIds.set(variation.externalId, row.id)
       }
     }
   }
 
-  return blockIds
+  return { blockIds, variationIds }
 }

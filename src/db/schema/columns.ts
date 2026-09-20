@@ -7,9 +7,6 @@
  *
  * Rule 3: every foreign key is `onDelete: 'restrict'` — an archived run stays
  * browsable forever (§3.2).
- *
- * Domain state values are Czech without diacritics (§13), to keep accents out
- * of SQL literals.
  */
 import { customType, timestamp, text } from 'drizzle-orm/pg-core'
 

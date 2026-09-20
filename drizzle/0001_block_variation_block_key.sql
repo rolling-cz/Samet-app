@@ -1,0 +1,1 @@
+ALTER TABLE "block_variations" ADD CONSTRAINT "block_variations_run_block_id_key" UNIQUE("run_id","block_id","id");

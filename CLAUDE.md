@@ -773,6 +773,10 @@ CONSTRAINT` na nich ztroskotá. Skončí s nulovým exit kódem a chybami ve vý
 ... FOREIGN KEY`, takže FK na `(run_id, id)` by v migraci neměl na co ukázat
   a migrace spadne. `uniqueIndex()` zůstává jen pro **částečné** unikáty
   s `.where()`, které constraint neumí (např. jeden vydaný přepočet na kapitolu).
+  **Nový unikát na existující tabulce a FK, který na něj míří, patří do dvou
+  migrací** (nejdřív unikát, pak `db:generate` znovu se zbytkem): v jedné
+  migraci řadí Drizzle `ADD CONSTRAINT … UNIQUE` až za cizí klíče — viz
+  `0001_block_variation_block_key` a `0002_selected_variations`.
 - Testy pokrývají primárně **engine a import**. Zbytek se testuje ručně. Výjimka:
   `src/db/schema.test.ts` hlídá architektonické pravidlo 2.
 - Fixtures pro import jsou v `documents/`: `fixture-platny.xlsx` musí projít,

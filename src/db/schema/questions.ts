@@ -13,6 +13,7 @@ import {
 import { authorName, createdAt } from './columns'
 import { questionSource, questionType } from './enums'
 import { characters } from './characters'
+import { blockVariations } from './content'
 import { scales } from './scales'
 import { resources } from './resources'
 import { chapters, runs } from './runs'
@@ -27,6 +28,8 @@ import { chapters, runs } from './runs'
  * towards nobody's question order.
  *
  * The questionnaire is flat: conditional sub-questions are deliberately out.
+ * A whole question may still wait for a block variant — see
+ * `conditionVariationId`.
  *
  * `source` separates player questions from org ones (§6.7) — a different input
  * source, not a different mechanism: same types, same impacts, same rules, one
@@ -58,6 +61,14 @@ export const questions = pgTable(
      * so nothing is copied per voting character and the options have one source.
      */
     pollQuestionId: uuid('poll_question_id'),
+    /**
+     * The `Condition` column (§4.5): the question is asked only when this
+     * variant was selected for its character; NULL means always. A reference,
+     * not an expression — expressions live in `block_variations` only. That the
+     * variant is the same character's and the same chapter's is the import's
+     * check, the key only makes sure it exists in this run.
+     */
+    conditionVariationId: uuid('condition_variation_id'),
     /**
      * The `Private` flag (§4.4): every impact of this question goes to the
      * personal account even when the character is married. Income the partner
@@ -116,6 +127,11 @@ export const questions = pgTable(
       name: 'questions_poll_fk',
       columns: [t.runId, t.pollQuestionId],
       foreignColumns: [t.runId, t.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'questions_condition_variation_fk',
+      columns: [t.runId, t.conditionVariationId],
+      foreignColumns: [blockVariations.runId, blockVariations.id],
     }).onDelete('restrict'),
     foreignKey({
       name: 'questions_target_scale_fk',
