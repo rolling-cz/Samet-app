@@ -109,9 +109,17 @@ bez hesla i bez jména nepustí na žádnou stránku, takže audit nikdy není a
   zapsáno kdo (volné jméno z pole „Kdo jsi?"), kdy, co, hodnota před a po
   a které pravidlo změnu způsobilo.
 
-Mazat smí jen dvě místa: seed skript (jen svůj lokální běh) a import konfigurace
-**před prvním přepočtem**, který odebere entity, jež nový soubor už neobsahuje
-(`RunScope.delete`).
+Mazat smějí jen tři místa: seed skript (jen svůj lokální běh), import konfigurace
+**před prvním přepočtem**, který odebere entity, jež nový soubor už neobsahuje,
+a **zrušení odpovědi** v dotazníku (`RunScope.delete`).
+
+**Zrušení odpovědi** vrací otázku do stavu „nikdo ještě neodpověděl" — překlik
+u špatné postavy nebo odškrtnutá poslední volba u `multi`. Jinak by otázka
+zůstala navždy zodpovězená, postava by v panelu svítila jako hotová a přepočet
+by se na chybějící odpověď nezeptal. Smaže řádek v `answers` i s jeho vybranými
+volbami a `{input}` hodnotami, **vždy se záznamem v `audit_log`** (hodnota před,
+„po" prázdné) — historii nese audit, stejně jako u editace odpovědi. Ve vydané
+kapitole platí stejná pojistka jako u editace: potvrzení, důvod, kaskáda.
 
 ## Konfigurace se nastaví jednou a pak se nemění (§6.5)
 
@@ -488,6 +496,10 @@ Z toho plyne: **mezi variantami nevznikají konflikty.** Priorita (nebo pořadí
 Absolutní nastavení hodnoty zadává org otázkou `scale_direct` / `resource_direct`
 (§4.4, §7.3); vždy musí jmenovat **konkrétní** účet.
 
+**U `multi` je povinná aspoň jedna vybraná odpověď.** Smí-li postava nevybrat
+nic, napíše autor „nic z uvedeného" jako běžnou odpověď do tabulky. Prázdný výběr
+je nezodpovězená otázka a engine ho odmítne — UI pro to nemá žádný zvláštní prvek.
+
 **ID otázky smí zůstat prázdné** — aplikace ho doplní podle vzoru
 `Q_<Postava>_<Kapitola>_<Poradi>`:
 
@@ -668,6 +680,19 @@ projeví jako špatná čísla v dokumentech.
 
 ## Doménová pravidla, na která se snadno zapomene
 
+- **Přepočet čte konfiguraci z archivovaného `.xlsx`**, ne z tabulek: poslední
+  úspěšně naimportovaná nahrávka → `importWorkbook` → `toEngineConfig`, a její ID
+  jde do `config_upload_id`. Druhý převodník „tabulky → `EngineConfig`" se
+  nepíše. Tabulky v databázi slouží UI; s enginem je pojí ID z tabulky autora.
+- **Hod patří variantě, ne postavě a kapitole.** Klíč v `dice_rolls` je
+  `(run_id, block_variation_id, occurrence)`; vlastníka (postava nebo skupina)
+  i kapitolu říká blok varianty. Žádný obecný `owner_id` — neměl by cizí klíč.
+- **Odpověď na otázku, která se přestala pokládat, aplikace neřeší.** Vzniknout
+  by neměla (znamenalo by to opravu kapitoly 1 poté, co se vyplnila kapitola 2
+  a oprava překlopila variantu `Questions` bloku). Kdyby přece: engine přepočet
+  odmítne nahlas (`invalid_answer … never asked`) a řeší se to ručně. Žádné UI,
+  žádné tiché vynechávání při načítání.
+
 - **Výchozí odpovědi neexistují.** Každá odpověď je explicitně zadaná člověkem.
   Když hráč nedodá papír, org dotazník **vyklikne ručně**. Přepočet **nelze
   spustit**, dokud něco chybí; aplikace vypíše seznam chybějících. Žádné tiché
@@ -821,7 +846,9 @@ CONSTRAINT` na nich ztroskotá. Skončí s nulovým exit kódem a chybami ve vý
 ## Pořadí dalších kroků (§15.2)
 
 Engine je hotový, rozvržení aplikace (hlavička, běhy, sekce, levý panel) stojí.
-Dál v tomhle pořadí:
+Dál v tomhle pořadí; kroky 1–2 mají zadání v
+`documents/zadani-session-4-prepocet-jadro.md`, krok 3 v
+`documents/zadani-session-5-dotaznik.md`:
 
 1. **Navigace po postavách a kapitolách** — položky levého panelu a stavy kapitol
    v hlavičce jako odkazy, postava i kapitola v cestě URL.

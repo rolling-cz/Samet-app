@@ -692,6 +692,18 @@ describe('purity', () => {
     expect(JSON.stringify(initial)).toBe(frozen)
   })
 
+  it('refuses a multi answer with nothing selected — "none of these" is an option the author writes', () => {
+    const config = configFrom({
+      questions1: [
+        { ...single('Marie', ''), Type: 'multi' },
+        { [ANSWER_ID_COLUMN]: 'A_Marie_1_1_Nic', [ANSWER_LABEL_COLUMN]: 'Nic z uvedeného' },
+      ],
+    })
+
+    expect(() => run1(config, [{ questionId: 'Q_Marie_1_1', selectedOptionIds: [] }])).toThrow(/multi needs at least one option/)
+    expect(run1(config, [choose('Q_Marie_1_1', 'A_Marie_1_1_Nic')]).conflicts).toEqual([])
+  })
+
   it('refuses a missing answer and an answer to a question that was not asked', () => {
     const { chapter1, config } = runFixture()
     const chapter2 = (answers: AnswerInput[]) =>

@@ -382,6 +382,8 @@ Krok [4] musí jít spustit **opakovaně a nedestruktivně** (dry-run) — org s
 | `poll`        | Definice ankety: společná otázka bez postavy (§6.6)                     |
 | `poll-answer` | Otázka postavy, která odkazuje na anketu (`poll`) a hlasuje v ní (§6.6) |
 
+**U `multi` je povinná aspoň jedna vybraná odpověď.** Smí-li postava nevybrat nic, napíše autor „nic z uvedeného“ jako běžnou odpověď do tabulky. Prázdný výběr je nezodpovězená otázka — žádné výchozí odpovědi (§6.3) — a engine ho odmítne.
+
 #### Odpovědi u `bool` otázek [ROZHODNUTO]
 
 U otázek typu `bool` mohou v tabulce (v `Responses`) existovat **dva řádky odpovědí, s textem `Ano` a `Ne`**. Jejich **ID se nemusí vyplňovat** — aplikace ho odvodí sama:
@@ -584,7 +586,7 @@ Engine nehádá: co nesmí rozhodnout sám, vrátí jako konflikt do UI a nechá
 Model je jednoduchý: **hoď digitální kostkou a výsledek ulož jako data.**
 
 1. Výraz si vyžádá hod — funkce `RANDOM(50)` v podmínce znamená padesátiprocentní pravděpodobnost. Aplikace vygeneruje číslo.
-2. Výsledek se **uloží ke konkrétní postavě, kapitole a variantě bloku** jako běžná hodnota — stejně jako odpověď hráče.
+2. Výsledek se **uloží ke konkrétní postavě, kapitole a variantě bloku** jako běžná hodnota — stejně jako odpověď hráče. V databázi se hod váže **jen na variantu** (a pořadí `RANDOM` ve výrazu): vlastníka — postavu nebo skupinu — i kapitolu říká její blok, takže se neukládají zvlášť.
 3. **Přepočet hod NEOPAKUJE.** Použije uložené číslo. Přehodit lze jen výslovnou akcí orga („Přehodit"), která se zapíše do auditu včetně staré hodnoty.
 4. Org může hozené číslo ručně přepsat. I to jde do auditu.
 5. `RANDOM` se používá **jen v podmínkách variant bloků** (`N_Content`). Ve sloupci `Condition` v `N_Questions` je jen `Variation ID` (§4.5), takže tam být nemůže.

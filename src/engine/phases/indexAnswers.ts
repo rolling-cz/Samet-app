@@ -49,6 +49,11 @@ const checkOptions = (question: QuestionDefinition, answer: AnswerInput, catalog
   if (SINGLE_CHOICE_TYPES.includes(question.type) && answer.selectedOptionIds.length !== 1) {
     report(question.id, `${question.type} needs exactly one option, got ${answer.selectedOptionIds.length}`)
   }
+  // "None of these" is an option the author writes; an empty selection is an
+  // unanswered question, and there are no default answers (§6.1, §6.3).
+  if (question.type === 'multi' && answer.selectedOptionIds.length === 0) {
+    report(question.id, 'multi needs at least one option')
+  }
   if (DIRECT_TYPES.includes(question.type)) {
     if (answer.selectedOptionIds.length !== 1) report(question.id, `${question.type} needs its one option selected`)
     if (answer.value !== undefined && !Number.isInteger(answer.value)) {
