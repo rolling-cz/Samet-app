@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1789221235624,
-      "tag": "0000_damp_sebastian_shaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1789227298006,
-      "tag": "0001_empty_jasper_sitwell",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1789227628164,
-      "tag": "0002_parched_odin",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1789247396081,
-      "tag": "0003_drop_config_version_refs",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1789247396765,
-      "tag": "0004_drop_config_versions",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1789247559474,
-      "tag": "0005_uploaded_files_archive",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1789888621021,
-      "tag": "0006_magenta_lockjaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1789891253768,
-      "tag": "0007_households_replace_group_state",
+      "when": 1789893062184,
+      "tag": "0000_cloudy_rumiko_fujikawa",
       "breakpoints": true
     }
   ]

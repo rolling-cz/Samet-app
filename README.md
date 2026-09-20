@@ -46,8 +46,7 @@ npm run pg init             # založí cluster, spustí ho a vyrobí databázi s
 docker compose up -d
 
 # 4) schéma a data
-npm run db:migrate          # aplikuje migrace z drizzle/
-npm run db:sql              # doplní SQL, které Drizzle neumí (append-only audit)
+npm run db:setup            # migrace z drizzle/ + SQL, které Drizzle neumí (append-only audit)
 npm run db:seed             # ukázková data: běh 2026-09-12_A, Marie Balážová
 
 # 5) aplikace
@@ -59,9 +58,38 @@ otevře konzoli nad `samet_larp`. Autentizace je `trust` na loopbacku — heslo
 v `DATABASE_URL` server ignoruje.
 
 Po každé změně schématu: `npm run db:generate` vyrobí novou migraci, `npm run
-db:migrate` ji aplikuje. Při rychlém experimentování se schématem jde použít
-`npm run db:setup` (= `db:push` + `db:sql`), která schéma nasype do databáze bez
-migrace — ale do gitu patří vygenerovaná migrace, ne pushnuté schéma.
+db:setup` ji aplikuje i s ručním SQL z `db/sql/`.
+
+### Po každém pullu, který sáhl na schéma
+
+**Schéma v `src/db/schema/` se s databází nesynchronizuje samo.** Když stáhneš
+commit, který mění schéma, a databázi necháš být, aplikace se rozjede a spadne
+až při zápisu — hláškou `Failed query: insert into …`. Typicky to potká import
+konfigurace. Proto po každém pullu se změnou v `src/db/schema/` nebo `drizzle/`:
+
+```bash
+npm run db:setup            # db:migrate + db:sql
+```
+
+Když je databáze rozhozená tak, že migrace nesednou, nebo prostě chceš začít
+načisto:
+
+```bash
+npm run db:reset            # zahodí VŠECHNA data, postaví schéma znovu, doplní db/sql/
+npm run db:seed             # volitelně ukázkový běh
+```
+
+`db:reset` odmítne běžet proti jinému než lokálnímu serveru; na Neon ho lze
+pustit jen vědomě přes `npm run db:reset -- --force`.
+
+### Proč se tu nepoužívá `db:push`
+
+`drizzle-kit push` na tomhle schématu **neprojde**. Každý unikát `(run_id, id)`
+je cílem kompozitních cizích klíčů (architektonické pravidlo 2), push si je
+pokaždé chce přegenerovat a `ALTER TABLE … DROP CONSTRAINT` na nich ztroskotá
+na závislých FK. Push skončí s nulovým exit kódem a hromadou chyb ve výpisu,
+takže to vypadá, že se něco stalo — nestalo. **Jedinou cestou ke změně schématu
+jsou migrace**, `db:push` zůstává ve skriptech jen jako nouzová sonda.
 
 ## Skripty
 
@@ -75,8 +103,10 @@ migrace — ale do gitu patří vygenerovaná migrace, ne pushnuté schéma.
 | `npm run pg init` / `start` / `stop` / `status` / `psql` | lokální Postgres cluster bez Dockeru |
 | `npm run db:generate` | vygeneruje SQL migraci z Drizzle schématu |
 | `npm run db:migrate` | aplikuje migrace |
-| `npm run db:push` | nasype schéma do DB bez migrace (jen pro vývoj) |
+| `npm run db:push` | nouzová sonda; na tomhle schématu neprojde, viz výše |
 | `npm run db:sql` | pustí ruční SQL z `db/sql/` (idempotentní) |
+| `npm run db:setup` | `db:migrate` + `db:sql` — po každém pullu se změnou schématu |
+| `npm run db:reset` | zahodí všechna data a postaví schéma načisto (jen lokálně) |
 | `npm run db:seed` | naplní ukázkový běh |
 | `npm run db:studio` | Drizzle Studio nad databází |
 

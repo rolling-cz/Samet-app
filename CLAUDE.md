@@ -739,6 +739,21 @@ postava × škála**.
   v `src/db/schema/` je jediný zdroj pravdy o struktuře databáze.
 - Co Drizzle neumí vyjádřit, patří do `db/sql/` jako **idempotentní** skript
   a pouští se `npm run db:sql` po migracích (`npm run db:setup` udělá obojí).
+- **Databáze se schématem nesynchronizuje sama.** Po každé změně v
+  `src/db/schema/` — vlastní i stažené pullem — je potřeba `npm run db:setup`
+  (= `db:migrate` + `db:sql`). Stará databáze se neprojeví při startu, ale až
+  při zápisu, jako `Failed query: insert into …`. **Když na tuhle hlášku
+  narazíš, první krok je porovnat sloupce v databázi se schématem**, ne hledat
+  chybu v importu. Úplně načisto: `npm run db:reset` (jen lokálně).
+- **`drizzle-kit push` se tu nepoužívá.** Unikáty `(run_id, id)` jsou cílem
+  kompozitních cizích klíčů, push si je chce pokaždé přegenerovat a `DROP
+CONSTRAINT` na nich ztroskotá. Skončí s nulovým exit kódem a chybami ve výpisu,
+  takže tiše neudělá nic. Schéma se mění **výhradně migracemi**.
+- **Migrace musí jít přehrát na prázdné databázi.** `drizzle-kit` umí
+  vygenerovat migraci, která nejdřív zahodí tabulku `CASCADE` a pak ruší
+  constrainty, které tím už zmizely — projde na tvojí databázi a spadne na
+  cizí. Po `db:generate` proto vždycky `npm run db:reset` a ověř, že migrace
+  sedne načisto.
 - **Unikát, na který míří cizí klíč, musí být `unique()`, ne `uniqueIndex()`.**
   Drizzle generuje `CREATE UNIQUE INDEX` až za `ALTER TABLE ADD CONSTRAINT
 ... FOREIGN KEY`, takže FK na `(run_id, id)` by v migraci neměl na co ukázat

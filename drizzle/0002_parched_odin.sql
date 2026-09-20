@@ -1,1 +1,0 @@
-ALTER TABLE "config_versions" ADD COLUMN "content_snapshot" jsonb;
