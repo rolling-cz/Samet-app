@@ -18,11 +18,17 @@ export const resolveOwner = (
   location: IssueLocation,
   subject: string,
   issues: IssueCollector,
+  /**
+   * False when the cell was carried down rather than written here. The author
+   * typed the name once; repeating the warning for every row that inherits it
+   * would bury the one place they have to fix.
+   */
+  wasWritten = true,
 ): string | undefined => {
   const resolved = resolveCharacter(value, aliases)
   if (resolved.status === 'neznama') return undefined
 
-  if (resolved.status === 'podle_jmena') {
+  if (resolved.status === 'podle_jmena' && wasWritten) {
     repairs.resolvedCharacterNames++
     issues.warn(
       'neznama_postava',

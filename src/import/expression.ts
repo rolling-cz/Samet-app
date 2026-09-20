@@ -6,8 +6,10 @@
  * and syntax-checks them — evaluation is the engine's job (§7), and the tree
  * produced here is what it will walk.
  *
- * Language (§4.5): identifiers `A_…` answer, `S_…` scale, `F_…` flag,
+ * Language (§4.5): identifiers `A_…` answer, `S_…` scale, `R_…` resource,
  * `AND` / `OR`, `!`, parentheses, comparisons, `RANDOM(50)` and `DEFAULT`.
+ * An identifier may also be a poll's winning answer, which is spelled like any
+ * other answer (§6.6).
  */
 import jsep from 'jsep'
 
@@ -16,10 +18,15 @@ import jsep from 'jsep'
 jsep.addBinaryOp('AND', 2)
 jsep.addBinaryOp('OR', 1)
 
-/** Always-true fallback variant (§8.2); it stands last and is not an expression. */
+/**
+ * Always-true fallback variant (§8.2); it stands last and is not an expression.
+ *
+ * An empty cell means exactly the same thing, so nothing downstream may tell
+ * the two apart.
+ */
 export const DEFAULT_CONDITION = 'DEFAULT'
 
-export type ReferenceKind = 'odpoved' | 'skala' | 'priznak' | 'neznamy'
+export type ReferenceKind = 'odpoved' | 'skala' | 'zdroj' | 'neznamy'
 
 export interface ExpressionReference {
   name: string
@@ -46,7 +53,7 @@ export interface ExpressionParse {
 const classify = (name: string): ReferenceKind => {
   if (name.startsWith('A_')) return 'odpoved'
   if (name.startsWith('S_')) return 'skala'
-  if (name.startsWith('F_')) return 'priznak'
+  if (name.startsWith('R_')) return 'zdroj'
 
   return 'neznamy'
 }
@@ -70,18 +77,10 @@ const RANDOM_MAX_PERCENT = 100
 export const parseCondition = (cell: string | undefined | null): ExpressionParse => {
   const raw = (cell ?? '').trim()
 
-  if (raw === '') {
-    return {
-      raw,
-      isDefault: false,
-      ok: false,
-      error: 'podmínka je prázdná — napište výraz, nebo `DEFAULT` pro vždy platnou variantu',
-      references: [],
-      usesRandom: false,
-    }
-  }
-
-  if (raw === DEFAULT_CONDITION) {
+  // An empty cell and `DEFAULT` mean the same thing (§4.5, §8.2): the
+  // always-true fallback. Treating an empty cell as an error would reject the
+  // way the author writes the last variant of most blocks.
+  if (raw === '' || raw === DEFAULT_CONDITION) {
     return { raw, isDefault: true, ok: true, references: [], usesRandom: false }
   }
 

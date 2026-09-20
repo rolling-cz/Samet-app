@@ -1,175 +1,110 @@
-import {
-  BAND_SEPARATOR,
-  HOUSEHOLD_SCOPE_WORDS,
-} from '../constants/sheet-vocabulary'
-import {
-  COPY_SPLIT_STRATEGY,
-  DEFAULT_SCALE_MAX,
-  DEFAULT_SCALE_MIN,
-  SHEET_COPY_SPLIT_STRATEGY,
-} from '../constants/scale-defaults'
-import { chapterSheetName, SCALE_COLUMNS } from '../constants/sheets'
+import { DEFAULT_SCALE_MAX, DEFAULT_SCALE_MIN } from '../constants/scale-defaults'
+import { SCALE_COLUMNS, SCALE_FILL_DOWN_COLUMNS, SCALES_SHEET } from '../constants/sheets'
+import type { CharacterAliases } from '../characters'
+import { splitImpactId } from '../scale-impact'
 import type { IssueCollector } from '../issue-collector'
-import type { IssueLocation } from '../types/issue'
 import type { ImportRepairs, Workbook } from '../types/parsed-config'
-import type { ParsedBand, ParsedScale } from '../types/parsed-scale'
+import type { ParsedScaleRow } from '../types/parsed-scale'
 import { readConfigSheet, requireColumns } from './read-config-sheet'
+import { readInteger } from './read-number'
+import { resolveOwner } from './resolve-character-refs'
 
-/** `1-3` in the `Prahy` column. */
-const BAND_RANGE = /^(\d+)\s*-\s*(\d+)$/
-
+/**
+ * The `Scales` sheet (§4.2): which scales a character has, on what range and
+ * from what starting value.
+ *
+ * Chapter-independent on purpose — `Default` is the state before chapter 1, and
+ * from chapter 2 the engine starts from the previous chapter's snapshot, so a
+ * per-chapter sheet would only invite two sources of truth.
+ */
 export const parseScales = (
   workbook: Workbook,
-  chapter: number,
+  aliases: CharacterAliases,
   issues: IssueCollector,
   repairs: ImportRepairs,
-): ParsedScale[] => {
-  const name = chapterSheetName(chapter, 'Scales')
-  const read = readConfigSheet(workbook, name, repairs)
+): ParsedScaleRow[] => {
+  const read = readConfigSheet(workbook, SCALES_SHEET, repairs, SCALE_COLUMNS, SCALE_FILL_DOWN_COLUMNS)
   if (!read) {
     issues.error(
       'chybejici_list',
-      { sheet: name },
-      `Kapitola ${chapter} má v souboru listy, ale chybí jí \`${name}\` s definicí škál.`,
+      { sheet: SCALES_SHEET },
+      `V souboru chybí povinný list \`${SCALES_SHEET}\` se škálami postav.`,
     )
 
     return []
   }
-  if (!requireColumns(name, read.headers, SCALE_COLUMNS, issues)) return []
+  if (!requireColumns(SCALES_SHEET, read.headers, SCALE_COLUMNS, issues)) return []
 
-  const scales: ParsedScale[] = []
+  const rows: ParsedScaleRow[] = []
   const seen = new Map<string, number>()
 
   for (const row of read.rows) {
-    const key = row.get('Scale ID')
-    if (key === '') {
-      issues.error('chybejici_hodnota', row.at('Scale ID'), 'Řádek nemá `Scale ID`.')
+    const characterRef = row.get('Character')
+    const externalId = row.get('ID')
+    if (externalId === '') {
+      issues.error('chybejici_hodnota', row.at('ID'), 'Řádek nemá `ID` škály.')
       continue
     }
 
-    const previous = seen.get(key)
+    // The ID carries both parts (`S_Marie_Regime`); the `Character` column
+    // repeats the owner and is what the author is most likely to mistype.
+    const parts = splitImpactId(externalId)
+    if (!parts || parts.kind !== 'skala') {
+      issues.error(
+        'chybejici_hodnota',
+        row.at('ID'),
+        `\`${externalId}\` není ID škály — čeká se tvar \`S_<Postava>_<Skala>\`.`,
+        { value: externalId },
+      )
+      continue
+    }
+    const key = parts.key
+
+    if (characterRef === '') {
+      issues.error(
+        'chybejici_hodnota',
+        row.at('Character'),
+        `Škála \`${externalId}\` nemá postavu — každý řádek je dvojice postava × škála.`,
+      )
+      continue
+    }
+
+    const characterId = resolveOwner(
+      characterRef,
+      aliases,
+      repairs,
+      row.at('Character'),
+      `Škála \`${externalId}\``,
+      issues,
+    )
+
+    const previous = seen.get(externalId)
     if (previous !== undefined) {
       issues.error(
         'duplicitni_id',
-        row.at('Scale ID'),
-        `Škála \`${key}\` je v listu \`${name}\` dvakrát (poprvé na řádku ${previous}).`,
-        { value: key },
+        row.at('ID'),
+        `Dvojice postava × škála \`${externalId}\` je v listu \`${SCALES_SHEET}\` dvakrát (poprvé na řádku ${previous}).`,
+        { value: externalId },
       )
       continue
     }
-    seen.set(key, row.rowNumber)
+    seen.set(externalId, row.rowNumber)
 
-    const scopeRaw = row.get('Rozsah')
-    let scope: ParsedScale['scope'] = 'postava'
-    if (HOUSEHOLD_SCOPE_WORDS.includes(scopeRaw)) {
-      scope = 'domacnost'
-    } else if (scopeRaw !== 'postava') {
-      issues.error(
-        'chybejici_hodnota',
-        row.at('Rozsah'),
-        `Škála \`${key}\` má neznámý rozsah platnosti „${scopeRaw}" — čeká se \`postava\` nebo \`domacnost\`.`,
-        { value: scopeRaw },
-      )
-    }
+    const min = readInteger(row, 'Min', DEFAULT_SCALE_MIN, externalId, issues)
+    const max = readInteger(row, 'Max', DEFAULT_SCALE_MAX, externalId, issues)
 
-    // Merge and split only mean something on a shared scale, and the database
-    // rejects them elsewhere. The author fills the whole column out of habit,
-    // so they are dropped quietly and counted for the import summary.
-    let mergeStrategy = row.get('Slouceni') || undefined
-    let splitStrategy = normalizeSplitStrategy(row.get('Rozdeleni'))
-    if (scope === 'postava' && (mergeStrategy || splitStrategy)) {
-      repairs.droppedScaleStrategies++
-      mergeStrategy = undefined
-      splitStrategy = undefined
-    }
-
-    scales.push({
+    rows.push({
+      externalId,
+      characterRef,
+      characterId,
       key,
-      label: row.get('Nazev') || key,
-      scope,
-      min: integerOr(row.get('Min'), DEFAULT_SCALE_MIN),
-      max: integerOr(row.get('Max'), DEFAULT_SCALE_MAX),
-      bands: parseBands(row.get('Prahy'), row.get('Nazvy pasem'), key, row.at('Prahy'), issues),
-      mergeStrategy,
-      splitStrategy,
-      location: row.at('Scale ID'),
+      label: row.get('Name') || key,
+      min,
+      max,
+      defaultValue: readInteger(row, 'Default', min, externalId, issues),
+      location: row.at('ID'),
     })
   }
 
-  return scales
-}
-
-/** `1-3;4-5;6-8;9-10` paired with `Na dně;Vyžije;…` (§4.1). */
-const parseBands = (
-  thresholds: string,
-  names: string,
-  scaleKey: string,
-  location: IssueLocation,
-  issues: IssueCollector,
-): ParsedBand[] => {
-  if (thresholds === '') return []
-
-  const ranges = thresholds.split(BAND_SEPARATOR).map((s) => s.trim()).filter((s) => s !== '')
-  const labels = names.split(BAND_SEPARATOR).map((s) => s.trim())
-
-  if (labels.length !== ranges.length) {
-    issues.error(
-      'chybejici_hodnota',
-      location,
-      `Škála \`${scaleKey}\` má ${ranges.length} pásem, ale ${labels.filter((l) => l !== '').length} názvů — počty musí sedět.`,
-      { value: thresholds },
-    )
-  }
-
-  const bands: ParsedBand[] = []
-  ranges.forEach((range, index) => {
-    const match = BAND_RANGE.exec(range)
-    if (!match) {
-      issues.error(
-        'chybejici_hodnota',
-        location,
-        `Pásmo „${range}" škály \`${scaleKey}\` se nedá přečíst — čeká se tvar \`1-3\`.`,
-        { value: range },
-      )
-
-      return
-    }
-
-    const min = Number(match[1])
-    const max = Number(match[2])
-    if (min > max) {
-      issues.error(
-        'hodnota_mimo_rozsah',
-        location,
-        `Pásmo „${range}" škály \`${scaleKey}\` má dolní hranici větší než horní.`,
-        { value: range },
-      )
-
-      return
-    }
-
-    const ordinal = index + 1
-    bands.push({ ordinal, min, max, name: labels[index] ?? `Pásmo ${ordinal}` })
-  })
-
-  return bands
-}
-
-/**
- * `kazdy_si_odnasi` is how the sheet spells the default split — each partner
- * takes the current household value, which is `kopie` in the data model (§4.4).
- */
-const normalizeSplitStrategy = (raw: string): string | undefined => {
-  if (raw === '') return undefined
-
-  return raw === SHEET_COPY_SPLIT_STRATEGY ? COPY_SPLIT_STRATEGY : raw
-}
-
-/** An empty cell falls back too — `Number('')` would otherwise read as 0. */
-const integerOr = (raw: string, fallback: number): number => {
-  if (raw === '') return fallback
-
-  const value = Number(raw)
-
-  return Number.isInteger(value) ? value : fallback
+  return rows
 }

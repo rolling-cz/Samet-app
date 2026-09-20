@@ -4,20 +4,21 @@
  * A run has one valid config, so an entity dropped from the sheet has to leave
  * the database too — otherwise the engine would keep computing with it.
  */
-import { inArray, isNotNull, type SQL } from 'drizzle-orm'
+import { inArray, type SQL } from 'drizzle-orm'
 import type { PgColumn } from 'drizzle-orm/pg-core'
 import { isForeignKeyViolation, type RunScope, type RunScopedTable } from '@/db'
 import {
   answerOptions,
   blockVariations,
+  characterResources,
   characterScales,
   characters,
   contentBlocks,
+  effectInputs,
   effects,
-  flags,
   groups,
   questions,
-  scaleBands,
+  resources,
   scales,
 } from '@/db/schema'
 import { errors } from '@/locales/cs/errors'
@@ -30,7 +31,7 @@ type ImportedTable = RunScopedTable & { id: PgColumn }
  * Rows derived from answer options rather than written by the author. Dropping
  * them is part of fixing a scale impact, so even a frozen config may.
  */
-const DERIVED_KINDS: ReadonlySet<keyof WrittenRows> = new Set(['effects', 'flags'])
+const DERIVED_KINDS: ReadonlySet<keyof WrittenRows> = new Set(['effects', 'effectInputs'])
 
 export interface StaleRows {
   kind: keyof WrittenRows
@@ -64,16 +65,16 @@ const collect = async <T extends ImportedTable>(
 
 /** In delete order: dependents first, because every foreign key is `restrict`. */
 export const findStaleRows = async (scope: RunScope, written: WrittenRows): Promise<StaleRows[]> => [
-  // Rule-owned effects are not the import's to remove.
-  await collect(scope, written, 'effects', effects, (r) => ({ id: r.id, label: r.externalId }), isNotNull(effects.answerOptionId)),
+  await collect(scope, written, 'effectInputs', effectInputs, (r) => ({ id: r.id, label: r.inputKey })),
+  await collect(scope, written, 'effects', effects, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'answerOptions', answerOptions, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'questions', questions, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'blockVariations', blockVariations, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'contentBlocks', contentBlocks, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'characterScales', characterScales, (r) => ({ id: r.id, label: r.externalId })),
-  await collect(scope, written, 'scaleBands', scaleBands, (r) => ({ id: r.id, label: r.name })),
+  await collect(scope, written, 'characterResources', characterResources, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'scales', scales, (r) => ({ id: r.id, label: r.key })),
-  await collect(scope, written, 'flags', flags, (r) => ({ id: r.id, label: r.key })),
+  await collect(scope, written, 'resources', resources, (r) => ({ id: r.id, label: r.key })),
   await collect(scope, written, 'characters', characters, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'groups', groups, (r) => ({ id: r.id, label: r.externalId })),
 ]

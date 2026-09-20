@@ -22,17 +22,22 @@ describe('parseCondition', () => {
   })
 
   it('reads AND with a scale comparison', () => {
-    const result = parseCondition('A_Marie_2_1_Mirek AND S_Marie_Wealth_spolecny >= 7')
+    const result = parseCondition('A_Marie_2_1_Mirek AND S_Marie_Regime >= 7')
     expect(result.ok).toBe(true)
     expect(result.references).toEqual([
       { name: 'A_Marie_2_1_Mirek', kind: 'odpoved' },
-      { name: 'S_Marie_Wealth_spolecny', kind: 'skala' },
+      { name: 'S_Marie_Regime', kind: 'skala' },
     ])
   })
 
-  it('classifies a flag reference', () => {
-    const result = parseCondition('A_Marie_2_4_Ano AND F_Vedouci')
-    expect(result.references.map((r) => r.kind)).toEqual(['odpoved', 'priznak'])
+  it('classifies a resource reference', () => {
+    const result = parseCondition('A_Marie_2_4_Ano AND R_Marie_Wealth >= 7')
+    expect(result.references.map((r) => r.kind)).toEqual(['odpoved', 'zdroj'])
+  })
+
+  it('an identifier with no known prefix is reported, not guessed at', () => {
+    const result = parseCondition('F_Vedouci')
+    expect(result.references.map((r) => r.kind)).toEqual(['neznamy'])
   })
 
   it('accepts the single = the author writes', () => {
@@ -63,7 +68,7 @@ describe('parseCondition', () => {
 
   it('catches the missing closing bracket from the sample sheet', () => {
     const result = parseCondition(
-      '!A_Marie_2_1_Mirek AND !(S_Marie_Wealth_osobni <= 3 OR F_Svatba',
+      '!A_Marie_2_1_Mirek AND !(R_Marie_Wealth <= 3 OR A_Marie_2_2_Ano',
     )
     expect(result.ok).toBe(false)
     expect(result.error).toContain('uzavírací závorka')
@@ -97,14 +102,16 @@ describe('parseCondition', () => {
     expect(result.error).toContain('DEFAULT')
   })
 
-  it('an empty condition is an error, never a silent always-true', () => {
+  // §4.5, §8.2: an empty cell and `DEFAULT` mean the same thing — the fallback
+  // variant. It is how the author writes the last row of most blocks.
+  it('an empty condition is the always-true fallback, same as DEFAULT', () => {
     const result = parseCondition('')
-    expect(result.ok).toBe(false)
-    expect(result.isDefault).toBe(false)
+    expect(result.ok).toBe(true)
+    expect(result.isDefault).toBe(true)
   })
 
   it('deduplicates repeated references', () => {
-    const result = parseCondition('A_x OR (A_x AND F_y)')
+    const result = parseCondition('A_x OR (A_x AND S_y_z)')
     expect(result.references).toHaveLength(2)
   })
 

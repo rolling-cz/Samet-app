@@ -1,79 +1,55 @@
-import { MERGE_STRATEGIES, SPLIT_STRATEGIES } from '../constants/scale-defaults'
 import type { IssueCollector } from '../issue-collector'
 import type { ParsedConfig } from '../types/parsed-config'
-import type { ParsedScale } from '../types/parsed-scale'
+import { suggestClosest } from '../utils/suggest-closest'
 
+/**
+ * The `Scales` and `Resources` sheets (§11, bod 7).
+ *
+ * Bounds belong to the pair character × scale, so every row is checked on its
+ * own: `Min` above `Max` and a default outside the range are both errors, not
+ * something to clamp quietly — a wrong starting value is wrong numbers in
+ * every document of the run.
+ */
 export const checkScales = (config: ParsedConfig, issues: IssueCollector): void => {
-  for (const [chapter, scales] of config.scales) {
-    for (const scale of scales) {
-      // §4.4: a shared scale without both strategies cannot survive a
-      // marriage or a divorce, and the engine must never invent one.
-      if (scale.scope === 'domacnost' && (!scale.mergeStrategy || !scale.splitStrategy)) {
-        const missing = [
-          scale.mergeStrategy ? undefined : '`Slouceni`',
-          scale.splitStrategy ? undefined : '`Rozdeleni`',
-        ]
-          .filter(Boolean)
-          .join(' a ')
-        issues.error(
-          'domacnostni_skala_bez_strategie',
-          scale.location,
-          `Domácnostní škála \`${scale.key}\` (kapitola ${chapter}) nemá vyplněno ${missing} — bez strategie se nedá sloučit při sňatku ani rozdělit při rozvodu.`,
-          { value: scale.key },
-        )
-      }
+  const characterIds = new Set(config.characters.map((character) => character.externalId))
 
-      if (scale.mergeStrategy && !MERGE_STRATEGIES.includes(scale.mergeStrategy)) {
-        issues.error(
-          'chybejici_hodnota',
-          scale.location,
-          `Škála \`${scale.key}\` má neznámou strategii sloučení „${scale.mergeStrategy}" — čeká se ${MERGE_STRATEGIES.join(', ')}.`,
-          { value: scale.mergeStrategy },
-        )
-      }
-      if (scale.splitStrategy && !SPLIT_STRATEGIES.includes(scale.splitStrategy)) {
-        issues.error(
-          'chybejici_hodnota',
-          scale.location,
-          `Škála \`${scale.key}\` má neznámou strategii rozdělení „${scale.splitStrategy}" — čeká se ${SPLIT_STRATEGIES.join(', ')}.`,
-          { value: scale.splitStrategy },
-        )
-      }
+  for (const row of config.scales) {
+    if (row.characterId === undefined) {
+      issues.error(
+        'neznama_postava',
+        row.location,
+        `Škála \`${row.key}\` je vedená na postavu \`${row.characterRef}\`, která není v listu \`Characters\`.`,
+        { value: row.characterRef, suggestion: suggestClosest(row.characterRef, characterIds) },
+      )
+    }
 
-      checkBands(scale, chapter, issues)
+    if (row.min >= row.max) {
+      issues.error(
+        'hodnota_mimo_rozsah',
+        row.location,
+        `Škála \`${row.externalId}\` má \`Min\` ${row.min} a \`Max\` ${row.max} — dolní hranice musí být menší než horní.`,
+        { value: `${row.min}-${row.max}` },
+      )
+      continue
+    }
+
+    if (row.defaultValue < row.min || row.defaultValue > row.max) {
+      issues.error(
+        'hodnota_mimo_rozsah',
+        row.location,
+        `Výchozí hodnota ${row.defaultValue} škály \`${row.externalId}\` je mimo rozsah ${row.min}–${row.max}.`,
+        { value: String(row.defaultValue) },
+      )
     }
   }
-}
 
-const checkBands = (scale: ParsedScale, chapter: number, issues: IssueCollector): void => {
-  const sorted = [...scale.bands].sort((a, b) => a.min - b.min)
-
-  sorted.forEach((band, index) => {
-    if (band.min < scale.min || band.max > scale.max) {
-      issues.error(
-        'hodnota_mimo_rozsah',
-        scale.location,
-        `Pásmo ${band.min}–${band.max} škály \`${scale.key}\` (kapitola ${chapter}) přesahuje rozsah škály ${scale.min}–${scale.max}.`,
-        { value: `${band.min}-${band.max}` },
-      )
-    }
-
-    const next = sorted[index + 1]
-    if (next && next.min <= band.max) {
-      issues.error(
-        'hodnota_mimo_rozsah',
-        scale.location,
-        `Pásma škály \`${scale.key}\` se překrývají: ${band.min}–${band.max} a ${next.min}–${next.max}.`,
-        { value: scale.key },
-      )
-    }
-    if (next && next.min > band.max + 1) {
-      issues.warn(
-        'hodnota_mimo_rozsah',
-        scale.location,
-        `Mezi pásmy škály \`${scale.key}\` je díra: hodnoty ${band.max + 1}–${next.min - 1} nepatří do žádného pásma.`,
-        { value: scale.key },
-      )
-    }
-  })
+  for (const row of config.resources) {
+    if (row.characterId !== undefined) continue
+    issues.error(
+      'neznama_postava',
+      row.location,
+      `Zdroj \`${row.key}\` je vedený na postavu \`${row.characterRef}\`, která není v listu \`Characters\`.`,
+      { value: row.characterRef, suggestion: suggestClosest(row.characterRef, characterIds) },
+    )
+  }
 }

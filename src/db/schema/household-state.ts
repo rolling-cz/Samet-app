@@ -1,15 +1,14 @@
-import { sql } from 'drizzle-orm'
-import { boolean, check, foreignKey, integer, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
+import { foreignKey, integer, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
 import { createdAt } from './columns'
 import { stateSource } from './enums'
 import { characters } from './characters'
 import { households } from './households'
-import { scaleBands, scales } from './scales'
+import { resources } from './resources'
 import { computations } from './computations'
 import { chapters, runs } from './runs'
 
 /**
- * Per-chapter household membership and shared scale values (§4.4).
+ * Per-chapter household membership and joint account balances (§4.4).
  *
  * State is snapshotted after each chapter and never overwritten. Every row
  * carries the `computation_id` that produced it; `NULL` is the initial state
@@ -20,10 +19,10 @@ import { chapters, runs } from './runs'
  *
  * A character is in at most one household at a time, enforced by a unique on
  * (run, chapter, character, computation) rather than by a consistency check:
- * reading shared values rests on that invariant.
+ * routing an impact to the joint account rests on that invariant.
  *
- * Every character gets a household of one when the run starts, so this table is
- * never sparse and the engine needs no "no household" branch.
+ * The table is sparse on purpose: a single character has no row, because they
+ * are not a household of one — their money simply stays personal.
  */
 export const householdMemberships = pgTable(
   'household_memberships',
@@ -67,17 +66,16 @@ export const householdMemberships = pgTable(
 )
 
 /**
- * A shared scale's value (§4.4) — owned by the household, not by a character.
+ * The joint account (§4.4) — owned by the household, not by a character, so a
+ * shared value is never copied between spouses.
  *
- * `postava` scales belong in `character_scale_values`, `domacnost` ones here.
- * The database cannot check that a row matches its scale's scope (it spans
- * tables); the §11 consistency check does.
+ * Only `household`-scoped resources belong here. The database cannot check the
+ * scope (it spans tables); the §11 consistency check does.
  *
- * Clamping is recorded as for character scales. It matters more here: several
- * people contribute, so the bound is reached sooner.
+ * Contributions of both members add up: both earn into the same account.
  */
-export const householdScaleValues = pgTable(
-  'household_scale_values',
+export const householdResourceValues = pgTable(
+  'household_resource_values',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     runId: text('run_id')
@@ -85,46 +83,33 @@ export const householdScaleValues = pgTable(
       .references(() => runs.id, { onDelete: 'restrict' }),
     chapterId: uuid('chapter_id').notNull(),
     householdId: uuid('household_id').notNull(),
-    scaleId: uuid('scale_id').notNull(),
+    resourceId: uuid('resource_id').notNull(),
     value: integer('value').notNull(),
-    rawValue: integer('raw_value'),
-    wasClamped: boolean('was_clamped').notNull().default(false),
-    bandId: uuid('band_id'),
     source: stateSource('source').notNull(),
     computationId: uuid('computation_id'),
     createdAt: createdAt(),
   },
   (t) => [
-    unique('household_scale_values_unique')
-      .on(t.runId, t.chapterId, t.householdId, t.scaleId, t.computationId)
+    unique('household_resource_values_unique')
+      .on(t.runId, t.chapterId, t.householdId, t.resourceId, t.computationId)
       .nullsNotDistinct(),
-    check('household_scale_values_range', sql`${t.value} between 1 and 10`),
-    check(
-      'household_scale_values_clamp_consistency',
-      sql`(${t.wasClamped} = false) or (${t.rawValue} is not null and ${t.rawValue} <> ${t.value})`,
-    ),
     foreignKey({
-      name: 'household_scale_values_chapter_fk',
+      name: 'household_resource_values_chapter_fk',
       columns: [t.runId, t.chapterId],
       foreignColumns: [chapters.runId, chapters.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'household_scale_values_household_fk',
+      name: 'household_resource_values_household_fk',
       columns: [t.runId, t.householdId],
       foreignColumns: [households.runId, households.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'household_scale_values_scale_fk',
-      columns: [t.runId, t.scaleId],
-      foreignColumns: [scales.runId, scales.id],
+      name: 'household_resource_values_resource_fk',
+      columns: [t.runId, t.resourceId],
+      foreignColumns: [resources.runId, resources.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'household_scale_values_band_fk',
-      columns: [t.runId, t.bandId],
-      foreignColumns: [scaleBands.runId, scaleBands.id],
-    }).onDelete('restrict'),
-    foreignKey({
-      name: 'household_scale_values_computation_fk',
+      name: 'household_resource_values_computation_fk',
       columns: [t.runId, t.computationId],
       foreignColumns: [computations.runId, computations.id],
     }).onDelete('restrict'),

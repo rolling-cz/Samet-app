@@ -1,9 +1,10 @@
 /**
- * Uploading document templates (§10.3).
+ * Uploading document templates (§10.2).
  *
  * Templates arrive as Markdown exported from Google Docs, either as several
- * `.md` files at once or as one zip. They are uploaded once per chapter, not
- * with every import, so the screen has to show which character still has none.
+ * `.md` files at once or as one zip. All three chapters are uploaded once at
+ * the start of the run, so the screen has to show which character or group
+ * still has none.
  */
 import JSZip from 'jszip'
 import { toParsedTemplate } from './template'
@@ -53,66 +54,71 @@ const decodeUtf8 = (data: ArrayBuffer | Uint8Array): string => {
 
 
 export interface TemplateAssignment {
-  characterExternalId: string
-  characterName: string
-  /** Template ID from the `Characters` sheet. */
-  expected: string
+  /** Character or group the template belongs to. */
+  ownerExternalId: string
+  ownerName: string
+  ownerKind: 'postava' | 'skupina'
+  chapter: number
   /** The uploaded file that matched, if any. */
   filename?: string
-  status: 'prirazena' | 'chybi' | 'nezadana'
+  status: 'prirazena' | 'chybi'
 }
 
 export interface TemplateCoverage {
   assignments: TemplateAssignment[]
-  /** Uploaded files that belong to no character. */
+  /** Uploaded files whose name matches no character, group or chapter. */
   unmatched: ParsedTemplate[]
   missingCount: number
 }
 
 /**
- * Matches uploaded files to characters by the `Template ID` from the
- * `Characters` sheet (§10.3), so the org can see at a glance who has no
- * document yet.
+ * Matches uploaded files to characters and groups by file name (§10.2), so the
+ * org can see at a glance who still has no document.
  *
- * A file matches either by its template ID (`T_Marie.md`) or by the character's
- * own ID (`marie.md`) — the author names the export after whichever is at hand.
+ * All three chapters are uploaded at the start of the run, so a character is
+ * expected to have one template per chapter the workbook carries — a missing
+ * one is a gap, not a "not yet".
  */
 export const templateCoverage = (
   config: ParsedConfig,
   templates: ParsedTemplate[],
 ): TemplateCoverage => {
-  const byId = new Map<string, ParsedTemplate>()
+  const byKey = new Map<string, ParsedTemplate>()
   for (const template of templates) {
-    byId.set(template.externalId.toLowerCase(), template)
+    if (template.ownerRef === undefined || template.chapter === undefined) continue
+    byKey.set(coverageKey(template.ownerRef, template.chapter), template)
   }
 
   const used = new Set<string>()
-  const assignments = config.characters.map((character): TemplateAssignment => {
+  const assignments: TemplateAssignment[] = []
+
+  const expect = (
+    ownerExternalId: string,
+    ownerName: string,
+    ownerKind: TemplateAssignment['ownerKind'],
+  ) => {
+    for (const chapter of config.chapters) {
+      const match = byKey.get(coverageKey(ownerExternalId, chapter))
+      if (match) used.add(match.filename)
+
+      assignments.push({
+        ownerExternalId,
+        ownerName,
+        ownerKind,
+        chapter,
+        filename: match?.filename,
+        status: match ? 'prirazena' : 'chybi',
+      })
+    }
+  }
+
+  for (const character of config.characters) {
     const name = `${character.firstName} ${character.lastName}`.trim() || character.externalId
-
-    if (character.templateExternalId === '') {
-      return {
-        characterExternalId: character.externalId,
-        characterName: name,
-        expected: '',
-        status: 'nezadana',
-      }
-    }
-
-    const match =
-      byId.get(character.templateExternalId.toLowerCase()) ??
-      byId.get(character.externalId.toLowerCase())
-
-    if (match) used.add(match.filename)
-
-    return {
-      characterExternalId: character.externalId,
-      characterName: name,
-      expected: character.templateExternalId,
-      filename: match?.filename,
-      status: match ? 'prirazena' : 'chybi',
-    }
-  })
+    expect(character.externalId, name, 'postava')
+  }
+  for (const group of config.groups) {
+    expect(group.externalId, group.name, 'skupina')
+  }
 
   return {
     assignments,
@@ -120,3 +126,7 @@ export const templateCoverage = (
     missingCount: assignments.filter((a) => a.status !== 'prirazena').length,
   }
 }
+
+/** Case-insensitive: the author exports from Docs and the case drifts. */
+const coverageKey = (ownerRef: string, chapter: number): string =>
+  `${ownerRef.toLowerCase()}#${chapter}`

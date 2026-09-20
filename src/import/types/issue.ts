@@ -15,10 +15,12 @@ export type IssueCode =
   | 'prazdny_list'
   | 'neznama_postava'
   | 'neznama_skala'
+  | 'neznamy_zdroj'
+  | 'poradi_domacnosti'
   | 'neznama_skupina'
   | 'neznamy_blok'
   | 'neznama_odpoved'
-  | 'neznamy_priznak'
+  | 'neznama_anketa'
   | 'odpoved_bez_otazky'
   | 'otazka_bez_odpovedi'
   | 'duplicitni_id'
@@ -30,13 +32,13 @@ export type IssueCode =
   | 'znacka_bez_bloku'
   | 'blok_bez_default'
   | 'stejna_priorita'
-  | 'domacnostni_skala_bez_strategie'
+  | 'chybejici_priorita'
+  | 'cyklus_bloku'
   | 'postava_bez_sablony'
   | 'chybejici_hodnota'
   | 'nedosazitelna_varianta'
   | 'skala_bez_dopadu'
-  | 'osamely_ucet'
-  | 'nepouzity_priznak'
+  | 'neplatny_nazev_sablony'
 
 /** Where in the uploaded file the problem sits. */
 export interface IssueLocation {
@@ -44,7 +46,7 @@ export interface IssueLocation {
   sheet: string
   /** 1-based row as the author sees it in the spreadsheet (header is row 1). */
   row?: number
-  /** Column header, e.g. `Scale Impact`. */
+  /** Column header, e.g. `Scale and Resources Impact`. */
   column?: string
   /** Spreadsheet cell, e.g. `I5` — filled in when the column is known. */
   cell?: string

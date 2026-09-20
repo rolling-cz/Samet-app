@@ -131,19 +131,46 @@ export const parseTemplate = (markdown: string): TemplateParse => {
   }
 }
 
-/** Template ID a `.md` filename maps to, matched against `Characters.Template ID`. */
-export const templateIdFromFilename = (filename: string): string => {
-  const base = filename.replace(/\.md$/i, '').split('/').pop() ?? filename
-
-  return base.trim()
+/**
+ * Who a template belongs to, read from its file name (§10.2).
+ *
+ * `<ID postavy>_<kapitola>.md` or `<ID skupiny>_<kapitola>.md` — `Marie_2.md`,
+ * `Funkcionari_2.md`. Nothing else assigns a template: the `Characters` sheet
+ * no longer carries a template column, so a misnamed file is reported rather
+ * than guessed at.
+ *
+ * The chapter is the trailing number, which is why the owner ID may itself end
+ * in digits without becoming ambiguous.
+ */
+export interface TemplateFilename {
+  ownerRef: string
+  chapter: number
 }
+
+const FILENAME = /^(.+)_(\d+)$/
+
+export const parseTemplateFilename = (filename: string): TemplateFilename | undefined => {
+  const base = (filename.replace(/\.md$/i, '').split('/').pop() ?? filename).trim()
+  const match = FILENAME.exec(base)
+  if (!match) return undefined
+
+  const chapter = Number(match[2])
+  if (!Number.isInteger(chapter)) return undefined
+
+  return { ownerRef: (match[1] ?? '').trim(), chapter }
+}
+
+/** Block IDs a piece of text refers to; used for nesting inside variant text (§8.4). */
+export const blockMarkers = (text: string): string[] => parseTemplate(text).blockIds
 
 /** A template with its markers read, ready for validation. */
 export const toParsedTemplate = ({ filename, markdown }: UploadedTemplate): ParsedTemplate => {
   const parsed = parseTemplate(markdown)
+  const name = parseTemplateFilename(filename)
 
   return {
-    externalId: templateIdFromFilename(filename),
+    ownerRef: name?.ownerRef,
+    chapter: name?.chapter,
     filename,
     markdown,
     blockIds: parsed.blockIds,

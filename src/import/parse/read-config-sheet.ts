@@ -8,12 +8,13 @@ export const readConfigSheet = (
   workbook: Workbook,
   name: string,
   repairs: ImportRepairs,
+  required: readonly string[],
   fillDown: readonly string[] = [],
 ): SheetReadResult | undefined => {
   const grid = workbook.get(name)
   if (!grid) return undefined
 
-  const result = readSheet(name, grid, { fillDown })
+  const result = readSheet(name, grid, { required, fillDown })
   repairs.trimmedCells += result.repairs.trimmedCells
   repairs.filledDownCells += result.repairs.filledDownCells
   repairs.skippedEmptyRows += result.repairs.skippedEmptyRows

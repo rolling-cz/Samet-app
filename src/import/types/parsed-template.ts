@@ -1,6 +1,9 @@
-/** A `.md` template uploaded alongside the workbook (§10.3). */
+/** A `.md` template uploaded alongside the workbook (§10.2). */
 export interface ParsedTemplate {
-  externalId: string
+  /** Character or group ID from the file name; undefined when it does not parse. */
+  ownerRef?: string
+  /** Chapter from the file name; undefined when it does not parse. */
+  chapter?: number
   filename: string
   markdown: string
   blockIds: string[]

@@ -1,69 +1,58 @@
 import type { IssueCollector } from '../issue-collector'
-import { accountCounterpart, splitScaleId } from '../scale-impact'
+import { splitImpactId } from '../scale-impact'
 import type { ParsedConfig } from '../types/parsed-config'
 
-/** Scale keys the chapter's answers move. */
-const touchedScaleKeys = (config: ParsedConfig, chapter: number): Set<string> => {
+/** Impact IDs any answer of the run moves. */
+const touchedIds = (config: ParsedConfig): Set<string> => {
   const touched = new Set<string>()
-  for (const question of config.questions.get(chapter) ?? []) {
-    for (const option of question.options) {
-      for (const impact of option.impacts) touched.add(impact.scale)
+  for (const questions of config.questions.values()) {
+    for (const question of questions) {
+      for (const option of question.options) {
+        for (const impact of option.impacts) touched.add(impact.externalId)
+      }
     }
   }
 
   return touched
 }
 
-/**
- * §11.9: in a chapter where answers touch one half of an `_osobni` /
- * `_spolecny` pair and never the other, the missing half is almost certainly a
- * typo in a scale ID rather than a deliberate choice.
- */
-export const checkAccountPairs = (config: ParsedConfig, issues: IssueCollector): void => {
-  for (const [chapter, scales] of config.scales) {
-    const touched = touchedScaleKeys(config, chapter)
-    const defined = new Set(scales.map((s) => s.key))
-
-    for (const scale of scales) {
-      const counterpart = accountCounterpart(scale.key)
-      if (!counterpart || !defined.has(counterpart)) continue
-
-      if (touched.has(scale.key) && !touched.has(counterpart)) {
-        issues.warn(
-          'osamely_ucet',
-          scale.location,
-          `V kapitole ${chapter} sahá nějaká odpověď na \`${scale.key}\`, ale na protějšek \`${counterpart}\` ne — skoro jistě překlep v ID škály.`,
-          { value: counterpart },
-        )
-      }
-    }
-  }
-}
-
-/** §11: a scale nothing ever moves is either dead weight or a misspelled ID. */
-export const checkUntouchedScales = (config: ParsedConfig, issues: IssueCollector): void => {
-  for (const [chapter, scales] of config.scales) {
-    const touched = touchedScaleKeys(config, chapter)
-    const read = new Set<string>()
-    for (const block of config.blocks.get(chapter) ?? []) {
+/** Impact IDs any block condition reads. */
+const readIds = (config: ParsedConfig): Set<string> => {
+  const read = new Set<string>()
+  for (const blocks of config.blocks.values()) {
+    for (const block of blocks) {
       for (const variation of block.variations) {
         for (const reference of variation.condition.references) {
-          if (reference.kind !== 'skala') continue
-          const scale = splitScaleId(reference.name)?.scale
-          if (scale) read.add(scale)
+          if (reference.kind !== 'skala' && reference.kind !== 'zdroj') continue
+          if (splitImpactId(reference.name)) read.add(reference.name)
         }
       }
     }
+  }
 
-    for (const scale of scales) {
-      if (!touched.has(scale.key) && !read.has(scale.key)) {
-        issues.warn(
-          'skala_bez_dopadu',
-          scale.location,
-          `Se škálou \`${scale.key}\` v kapitole ${chapter} nic nehýbe a žádná podmínka ji nečte — buď je zbytečná, nebo je někde překlep v jejím ID.`,
-          { value: scale.key },
-        )
-      }
-    }
+  return read
+}
+
+/**
+ * §11: a scale or resource nothing ever moves and nothing ever reads is either
+ * dead weight or a misspelled ID somewhere else. A warning, not an error — the
+ * author may be preparing it for a later chapter.
+ *
+ * Checked across the whole run rather than per chapter: state carries forward,
+ * so a scale set in chapter 1 and read in chapter 3 is perfectly normal.
+ */
+export const checkUntouchedScales = (config: ParsedConfig, issues: IssueCollector): void => {
+  const touched = touchedIds(config)
+  const read = readIds(config)
+
+  for (const row of [...config.scales, ...config.resources]) {
+    if (touched.has(row.externalId) || read.has(row.externalId)) continue
+
+    issues.warn(
+      'skala_bez_dopadu',
+      row.location,
+      `S \`${row.externalId}\` nic nehýbe a žádná podmínka ji nečte — buď je zbytečná, nebo je někde překlep v jejím ID.`,
+      { value: row.externalId },
+    )
   }
 }

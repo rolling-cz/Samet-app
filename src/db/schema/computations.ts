@@ -51,7 +51,7 @@ export const computations = pgTable(
     /** Engine code version, to tell what produced this. */
     engineVersion: text('engine_version').notNull(),
     /**
-     * Hash of the inputs (state + answers + rules + dice). Same input, same
+     * Hash of the inputs (state + answers + config + dice). Same input, same
      * output (§2); a differing hash on a supposedly identical run is an alarm.
      */
     inputHash: text('input_hash').notNull(),

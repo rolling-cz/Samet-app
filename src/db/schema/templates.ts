@@ -15,12 +15,15 @@ import { characters, groups } from './characters'
 import { chapters, runs } from './runs'
 
 /**
- * A document template: Markdown exported from a Google Doc (§8.3, §10.3).
+ * A document template: Markdown exported from a Google Doc (§8.3, §10.2).
  *
- * The template carries only unpaired markers — `{BLOK <ID>}` plus variables
- * `{JMENO}`, `{PRIJMENI}`, `{VEK}`, `{SKUPINA}`; variant text lives in
- * `block_variations` (§8.2, §8.4). No marker may survive into the finished
- * document.
+ * The template carries only unpaired markers — `{BLOK <ID>}` plus variables;
+ * variant text lives in `block_variations` (§8.2, §8.4). There is no `{/BLOK}`
+ * to close, and no marker may survive into the finished document.
+ *
+ * Who a template belongs to comes from the **file name**, `<ID>_<kapitola>.md`
+ * (§10.2) — `Marie_2.md`, `Funkcionari_2.md`. All three chapters are uploaded
+ * at the start of the run.
  *
  * One template per (chapter, kind, character/group): a run has one valid
  * config (§6.5), and the uploaded file itself is kept in `uploaded_files`.
@@ -41,8 +44,6 @@ export const templates = pgTable(
     characterId: uuid('character_id'),
     /** Set when `kind = 'skupina'`. */
     groupId: uuid('group_id'),
-    /** Template ID from the `Characters` sheet, when assignment goes through it. */
-    externalId: text('external_id'),
     name: text('name').notNull(),
     sourceFilename: text('source_filename').notNull(),
     markdown: text('markdown').notNull(),
@@ -58,7 +59,7 @@ export const templates = pgTable(
     unique('templates_group_key').on(t.runId, t.chapterId, t.groupId),
     uniqueIndex('templates_singleton')
       .on(t.runId, t.chapterId, t.kind)
-      .where(sql`${t.kind} in ('highlighty', 'dotaznik')`),
+      .where(sql`${t.kind} = 'dotaznik'`),
     check(
       'templates_target_matches_kind',
       sql`case ${t.kind}

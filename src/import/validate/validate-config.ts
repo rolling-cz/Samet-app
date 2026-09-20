@@ -10,7 +10,7 @@ import type { ParsedTemplate } from '../types/parsed-template'
 import { checkCharacters } from './check-characters'
 import { checkContent } from './check-content'
 import { checkQuestions } from './check-questions'
-import { checkAccountPairs, checkUntouchedScales } from './check-scale-usage'
+import { checkUntouchedScales } from './check-scale-usage'
 import { checkScales } from './check-scales'
 import { checkTemplates } from './check-templates'
 
@@ -22,13 +22,12 @@ export interface ValidationInput {
 
 export const validateConfig = ({ config, templates }: ValidationInput, issues: IssueCollector): void => {
   const characterIds = new Set(config.characters.map((c) => c.externalId))
-  const groupNames = new Set(config.groups.map((g) => g.name))
+  const groupIds = new Set(config.groups.map((g) => g.externalId))
 
   checkCharacters(config, issues)
   checkScales(config, issues)
-  checkQuestions(config, characterIds, groupNames, issues)
-  checkContent(config, characterIds, issues)
-  checkAccountPairs(config, issues)
+  checkQuestions(config, characterIds, groupIds, issues)
+  checkContent(config, characterIds, groupIds, issues)
   checkUntouchedScales(config, issues)
   if (templates) checkTemplates(config, templates, issues)
 }

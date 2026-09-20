@@ -2,10 +2,10 @@ import type { RunScope } from '@/db'
 import type { ParsedConfig } from '../types/parsed-config'
 import { loadChapterIds } from './load-chapter-ids'
 import { upsertBlocks } from './upsert-blocks'
-import { upsertCharacters, upsertCharacterScales } from './upsert-characters'
-import { upsertFlags } from './upsert-flags'
+import { upsertCharacters } from './upsert-characters'
 import { upsertGroups } from './upsert-groups'
 import { upsertQuestions } from './upsert-questions'
+import { upsertResources } from './upsert-resources'
 import { upsertScales } from './upsert-scales'
 import { createWrittenRows, type WrittenRows } from './written-rows'
 
@@ -15,14 +15,21 @@ export const writeEntities = async (scope: RunScope, config: ParsedConfig): Prom
 
   const groupIds = await upsertGroups(scope, config, written)
   const characterIds = await upsertCharacters(scope, config, written, groupIds)
-  const scaleIds = await upsertScales(scope, config, written)
-  await upsertCharacterScales(scope, config, written, characterIds, scaleIds)
+  const scaleIds = await upsertScales(scope, config, written, characterIds)
+  const resourceIds = await upsertResources(scope, config, written, characterIds)
 
-  const flagIds = await upsertFlags(scope, config, written)
   const chapterIds = await loadChapterIds(scope)
-  const blockIds = await upsertBlocks(scope, config, written, characterIds, chapterIds)
+  const blockIds = await upsertBlocks(scope, config, written, characterIds, groupIds, chapterIds)
 
-  await upsertQuestions(scope, config, written, { characterIds, scaleIds, flagIds, chapterIds, blockIds })
+  await upsertQuestions(scope, config, written, {
+    characterIds,
+    groupIds,
+    scaleIds,
+    resourceIds,
+    chapterIds,
+    blockIds,
+    questionIds: new Map(),
+  })
 
   return written
 }

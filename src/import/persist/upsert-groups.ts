@@ -4,26 +4,30 @@ import type { ParsedConfig } from '../types/parsed-config'
 import type { IdMap } from './entity-ids'
 import type { WrittenRows } from './written-rows'
 
-/** Prefix of group IDs derived from free-text group names. */
-const GROUP_ID_PREFIX = 'G_'
-
-/** Group names are free text in the sheet; the stored ID is derived from them. */
-const externalGroupId = (name: string): string =>
-  `${GROUP_ID_PREFIX}${name.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, '')}`
-
-/** Returns group name → database ID. */
-export const upsertGroups = async (scope: RunScope, config: ParsedConfig, written: WrittenRows): Promise<IdMap> => {
+/**
+ * Groups from the `Groups` sheet (§4.2).
+ *
+ * Returns both the group ID and its name mapped to the database row: blocks and
+ * characters refer to a group by whichever the author had at hand.
+ */
+export const upsertGroups = async (
+  scope: RunScope,
+  config: ParsedConfig,
+  written: WrittenRows,
+): Promise<IdMap> => {
   const groupIds: IdMap = new Map()
 
   for (const group of config.groups) {
+    const values = { name: group.name }
     const [row] = await scope
-      .insert(groups, { externalId: externalGroupId(group.name), name: group.name })
-      .onConflictDoUpdate({ target: [groups.runId, groups.externalId], set: { name: group.name } })
+      .insert(groups, { externalId: group.externalId, ...values })
+      .onConflictDoUpdate({ target: [groups.runId, groups.externalId], set: values })
       .returning({ id: groups.id })
     if (!row) continue
 
     written.groups.add(row.id)
-    groupIds.set(group.name, row.id)
+    groupIds.set(group.externalId, row.id)
+    if (!groupIds.has(group.name)) groupIds.set(group.name, row.id)
   }
 
   return groupIds

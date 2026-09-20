@@ -1,5 +1,5 @@
 /**
- * Workbook to `ParsedConfig` (§4.2, §10.2).
+ * Workbook to `ParsedConfig` (§4.2, §10.1).
  *
  * The parser never throws on bad content and never stops at the first problem:
  * a broken config must not take the application down, and the author wants all
@@ -12,20 +12,22 @@ import {
   CHAPTERS,
   chapterSheetName,
   CHARACTERS_SHEET,
+  GROUPS_SHEET,
   IGNORED_SHEETS,
-  TEMPLATES_SHEET,
+  RESOURCES_SHEET,
+  SCALES_SHEET,
   VALIDATIONS_SHEET,
 } from '../constants/sheets'
 import type { IssueCollector } from '../issue-collector'
 import type { ParsedBlock } from '../types/parsed-block'
 import type { ImportRepairs, ParsedConfig, Workbook } from '../types/parsed-config'
 import type { ParsedQuestion } from '../types/parsed-question'
-import type { ParsedScale } from '../types/parsed-scale'
-import { collectGroups, parseCharacters } from './parse-characters'
+import { parseCharacters } from './parse-characters'
 import { parseContent } from './parse-content'
+import { parseGroups } from './parse-groups'
 import { parseQuestions } from './parse-questions'
+import { parseResources } from './parse-resources'
 import { parseScales } from './parse-scales'
-import { parseTemplateAssignments } from './parse-template-assignments'
 
 export const parseConfig = (workbook: Workbook, issues: IssueCollector): ParsedConfig => {
   const repairs: ImportRepairs = {
@@ -33,35 +35,43 @@ export const parseConfig = (workbook: Workbook, issues: IssueCollector): ParsedC
     filledDownCells: 0,
     skippedEmptyRows: 0,
     resolvedCharacterNames: 0,
-    droppedScaleStrategies: 0,
+    derivedQuestionIds: 0,
+    derivedAnswerIds: 0,
+    addedBoolAnswers: 0,
+    semicolonSeparators: 0,
   }
 
   const characters = parseCharacters(workbook, issues, repairs)
-  const groups = collectGroups(characters)
   const aliases = buildAliases(characters)
+
+  const groups = parseGroups(workbook, issues, repairs)
 
   const chapters = CHAPTERS.filter((chapter) =>
     CHAPTER_SHEET_KINDS.some((kind) => workbook.has(chapterSheetName(chapter, kind))),
   )
 
-  const scales = new Map<number, ParsedScale[]>()
   const questions = new Map<number, ParsedQuestion[]>()
   const blocks = new Map<number, ParsedBlock[]>()
 
   for (const chapter of chapters) {
-    scales.set(chapter, parseScales(workbook, chapter, issues, repairs))
-    questions.set(chapter, parseQuestions(workbook, chapter, aliases, issues, repairs))
-    blocks.set(chapter, parseContent(workbook, chapter, aliases, issues, repairs))
+    const chapterQuestions = parseQuestions(workbook, chapter, aliases, issues, repairs)
+    repairs.derivedQuestionIds += chapterQuestions.filter((q) => q.idWasDerived).length
+    repairs.addedBoolAnswers += chapterQuestions.reduce(
+      (total, question) => total + question.options.filter((option) => option.isDerived).length,
+      0,
+    )
+    questions.set(chapter, chapterQuestions)
+    blocks.set(chapter, parseContent(workbook, chapter, aliases, groups, issues, repairs))
   }
 
   return {
     chapters: [...chapters],
     characters,
     groups,
-    scales,
+    scales: parseScales(workbook, aliases, issues, repairs),
+    resources: parseResources(workbook, aliases, issues, repairs),
     questions,
     blocks,
-    templateAssignments: parseTemplateAssignments(workbook, issues, repairs),
     sheetNames: [...workbook.keys()],
     repairs,
   }
@@ -69,7 +79,14 @@ export const parseConfig = (workbook: Workbook, issues: IssueCollector): ParsedC
 
 /** Sheets the import does not read, so the report can say what it ignored. */
 export const unknownSheets = (workbook: Workbook): string[] => {
-  const known = new Set<string>([CHARACTERS_SHEET, VALIDATIONS_SHEET, TEMPLATES_SHEET, ...IGNORED_SHEETS])
+  const known = new Set<string>([
+    CHARACTERS_SHEET,
+    GROUPS_SHEET,
+    SCALES_SHEET,
+    RESOURCES_SHEET,
+    VALIDATIONS_SHEET,
+    ...IGNORED_SHEETS,
+  ])
   for (const chapter of CHAPTERS) {
     for (const kind of CHAPTER_SHEET_KINDS) known.add(chapterSheetName(chapter, kind))
   }

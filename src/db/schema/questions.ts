@@ -14,17 +14,23 @@ import { authorName, createdAt } from './columns'
 import { questionSource, questionType } from './enums'
 import { characters } from './characters'
 import { scales } from './scales'
+import { resources } from './resources'
 import { chapters, runs } from './runs'
 
 /**
- * Question (§6.1, §6.6). Questions are per character — there is no shared set,
- * hence the mandatory `character_id`.
+ * Question (§6.1, §6.6). Questions are per character — there is no shared set.
+ *
+ * The one exception is a `poll`: an opinion poll belongs to no character and
+ * carries only its text and options, while each voting character has a
+ * `poll-answer` pointing at it through `pollQuestionId` (§6.6). That is why
+ * `characterId` and `ordinal` are nullable — a poll has neither, and counts
+ * towards nobody's question order.
  *
  * The questionnaire is flat: conditional sub-questions are deliberately out.
  *
  * `source` separates player questions from org ones (§6.7) — a different input
- * source, not a different mechanism: same types, same scale impacts, same
- * rules, one stream in the UI and one progress indicator.
+ * source, not a different mechanism: same types, same impacts, same rules, one
+ * stream in the UI and one progress indicator.
  */
 export const questions = pgTable(
   'questions',
@@ -33,27 +39,38 @@ export const questions = pgTable(
     runId: text('run_id')
       .notNull()
       .references(() => runs.id, { onDelete: 'restrict' }),
-    /** Source ID `Q_<Postava>_<Kapitola>_<Poradi>`, e.g. `Q_Marie_1_1`. */
+    /**
+     * Source ID `Q_<Postava>_<Kapitola>_<Poradi>`, e.g. `Q_Marie_1_1`. The
+     * author may leave the cell empty and the import derives it (§4.2); for a
+     * `poll` it is mandatory and never generated.
+     */
     externalId: text('external_id').notNull(),
     chapterId: uuid('chapter_id').notNull(),
-    characterId: uuid('character_id').notNull(),
-    ordinal: integer('ordinal').notNull(),
+    /** NULL for a `poll`, which belongs to no character. */
+    characterId: uuid('character_id'),
+    /** Order within the character's chapter, from 1; NULL for a `poll`. */
+    ordinal: integer('ordinal'),
     type: questionType('type').notNull(),
     /** Who fills it in (§6.7); `org` is not printed for players. */
     source: questionSource('source').notNull().default('hrac'),
     /**
-     * Paired question (§6.7), typically marriage: it concerns two characters
-     * but is entered once. The answer references the other character's ID and
-     * the app shows it on both.
-     *
-     * So there is one answer row, not two mirrored ones. That removes a whole
-     * class of conflicts — a mismatch cannot arise from a single answer.
+     * The poll this vote belongs to (§6.6). Text and options are taken from it,
+     * so nothing is copied per voting character and the options have one source.
      */
-    isPaired: boolean('is_paired').notNull().default(false),
-    text: text('text').notNull(),
+    pollQuestionId: uuid('poll_question_id'),
+    /**
+     * The `Private` flag (§4.4): every impact of this question goes to the
+     * personal account even when the character is married. Income the partner
+     * does not know about.
+     */
+    isPrivate: boolean('is_private').notNull().default(false),
+    /** Empty for a `poll-answer`, which shows its poll's text. */
+    text: text('text').notNull().default(''),
     helpText: text('help_text'),
-    /** Target scale for `scale_direct`. */
-    scaleId: uuid('scale_id'),
+    /** Target of `scale_direct`; must name a concrete scale (§4.4). */
+    targetScaleId: uuid('target_scale_id'),
+    /** Target of `resource_direct`; must name a concrete account (§4.4). */
+    targetResourceId: uuid('target_resource_id'),
     /** Allows `_OTHER_`: free text the org fills in by hand (§4.2). */
     allowOther: boolean('allow_other').notNull().default(false),
     createdAt: createdAt(),
@@ -67,16 +84,23 @@ export const questions = pgTable(
       t.characterId,
       t.ordinal,
     ),
-    // scale_direct must have a scale; no other type may.
+    // A poll has no owner and no place in anyone's order; everything else has both.
+    check(
+      'questions_poll_has_no_character',
+      sql`(${t.type} = 'poll') = (${t.characterId} is null and ${t.ordinal} is null)`,
+    ),
+    // Only a vote points at a poll, and a vote without one has nothing to show.
+    check(
+      'questions_poll_answer_needs_poll',
+      sql`(${t.type} = 'poll-answer') = (${t.pollQuestionId} is not null)`,
+    ),
     check(
       'questions_scale_direct_needs_scale',
-      sql`(${t.type} = 'scale_direct') = (${t.scaleId} is not null)`,
+      sql`(${t.type} = 'scale_direct') = (${t.targetScaleId} is not null)`,
     ),
-    // A paired question must be able to reference the other character, which is
-    // only possible through options carrying `referenced_character_id`.
     check(
-      'questions_paired_needs_options',
-      sql`not ${t.isPaired} or ${t.type} in ('single', 'multi')`,
+      'questions_resource_direct_needs_resource',
+      sql`(${t.type} = 'resource_direct') = (${t.targetResourceId} is not null)`,
     ),
     foreignKey({
       name: 'questions_chapter_fk',
@@ -89,9 +113,19 @@ export const questions = pgTable(
       foreignColumns: [characters.runId, characters.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'questions_scale_fk',
-      columns: [t.runId, t.scaleId],
+      name: 'questions_poll_fk',
+      columns: [t.runId, t.pollQuestionId],
+      foreignColumns: [t.runId, t.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'questions_target_scale_fk',
+      columns: [t.runId, t.targetScaleId],
       foreignColumns: [scales.runId, scales.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'questions_target_resource_fk',
+      columns: [t.runId, t.targetResourceId],
+      foreignColumns: [resources.runId, resources.id],
     }).onDelete('restrict'),
   ],
 )

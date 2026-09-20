@@ -8,7 +8,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { authorName, createdAt } from './columns'
 import { computations } from './computations'
-import { rules } from './rules'
+import { effects } from './effects'
 import { chapters, runs } from './runs'
 
 /**
@@ -16,7 +16,7 @@ import { chapters, runs } from './runs'
  * `db/sql/001_audit_append_only.sql` — not merely a convention.
  *
  * Every change records who (the free-text name from the identity field), when,
- * what, the value before and after, and which rule caused it.
+ * what, the value before and after, and which effect caused it.
  *
  * Org decisions land here too, not just data changes: a scale clamped at a
  * bound, a re-rolled die, an edit to a released chapter and its reason, a
@@ -47,8 +47,8 @@ export const auditLog = pgTable(
     valueBefore: jsonb('value_before'),
     valueAfter: jsonb('value_after'),
 
-    /** The rule that caused the change — the core of the "why". */
-    ruleId: uuid('rule_id'),
+    /** The effect that caused the change — the core of the "why" (§7.5). */
+    effectId: uuid('effect_id'),
     /** The computation version the change arose in. */
     computationId: uuid('computation_id'),
     /** The org's justification; mandatory when editing a released chapter (§3.2). */
@@ -66,9 +66,9 @@ export const auditLog = pgTable(
       foreignColumns: [chapters.runId, chapters.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'audit_log_rule_fk',
-      columns: [t.runId, t.ruleId],
-      foreignColumns: [rules.runId, rules.id],
+      name: 'audit_log_effect_fk',
+      columns: [t.runId, t.effectId],
+      foreignColumns: [effects.runId, effects.id],
     }).onDelete('restrict'),
     foreignKey({
       name: 'audit_log_computation_fk',

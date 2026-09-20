@@ -1,12 +1,16 @@
 import type { Sourced } from './sourced'
-import type { IssueLocation } from './issue'
 
+/**
+ * One row of the `Characters` sheet (§4.2).
+ *
+ * Starting values are deliberately absent: they live in `Scales` and
+ * `Resources`, per pair of character × scale / resource. Nothing else about a
+ * character is modelled — characterisation is fixed template text (§4.6).
+ */
 export interface ParsedCharacter extends Sourced {
   externalId: string
   firstName: string
   lastName: string
-  groupName: string
-  templateExternalId: string
-  /** Starting values for chapter 1, keyed by scale key (§4.2). */
-  initialScales: Record<string, { value: number; location: IssueLocation }>
+  /** Household the character starts in, when the sheet names one (§4.4). */
+  householdRef?: string
 }

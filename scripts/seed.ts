@@ -1,12 +1,13 @@
 /**
- * Sample data — one run, three characters, one group, five scales.
+ * Sample data — one run, three characters, one group, scales and resources.
  *
  * Its purpose is a shape in the database showing how the tables fit together.
- * It is not the game's configuration: that is imported from `.xlsx` (§10.2).
+ * It is not the game's configuration: that is imported from `.xlsx` (§10.1).
  *
- * The data deliberately exercises the least obvious parts of the model: the
- * `_osobni` / `_spolecny` pair of accounts (§4.4), an org paired question
- * (§6.7), and marriage as a structural rule effect (§7.3).
+ * The data deliberately exercises the least obvious parts of the model: a
+ * `household` resource with both the personal and the joint account (§4.4),
+ * routing decided by marital status, a `{input}` transfer into the joint
+ * account, a poll and its vote (§6.6), and a nested block (§8.4).
  *
  * Re-runnable: it first drops the run `2026-09-12_A` if it exists — allowed only
  * because it is a seed run in a local database.
@@ -21,7 +22,8 @@ import {
   answers,
   auditLog,
   blockVariations,
-  characterFlags,
+  characterResourceValues,
+  characterResources,
   characterScaleValues,
   characterScales,
   characterVariables,
@@ -30,17 +32,15 @@ import {
   computations,
   contentBlocks,
   diceRolls,
+  effectInputs,
   effects,
-  flags,
   groupMemberships,
   groups,
   householdMemberships,
-  householdScaleValues,
+  householdResourceValues,
   households,
   questions,
-  ruleConditions,
-  rules,
-  scaleBands,
+  resources,
   scales,
   runs,
   templates,
@@ -49,102 +49,66 @@ import {
 
 const RUN_ID = '2026-09-12_A'
 const AUTHOR = 'seed skript'
-
-/** Default band split 1–3 / 4–5 / 6–8 / 9–10 (§4.1); names are per scale. */
-const BAND_BOUNDS = [
-  { ordinal: 1, minValue: 1, maxValue: 3 },
-  { ordinal: 2, minValue: 4, maxValue: 5 },
-  { ordinal: 3, minValue: 6, maxValue: 8 },
-  { ordinal: 4, minValue: 9, maxValue: 10 },
-] as const
-
-type ScaleSeed = {
-  key: string
-  label: string
-  description: string
-  scope: 'postava' | 'domacnost'
-  mergeStrategy?: 'soucet' | 'prumer' | 'vyssi' | 'otazka'
-  splitStrategy?: 'kopie' | 'polovina' | 'otazka'
-  bandNames: [string, string, string, string]
-}
+const CHAPTER_NUMBERS = [1, 2, 3] as const
 
 /**
- * The private and the joint account are two separate scales with different
- * scopes, not one scale switched into shared mode (§4.4).
+ * Bounds are per pair character × scale (§4.2), so the seed gives Karel a
+ * narrower `Control` than Marie — a shape the old model could not express.
  */
+interface ScaleSeed {
+  key: string
+  label: string
+  perCharacter: { character: string; min: number; max: number; value: number }[]
+}
+
 const SCALE_SEED: ScaleSeed[] = [
   {
-    key: 'Wealth_osobni',
-    label: 'Majetek — osobní',
-    description: 'Co má postava vlastního, mimo společný účet.',
-    scope: 'postava',
-    bandNames: ['Na dně', 'Vyžije', 'Zajištěná', 'Zazobaná'],
-  },
-  {
-    key: 'Wealth_spolecny',
-    label: 'Majetek — společný',
-    description: 'Společný účet domácnosti.',
-    scope: 'domacnost',
-    // Money is neither merged nor split automatically: how much each partner
-    // contributed is a question in the questionnaire (§4.4).
-    mergeStrategy: 'otazka',
-    splitStrategy: 'otazka',
-    bandNames: ['Prázdný', 'Něco tam je', 'Slušná rezerva', 'Na auto'],
-  },
-  {
-    key: 'Bony',
-    label: 'Bony',
-    description: 'Tuzexové bony domácnosti.',
-    scope: 'domacnost',
-    // For Bony, on the other hand, an automatic merge does make sense.
-    mergeStrategy: 'soucet',
-    splitStrategy: 'kopie',
-    bandNames: ['Žádné', 'Pár', 'Zásoba', 'Hromada'],
-  },
-  {
     key: 'Regime',
-    label: 'Přesvědčení o režimu',
-    description: 'Jak se postava staví ke komunistickému režimu.',
-    scope: 'postava',
-    bandNames: ['Otevřeně proti', 'Skeptička', 'Loajální', 'Přesvědčená'],
+    label: 'Vztah k režimu',
+    perCharacter: [
+      { character: 'Marie', min: 1, max: 10, value: 6 },
+      { character: 'Mirek', min: 1, max: 10, value: 3 },
+      { character: 'Karel', min: 1, max: 10, value: 8 },
+    ],
   },
   {
     key: 'Control',
-    label: 'Kontrola nad organizací',
-    description: 'Jak velký vliv má postava ve své skupině.',
-    scope: 'postava',
-    bandNames: ['Bez vlivu', 'Slyší ji', 'Rozhoduje', 'Drží to v ruce'],
+    label: 'Vliv v organizaci',
+    perCharacter: [
+      { character: 'Marie', min: 1, max: 10, value: 2 },
+      { character: 'Karel', min: 1, max: 5, value: 4 },
+    ],
   },
 ]
 
-const FLAG_SEED = [
-  { key: 'Svatba', label: 'Svatba', description: 'Postava se v kapitole vdala nebo oženila.' },
-  { key: 'Firemni_byt', label: 'Firemní byt', description: 'Postava získala byt od organizace.' },
+/** `Wealth` is `household`: it lives on a personal and on a joint account (§4.4). */
+const RESOURCE_SEED = [
   {
-    key: 'Spolecny_ucet',
-    label: 'Společný účet',
-    description:
-      'Řídí, zda se společný účet vůbec objeví v dokumentu. Svobodná postava ho technicky má, ale netiskne se (§4.4).',
+    key: 'Wealth',
+    label: 'Peníze',
+    scope: 'household' as const,
+    perCharacter: [
+      { character: 'Marie', value: 4 },
+      { character: 'Mirek', value: 6 },
+      { character: 'Karel', value: 5 },
+    ],
   },
-] as const
+]
 
-/** Marie's starting scale values for chapter 1 (`Characters` sheet, §4.2). */
-const MARIE_INITIAL: Record<string, number> = {
-  Wealth_osobni: 4,
-  Wealth_spolecny: 1,
-  Bony: 2,
-  Regime: 6,
-  Control: 3,
-}
+const CHARACTER_SEED = [
+  { externalId: 'Marie', firstName: 'Marie', lastName: 'Balážová', birthYear: 1955 },
+  { externalId: 'Mirek', firstName: 'Mirek', lastName: 'Pokorný', birthYear: 1953 },
+  { externalId: 'Karel', firstName: 'Karel', lastName: 'Novák', birthYear: 1950 },
+]
 
 const wipeSeedRun = async () => {
   // Delete dependents first — the foreign keys are `restrict`.
   const order: RunScopedTable[] = [
     auditLog,
     characterVariables,
-    characterFlags,
     characterScaleValues,
-    householdScaleValues,
+    characterResourceValues,
+    householdResourceValues,
     householdMemberships,
     households,
     groupMemberships,
@@ -152,18 +116,17 @@ const wipeSeedRun = async () => {
     answerSelectedOptions,
     answers,
     computations,
+    effectInputs,
     effects,
-    ruleConditions,
-    rules,
     answerOptions,
     questions,
     blockVariations,
     contentBlocks,
     templates,
     characterScales,
-    scaleBands,
+    characterResources,
     scales,
-    flags,
+    resources,
     characters,
     groups,
     uploadedFiles,
@@ -195,497 +158,395 @@ const main = async () => {
     createdBy: AUTHOR,
   })
 
-
   // All three chapters are created with the run so config import has something
   // to attach questions to (§3.2).
   const chapterRows = await unscopedDb
     .insert(chapters)
-    .values([1, 2, 3].map((number) => ({ runId: RUN_ID, number, status: 'rozpracovana' as const })))
+    .values(
+      CHAPTER_NUMBERS.map((number) => ({
+        runId: RUN_ID,
+        number,
+        status: 'rozpracovana' as const,
+      })),
+    )
     .returning()
   const chapter1 = chapterRows.find((row) => row.number === 1)
-  if (!chapter1) throw new Error('Nepodařilo se založit kapitoly.')
+  const chapter2 = chapterRows.find((row) => row.number === 2)
+  if (!chapter1 || !chapter2) throw new Error('Nepodařilo se založit kapitoly.')
 
   const [srdceParty] = await unscopedDb
     .insert(groups)
-    .values({
-      runId: RUN_ID,
-      externalId: 'G_SrdceParty',
-      name: 'Srdce party',
-    })
+    .values({ runId: RUN_ID, externalId: 'SrdceParty', name: 'Srdce party' })
     .returning()
   if (!srdceParty) throw new Error('Nepodařilo se založit skupinu.')
 
   const characterRows = await unscopedDb
     .insert(characters)
-    .values([
-      {
-        runId: RUN_ID,
-        externalId: 'Marie',
-        firstName: 'Marie',
-        lastName: 'Balážová',
-        birthYear: 1955,
-        homeGroupId: srdceParty.id,
-        templateExternalId: 'T_Marie',
-      },
-      {
-        runId: RUN_ID,
-        externalId: 'Karel',
-        firstName: 'Karel',
-        lastName: 'Novotný',
-        birthYear: 1952,
-        homeGroupId: srdceParty.id,
-        templateExternalId: 'T_Karel',
-      },
-      {
-        runId: RUN_ID,
-        externalId: 'Mirek',
-        firstName: 'Mirek',
-        lastName: 'Pokorný',
-        birthYear: 1953,
-        homeGroupId: srdceParty.id,
-        templateExternalId: 'T_Mirek',
-      },
-    ])
-    .returning()
-  const byExternalId = new Map(characterRows.map((row) => [row.externalId, row]))
-  const marie = byExternalId.get('Marie')
-  const karel = byExternalId.get('Karel')
-  const mirek = byExternalId.get('Mirek')
-  if (!marie || !karel || !mirek) throw new Error('Nepodařilo se založit postavy.')
-
-  // Every character gets a household of one, so a single character holds shared
-  // values alone and the engine needs no "no household" branch (§4.4).
-  const householdByCharacter = new Map<string, string>()
-  for (const character of characterRows) {
-    const [household] = await unscopedDb
-      .insert(households)
-      .values({
-        runId: RUN_ID,
-        externalId: `H_${character.externalId}`,
-        label: `${character.firstName} ${character.lastName}`,
-        createdInChapterId: chapter1.id,
-      })
-      .returning()
-    if (!household) throw new Error(`Nepodařilo se založit domácnost pro ${character.externalId}.`)
-    householdByCharacter.set(character.id, household.id)
-
-    await unscopedDb.insert(householdMemberships).values({
-      runId: RUN_ID,
-      chapterId: chapter1.id,
-      characterId: character.id,
-      householdId: household.id,
-      source: 'pocatecni',
-    })
-  }
-
-  // Scales and their bands. Thresholds and names live in data, never in code (§4.1).
-  const scaleIdByKey = new Map<string, string>()
-  const scopeByKey = new Map<string, 'postava' | 'domacnost'>()
-  const bandIdByScaleAndOrdinal = new Map<string, string>()
-  for (const definition of SCALE_SEED) {
-    const [scale] = await unscopedDb
-      .insert(scales)
-      .values({
-        runId: RUN_ID,
-        key: definition.key,
-        label: definition.label,
-        description: definition.description,
-        scope: definition.scope,
-        mergeStrategy: definition.mergeStrategy ?? null,
-        splitStrategy: definition.splitStrategy ?? null,
-      })
-      .returning()
-    if (!scale) throw new Error(`Nepodařilo se založit škálu ${definition.key}.`)
-    scaleIdByKey.set(definition.key, scale.id)
-    scopeByKey.set(definition.key, definition.scope)
-
-    const bands = await unscopedDb
-      .insert(scaleBands)
-      .values(
-        BAND_BOUNDS.map((bounds, index) => ({
-          runId: RUN_ID,
-          scaleId: scale.id,
-          ...bounds,
-          name: definition.bandNames[index]!,
-        })),
-      )
-      .returning()
-    for (const band of bands) {
-      bandIdByScaleAndOrdinal.set(`${scale.id}:${band.ordinal}`, band.id)
-    }
-  }
-
-  const flagRows = await unscopedDb
-    .insert(flags)
     .values(
-      FLAG_SEED.map((flag) => ({
+      CHARACTER_SEED.map((character) => ({
         runId: RUN_ID,
-        key: flag.key,
-        label: flag.label,
-        description: flag.description,
+        homeGroupId: srdceParty.id,
+        ...character,
       })),
     )
     .returning()
-  const flagIdByKey = new Map(flagRows.map((row) => [row.key, row.id]))
+  const characterId = new Map(characterRows.map((row) => [row.externalId, row.id]))
 
-  const bandFor = (scaleId: string, value: number) =>
-    bandIdByScaleAndOrdinal.get(
-      `${scaleId}:${BAND_BOUNDS.find((b) => value >= b.minValue && value <= b.maxValue)!.ordinal}`,
-    )
+  const scaleId = new Map<string, string>()
+  for (const scale of SCALE_SEED) {
+    const [row] = await unscopedDb
+      .insert(scales)
+      .values({ runId: RUN_ID, key: scale.key, label: scale.label })
+      .returning()
+    if (!row) continue
+    scaleId.set(scale.key, row.id)
 
-  for (const [key, initialValue] of Object.entries(MARIE_INITIAL)) {
-    const scaleId = scaleIdByKey.get(key)!
+    for (const entry of scale.perCharacter) {
+      const owner = characterId.get(entry.character)
+      if (!owner) continue
 
-    // `character_scales` stays the registry of which scales a character tracks,
-    // shared ones included: the starting value comes per character from the
-    // `Characters` sheet and lands in that character's household of one.
-    await unscopedDb.insert(characterScales).values({
-      runId: RUN_ID,
-      characterId: marie.id,
-      scaleId,
-      externalId: `S_Marie_${key}`,
-      initialValue,
-    })
-
-    // A shared value belongs to the household, a character scale to the character (§4.4).
-    if (scopeByKey.get(key) === 'domacnost') {
-      await unscopedDb.insert(householdScaleValues).values({
+      await unscopedDb.insert(characterScales).values({
         runId: RUN_ID,
-        chapterId: chapter1.id,
-        householdId: householdByCharacter.get(marie.id)!,
-        scaleId,
-        value: initialValue,
-        source: 'pocatecni',
-        bandId: bandFor(scaleId, initialValue),
+        characterId: owner,
+        scaleId: row.id,
+        externalId: `S_${entry.character}_${scale.key}`,
+        minValue: entry.min,
+        maxValue: entry.max,
+        defaultValue: entry.value,
       })
-    } else {
       await unscopedDb.insert(characterScaleValues).values({
         runId: RUN_ID,
         chapterId: chapter1.id,
-        characterId: marie.id,
-        scaleId,
-        value: initialValue,
+        characterId: owner,
+        scaleId: row.id,
+        value: entry.value,
         source: 'pocatecni',
-        bandId: bandFor(scaleId, initialValue),
       })
     }
   }
 
-  // Single Marie technically has a joint account, but it stays out of the
-  // document: a flag drives display, not the existence of a value (§4.4).
-  await unscopedDb.insert(characterFlags).values({
-    runId: RUN_ID,
-    chapterId: chapter1.id,
-    characterId: marie.id,
-    flagId: flagIdByKey.get('Spolecny_ucet')!,
-    value: false,
-    source: 'pocatecni',
-  })
+  const resourceId = new Map<string, string>()
+  for (const resource of RESOURCE_SEED) {
+    const [row] = await unscopedDb
+      .insert(resources)
+      .values({ runId: RUN_ID, key: resource.key, label: resource.label, scope: resource.scope })
+      .returning()
+    if (!row) continue
+    resourceId.set(resource.key, row.id)
 
-  await unscopedDb.insert(groupMemberships).values({
-    runId: RUN_ID,
-    chapterId: chapter1.id,
-    characterId: marie.id,
-    groupId: srdceParty.id,
-    role: 'clen',
-    source: 'pocatecni',
-  })
+    for (const entry of resource.perCharacter) {
+      const owner = characterId.get(entry.character)
+      if (!owner) continue
 
-  await unscopedDb.insert(characterVariables).values([
-    {
-      runId: RUN_ID,
-      chapterId: chapter1.id,
-      characterId: marie.id,
-      key: 'PRIJMENI',
-      value: 'Balážová',
-      source: 'pocatecni',
-    },
-    {
-      runId: RUN_ID,
-      chapterId: chapter1.id,
-      characterId: marie.id,
-      key: 'VEK',
-      value: '30',
-      source: 'pocatecni',
-    },
-  ])
-
-  // --- Player question (§6.6): always bound to one character ---------------
-  const [leaderQuestion] = await unscopedDb
-    .insert(questions)
-    .values({
-      runId: RUN_ID,
-      externalId: 'Q_Marie_1_1',
-      chapterId: chapter1.id,
-      characterId: marie.id,
-      ordinal: 1,
-      type: 'single',
-      source: 'hrac',
-      text: 'Kdo z party se stal vedoucím směny?',
-    })
-    .returning()
-  if (!leaderQuestion) throw new Error('Nepodařilo se založit otázku o vedení směny.')
-
-  // An option naming another character references their ID, not free text (§6.6).
-  const leaderOptions = await unscopedDb
-    .insert(answerOptions)
-    .values([
-      {
+      await unscopedDb.insert(characterResources).values({
         runId: RUN_ID,
-        externalId: 'A_Marie_1_1_Karel',
-        questionId: leaderQuestion.id,
-        ordinal: 1,
-        label: 'Karel',
-        referencedCharacterId: karel.id,
-      },
-      {
+        characterId: owner,
+        resourceId: row.id,
+        externalId: `R_${entry.character}_${resource.key}`,
+        defaultValue: entry.value,
+      })
+      await unscopedDb.insert(characterResourceValues).values({
         runId: RUN_ID,
-        externalId: 'A_Marie_1_1_Marie',
-        questionId: leaderQuestion.id,
-        ordinal: 2,
-        label: 'Marie',
-        referencedCharacterId: marie.id,
-      },
-    ])
-    .returning()
-  const optionKarel = leaderOptions.find((o) => o.externalId === 'A_Marie_1_1_Karel')
-  const optionMarie = leaderOptions.find((o) => o.externalId === 'A_Marie_1_1_Marie')
-  if (!optionKarel || !optionMarie) throw new Error('Nepodařilo se založit volby odpovědi.')
+        chapterId: chapter1.id,
+        characterId: owner,
+        resourceId: row.id,
+        value: entry.value,
+        source: 'pocatecni',
+      })
+    }
+  }
 
-  // Layer 1 (§4.5): an answer's scale impact, `S_Marie_Wealth_osobni+3`. Also
-  // shows a transfer between accounts — one effect over two scales (§4.4).
-  await unscopedDb.insert(effects).values([
-    {
-      runId: RUN_ID,
-      answerOptionId: optionKarel.id,
-      ordinal: 1,
-      externalId: `${optionKarel.externalId}#1`,
-      kind: 'zmena_skaly',
-      characterId: marie.id,
-      scaleId: scaleIdByKey.get('Wealth_osobni')!,
-      scaleDelta: -2,
-    },
-    {
-      runId: RUN_ID,
-      answerOptionId: optionKarel.id,
-      ordinal: 2,
-      externalId: `${optionKarel.externalId}#2`,
-      kind: 'zmena_skaly',
-      characterId: marie.id,
-      scaleId: scaleIdByKey.get('Wealth_spolecny')!,
-      scaleDelta: 2,
-    },
-    {
-      runId: RUN_ID,
-      answerOptionId: optionMarie.id,
-      ordinal: 1,
-      externalId: `${optionMarie.externalId}#1`,
-      kind: 'zmena_skaly',
-      characterId: marie.id,
-      scaleId: scaleIdByKey.get('Control')!,
-      scaleDelta: 2,
-    },
-    // Layer 2 (§4.5): the answer enables a template block directly, no rule.
-    {
-      runId: RUN_ID,
-      answerOptionId: optionMarie.id,
-      ordinal: 2,
-      externalId: `${optionMarie.externalId}#2`,
-      kind: 'blok',
-      characterId: marie.id,
-      blockExternalId: 'MARIE_VEDENI_SMENY',
-    },
-  ])
+  await seedHousehold(chapter2.id, characterId, resourceId)
+  await seedContent(chapter2.id, characterId)
+  await seedQuestions(chapter2.id, characterId, scaleId, resourceId)
 
-  // --- Org paired question (§6.7) ------------------------------------------
-  // Marriages are entered by the orgs between chapters, never printed for
-  // players, and recorded once — the other character sees it linked.
-  const [marriageQuestion] = await unscopedDb
-    .insert(questions)
-    .values({
+  await unscopedDb.insert(groupMemberships).values(
+    characterRows.map((row) => ({
       runId: RUN_ID,
-      externalId: 'Q_Marie_1_2',
       chapterId: chapter1.id,
-      characterId: marie.id,
-      ordinal: 2,
-      type: 'single',
-      source: 'org',
-      isPaired: true,
-      text: 'Provdala se Marie, a za koho?',
-      helpText: 'Zadává org po poradě. Tatáž odpověď se zobrazí i u druhé postavy.',
-    })
-    .returning()
-  if (!marriageQuestion) throw new Error('Nepodařilo se založit párovou otázku o sňatku.')
-
-  const marriageOptions = await unscopedDb
-    .insert(answerOptions)
-    .values([
-      {
-        runId: RUN_ID,
-        externalId: 'A_Marie_1_2_Mirek',
-        questionId: marriageQuestion.id,
-        ordinal: 1,
-        label: 'Mirek Pokorný',
-        referencedCharacterId: mirek.id,
-      },
-      {
-        runId: RUN_ID,
-        externalId: 'A_Marie_1_2_Karel',
-        questionId: marriageQuestion.id,
-        ordinal: 2,
-        label: 'Karel Novotný',
-        referencedCharacterId: karel.id,
-      },
-    ])
-    .returning()
-  const optionMirekSvatba = marriageOptions.find((o) => o.externalId === 'A_Marie_1_2_Mirek')
-  if (!optionMirekSvatba) throw new Error('Nepodařilo se založit volby sňatku.')
-
-  // --- Layer 3 (§4.5): rules with structured conditions --------------------
-  const [leaderRule] = await unscopedDb
-    .insert(rules)
-    .values({
-      runId: RUN_ID,
-      externalId: 'R_Marie_VedeniSmeny',
-      chapterId: chapter1.id,
-      name: 'Kdo vede směnu, vede i Srdce party',
-      description:
-        'Postava, která se stala vedoucím směny, přebírá vedení Srdce party. Kdo to je, určuje odpověď.',
-      priority: 100,
-      weight: '1',
-    })
-    .returning()
-  if (!leaderRule) throw new Error('Nepodařilo se založit pravidlo o vedení.')
-
-  await unscopedDb.insert(ruleConditions).values({
-    runId: RUN_ID,
-    ruleId: leaderRule.id,
-    groupIndex: 0,
-    position: 1,
-    connector: 'AND',
-    subject: 'odpoved',
-    operator: 'eq',
-    questionId: leaderQuestion.id,
-    answerOptionId: optionMarie.id,
-  })
-
-  // Target derived from the answer (§7.3): the leader is whoever the chosen
-  // option references, not whoever answered.
-  await unscopedDb.insert(effects).values({
-    runId: RUN_ID,
-    ruleId: leaderRule.id,
-    ordinal: 1,
-    externalId: `${leaderRule.externalId}#1`,
-    kind: 'vedeni',
-    groupId: srdceParty.id,
-    groupRole: 'vedouci',
-    relatedFromAnswer: true,
-  })
-
-  const [marriageRule] = await unscopedDb
-    .insert(rules)
-    .values({
-      runId: RUN_ID,
-      externalId: 'R_Marie_Svatba',
-      chapterId: chapter1.id,
-      name: 'Sňatek slučuje domácnosti',
-      description:
-        'Když org zadá, že se Marie provdala, sloučí se její domácnost s domácností vybraného partnera.',
-      priority: 200,
-      weight: '1',
-      // A wedding hits the household as a whole, not each member (§4.4).
-      appliesOncePerHousehold: true,
-    })
-    .returning()
-  if (!marriageRule) throw new Error('Nepodařilo se založit pravidlo o sňatku.')
-
-  await unscopedDb.insert(ruleConditions).values({
-    runId: RUN_ID,
-    ruleId: marriageRule.id,
-    groupIndex: 0,
-    position: 1,
-    connector: 'AND',
-    subject: 'odpoved',
-    operator: 'eq',
-    questionId: marriageQuestion.id,
-    answerOptionId: optionMirekSvatba.id,
-  })
-
-  await unscopedDb.insert(effects).values([
-    {
-      runId: RUN_ID,
-      ruleId: marriageRule.id,
-      ordinal: 1,
-      externalId: `${marriageRule.externalId}#1`,
-      kind: 'domacnost_slouceni',
-      characterId: marie.id,
-      // The partner comes from the answer, so no rule per pair of 23 characters.
-      relatedFromAnswer: true,
-    },
-    {
-      runId: RUN_ID,
-      ruleId: marriageRule.id,
-      ordinal: 2,
-      externalId: `${marriageRule.externalId}#2`,
-      kind: 'priznak',
-      characterId: marie.id,
-      flagId: flagIdByKey.get('Svatba')!,
-      flagValue: true,
-    },
-    {
-      runId: RUN_ID,
-      ruleId: marriageRule.id,
-      ordinal: 3,
-      externalId: `${marriageRule.externalId}#3`,
-      kind: 'priznak',
-      characterId: marie.id,
-      flagId: flagIdByKey.get('Spolecny_ucet')!,
-      flagValue: true,
-    },
-    {
-      runId: RUN_ID,
-      ruleId: marriageRule.id,
-      ordinal: 4,
-      externalId: `${marriageRule.externalId}#4`,
-      kind: 'blok',
-      characterId: marie.id,
-      blockExternalId: 'MARIE_SVATBA',
-    },
-  ])
+      characterId: row.id,
+      groupId: srdceParty.id,
+      role: row.externalId === 'Karel' ? ('vedouci' as const) : ('clen' as const),
+      source: 'pocatecni' as const,
+    })),
+  )
 
   await unscopedDb.insert(auditLog).values({
     runId: RUN_ID,
-    action: 'konfigurace.import',
+    action: 'beh.zalozeni',
     entityKind: 'runs',
     entityId: RUN_ID,
-    summary: 'Seed: založen ukázkový běh.',
+    summary: 'Založen ukázkový běh seed skriptem.',
     author: AUTHOR,
   })
 
-  const [counts] = await unscopedDb
-    .select({
-      postavy: sql<number>`(select count(*) from characters where run_id = ${RUN_ID})`,
-      domacnosti: sql<number>`(select count(*) from households where run_id = ${RUN_ID})`,
-      skalyPostavy: sql<number>`(select count(*) from scales where run_id = ${RUN_ID} and scope = 'postava')`,
-      skalySdilene: sql<number>`(select count(*) from scales where run_id = ${RUN_ID} and scope = 'domacnost')`,
-      otazkyHrac: sql<number>`(select count(*) from questions where run_id = ${RUN_ID} and source = 'hrac')`,
-      otazkyOrg: sql<number>`(select count(*) from questions where run_id = ${RUN_ID} and source = 'org')`,
-      pravidla: sql<number>`(select count(*) from rules where run_id = ${RUN_ID})`,
-    })
-    .from(runs)
-    .where(eq(runs.id, RUN_ID))
-
-  process.stdout.write(
-    `Seed hotový: běh ${RUN_ID}\n` +
-      `  ${counts?.postavy} postav, ${counts?.domacnosti} domácností\n` +
-      `  škály: ${counts?.skalyPostavy} za postavu, ${counts?.skalySdilene} sdílené\n` +
-      `  otázky: ${counts?.otazkyHrac} pro hráče, ${counts?.otazkyOrg} pro orga\n` +
-      `  pravidla: ${counts?.pravidla}\n`,
-  )
+  console.log(`Seed hotový: běh ${RUN_ID}.`)
   await rawSql.end()
 }
 
-main().catch((error) => {
+/**
+ * Marie and Mirek marry in chapter 2. The household ID is derived from both
+ * member IDs sorted alphabetically (§4.2), never stored from a sheet.
+ */
+const seedHousehold = async (
+  chapterId: string,
+  characterId: Map<string, string>,
+  resourceId: Map<string, string>,
+): Promise<void> => {
+  const marie = characterId.get('Marie')
+  const mirek = characterId.get('Mirek')
+  const wealth = resourceId.get('Wealth')
+  if (!marie || !mirek || !wealth) return
+
+  const [household] = await unscopedDb
+    .insert(households)
+    .values({
+      runId: RUN_ID,
+      externalId: householdExternalId('Marie', 'Mirek'),
+      label: 'Balážovi–Pokorní',
+      createdInChapterId: chapterId,
+    })
+    .returning()
+  if (!household) return
+
+  await unscopedDb.insert(householdMemberships).values(
+    [marie, mirek].map((member) => ({
+      runId: RUN_ID,
+      chapterId,
+      characterId: member,
+      householdId: household.id,
+      source: 'prepocet' as const,
+    })),
+  )
+
+  await unscopedDb.insert(householdResourceValues).values({
+    runId: RUN_ID,
+    chapterId,
+    householdId: household.id,
+    resourceId: wealth,
+    value: 0,
+    source: 'prepocet',
+  })
+}
+
+/** §4.2: both IDs sorted alphabetically and glued, so the pair always yields the same ID. */
+const householdExternalId = (first: string, second: string): string =>
+  [first, second].sort((a, b) => a.localeCompare(b, 'cs')).join('')
+
+/** A block whose chosen variant nests another block (§8.4). */
+const seedContent = async (
+  chapterId: string,
+  characterId: Map<string, string>,
+): Promise<void> => {
+  const marie = characterId.get('Marie')
+  if (!marie) return
+
+  const [historie] = await unscopedDb
+    .insert(contentBlocks)
+    .values({ runId: RUN_ID, externalId: 'B_Marie_2_Historie_1', chapterId, characterId: marie })
+    .returning()
+  const [penize] = await unscopedDb
+    .insert(contentBlocks)
+    .values({ runId: RUN_ID, externalId: 'B_Marie_2_Penize_1', chapterId, characterId: marie })
+    .returning()
+  if (!historie || !penize) return
+
+  await unscopedDb.insert(blockVariations).values([
+    {
+      runId: RUN_ID,
+      externalId: 'V_Marie_2_Historie_1_A',
+      blockId: historie.id,
+      ordinal: 1,
+      priority: 1,
+      description: 'Svatba',
+      text: 'V květnu si vzala {PRIJMENI}. {BLOK B_Marie_2_Penize_1}',
+      conditionExpr: 'A_Marie_2_1_Mirek',
+      conditionRefs: [{ name: 'A_Marie_2_1_Mirek', kind: 'odpoved' }],
+    },
+    {
+      runId: RUN_ID,
+      externalId: 'V_Marie_2_Historie_1_B',
+      blockId: historie.id,
+      ordinal: 2,
+      priority: 2,
+      description: null,
+      text: 'Rok proběhl bez velkých změn.',
+      // An empty condition is the always-true fallback, same as `DEFAULT` (§8.2).
+      conditionExpr: '',
+      conditionRefs: [],
+    },
+    {
+      runId: RUN_ID,
+      externalId: 'V_Marie_2_Penize_1_A',
+      blockId: penize.id,
+      // This block orders by rows: no variant carries a priority (§8.2).
+      ordinal: 1,
+      priority: null,
+      description: null,
+      text: 'Na společný účet dali dohromady slušnou sumu.',
+      conditionExpr: 'R_MarieMirek_Wealth >= 7',
+      conditionRefs: [{ name: 'R_MarieMirek_Wealth', kind: 'zdroj' }],
+    },
+    {
+      runId: RUN_ID,
+      externalId: 'V_Marie_2_Penize_1_B',
+      blockId: penize.id,
+      ordinal: 2,
+      priority: null,
+      description: null,
+      text: 'Na nic dalšího nezbylo.',
+      conditionExpr: 'DEFAULT',
+      conditionRefs: [],
+    },
+  ])
+}
+
+/**
+ * A marriage question whose answer moves money into the joint account through
+ * an `{input}` the org types in, plus a poll and one vote in it.
+ */
+const seedQuestions = async (
+  chapterId: string,
+  characterId: Map<string, string>,
+  scaleId: Map<string, string>,
+  resourceId: Map<string, string>,
+): Promise<void> => {
+  const marie = characterId.get('Marie')
+  const mirek = characterId.get('Mirek')
+  const karel = characterId.get('Karel')
+  const wealth = resourceId.get('Wealth')
+  const regime = scaleId.get('Regime')
+  if (!marie || !mirek || !karel || !wealth || !regime) return
+
+  const [marriage] = await unscopedDb
+    .insert(questions)
+    .values({
+      runId: RUN_ID,
+      externalId: 'Q_Marie_2_1',
+      chapterId,
+      characterId: marie,
+      ordinal: 1,
+      type: 'single',
+      source: 'org',
+      text: 'Vzala sis někoho?',
+    })
+    .returning()
+  if (!marriage) return
+
+  const [tookMirek] = await unscopedDb
+    .insert(answerOptions)
+    .values({
+      runId: RUN_ID,
+      externalId: 'A_Marie_2_1_Mirek',
+      questionId: marriage.id,
+      ordinal: 1,
+      label: 'Mirek Pokorný',
+      referencedCharacterId: mirek,
+    })
+    .returning()
+  await unscopedDb.insert(answerOptions).values({
+    runId: RUN_ID,
+    externalId: 'A_Marie_2_1_Nikdo',
+    questionId: marriage.id,
+    ordinal: 2,
+    label: 'Nikdo',
+  })
+  if (!tookMirek) return
+
+  const effectRows = await unscopedDb
+    .insert(effects)
+    .values([
+      {
+        runId: RUN_ID,
+        answerOptionId: tookMirek.id,
+        externalId: 'A_Marie_2_1_Mirek#0',
+        ordinal: 0,
+        kind: 'domacnost_slouceni',
+        relatedFromAnswer: true,
+      },
+      {
+        runId: RUN_ID,
+        answerOptionId: tookMirek.id,
+        externalId: 'A_Marie_2_1_Mirek#1',
+        ordinal: 1,
+        kind: 'zmena_zdroje',
+        characterId: marie,
+        resourceId: wealth,
+        // The amount comes from `effect_inputs`, not from the sheet (§4.4).
+        resourceTarget: 'osobni',
+      },
+      {
+        runId: RUN_ID,
+        answerOptionId: tookMirek.id,
+        externalId: 'A_Marie_2_1_Mirek#2',
+        ordinal: 2,
+        kind: 'zmena_zdroje',
+        resourceId: wealth,
+        resourceTarget: 'domacnost',
+        householdExternalId: householdExternalId('Marie', 'Mirek'),
+      },
+    ])
+    .returning()
+
+  // The same placeholder name on both sides: one input field, one number,
+  // moved out of the personal account and into the joint one.
+  const fromPersonal = effectRows.find((row) => row.externalId === 'A_Marie_2_1_Mirek#1')
+  const toHousehold = effectRows.find((row) => row.externalId === 'A_Marie_2_1_Mirek#2')
+  if (fromPersonal && toHousehold) {
+    await unscopedDb.insert(effectInputs).values([
+      { runId: RUN_ID, effectId: fromPersonal.id, ordinal: 0, inputKey: 'input', sign: -1 },
+      { runId: RUN_ID, effectId: toHousehold.id, ordinal: 0, inputKey: 'input', sign: 1 },
+    ])
+  }
+
+  const [poll] = await unscopedDb
+    .insert(questions)
+    .values({
+      runId: RUN_ID,
+      externalId: 'Q_Group_SrdceParty_Vedouci',
+      chapterId,
+      characterId: null,
+      ordinal: null,
+      type: 'poll',
+      source: 'hrac',
+      text: 'Kdo povede partu?',
+    })
+    .returning()
+  if (!poll) return
+
+  await unscopedDb.insert(answerOptions).values([
+    {
+      runId: RUN_ID,
+      externalId: 'A_Group_SrdceParty_Vedouci_Karel',
+      questionId: poll.id,
+      ordinal: 1,
+      label: 'Karel',
+      referencedCharacterId: karel,
+    },
+    {
+      runId: RUN_ID,
+      externalId: 'A_Group_SrdceParty_Vedouci_Marie',
+      questionId: poll.id,
+      ordinal: 2,
+      label: 'Marie',
+      referencedCharacterId: marie,
+    },
+  ])
+
+  // A vote carries no text and no options of its own — both come from the poll.
+  await unscopedDb.insert(questions).values({
+    runId: RUN_ID,
+    externalId: 'Q_Marie_2_2',
+    chapterId,
+    characterId: marie,
+    ordinal: 2,
+    type: 'poll-answer',
+    source: 'hrac',
+    pollQuestionId: poll.id,
+  })
+}
+
+main().catch((error: unknown) => {
   console.error(error)
   process.exit(1)
 })

@@ -1,14 +1,14 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { parseTemplate } from './template'
 
 describe('parseTemplate', () => {
-  it('reads block markers and variables from the real Marie template', () => {
-    const markdown = readFileSync('documents/marie.md', 'utf8')
-    const { problems, blockIds, variables } = parseTemplate(markdown)
+  it('reads block markers and variables', () => {
+    const { problems, blockIds, variables } = parseTemplate(
+      '# {JMENO} {PRIJMENI}\n\n{BLOK B_Marie_2_Historie_1}\n\nStav: {S_Regime}, {R_Wealth}\n\n{BLOK B_Marie_2_Prace_1}\n',
+    )
     expect(problems).toEqual([])
     expect(blockIds).toEqual(['B_Marie_2_Historie_1', 'B_Marie_2_Prace_1'])
-    expect(variables).toEqual(['S_Wealth_osobni', 'S_Wealth_spolecny'])
+    expect(variables).toEqual(['JMENO', 'PRIJMENI', 'S_Regime', 'R_Wealth'])
   })
 
   it('records the line of every marker', () => {

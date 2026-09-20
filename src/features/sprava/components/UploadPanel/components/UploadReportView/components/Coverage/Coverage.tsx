@@ -5,11 +5,10 @@ import TableRow from '@mui/material/TableRow'
 import Typography from '@mui/material/Typography'
 import { TitledPanel } from '@/components'
 import type { TemplateCoverage } from '@/import'
-import { common } from '@/locales/cs/common'
 import { importReport } from '@/locales/cs/import_report'
 import styles from './Coverage.module.css'
 
-/** Which character still has no template (§10.3). */
+/** Which character or group still has no template, per chapter (§10.2). */
 export const Coverage = ({ coverage }: { coverage: TemplateCoverage }) => (
   <TitledPanel
     title={importReport.templatesTitle}
@@ -23,15 +22,18 @@ export const Coverage = ({ coverage }: { coverage: TemplateCoverage }) => (
     <Table size="small">
       <TableBody>
         {coverage.assignments.map((row) => (
-          <TableRow key={row.characterExternalId} data-testid={`template-coverage--${row.characterExternalId}`}>
-            <TableCell>{row.characterName}</TableCell>
+          <TableRow
+            key={`${row.ownerExternalId}-${row.chapter}`}
+            data-testid={`template-coverage--${row.ownerExternalId}-${row.chapter}`}
+          >
+            <TableCell>{row.ownerName}</TableCell>
             <TableCell>
-              <code className={styles.expected}>{row.expected || common.emptyValue}</code>
+              <code className={styles.expected}>
+                {`${row.ownerExternalId}_${row.chapter}.md`}
+              </code>
             </TableCell>
             <TableCell className={styles.status} data-status={row.status}>
-              {row.status === 'prirazena' && row.filename}
-              {row.status === 'chybi' && importReport.templateMissing}
-              {row.status === 'nezadana' && importReport.templateUnassigned}
+              {row.status === 'prirazena' ? row.filename : importReport.templateMissing}
             </TableCell>
           </TableRow>
         ))}

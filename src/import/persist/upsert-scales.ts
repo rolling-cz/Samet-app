@@ -1,61 +1,52 @@
 import type { RunScope } from '@/db'
-import { scaleBands, scales } from '@/db/schema'
+import { characterScales, scales } from '@/db/schema'
 import type { ParsedConfig } from '../types/parsed-config'
 import type { IdMap } from './entity-ids'
 import type { WrittenRows } from './written-rows'
 
 /**
- * Scales are defined per chapter in the sheet but stored once per run: the
- * definition is per run and scale, never per character (§4.1). A later
- * chapter's definition wins.
+ * Scales (§4.2, sheet `Scales`).
+ *
+ * The definition is per run and key; the range and the starting value are per
+ * pair character × scale, because two characters may run the same scale on
+ * different bounds.
  */
-export const upsertScales = async (scope: RunScope, config: ParsedConfig, written: WrittenRows): Promise<IdMap> => {
+export const upsertScales = async (
+  scope: RunScope,
+  config: ParsedConfig,
+  written: WrittenRows,
+  characterIds: IdMap,
+): Promise<IdMap> => {
   const scaleIds: IdMap = new Map()
 
-  for (const chapter of config.chapters) {
-    for (const scale of config.scales.get(chapter) ?? []) {
-      const values = {
-        label: scale.label,
-        minValue: scale.min,
-        maxValue: scale.max,
-        scope: scale.scope,
-        // Strategy values were checked against the enum by the validation.
-        mergeStrategy: (scale.mergeStrategy ?? null) as never,
-        splitStrategy: (scale.splitStrategy ?? null) as never,
-      }
-      const [row] = await scope
-        .insert(scales, { key: scale.key, ...values })
-        .onConflictDoUpdate({ target: [scales.runId, scales.key], set: values })
-        .returning({ id: scales.id })
-      if (!row) continue
+  for (const row of config.scales) {
+    if (scaleIds.has(row.key)) continue
 
-      written.scales.add(row.id)
-      scaleIds.set(scale.key, row.id)
-    }
+    const values = { label: row.label }
+    const [definition] = await scope
+      .insert(scales, { key: row.key, ...values })
+      .onConflictDoUpdate({ target: [scales.runId, scales.key], set: values })
+      .returning({ id: scales.id })
+    if (!definition) continue
+
+    written.scales.add(definition.id)
+    scaleIds.set(row.key, definition.id)
   }
 
-  for (const chapter of config.chapters) {
-    for (const scale of config.scales.get(chapter) ?? []) {
-      const scaleId = scaleIds.get(scale.key)
-      if (!scaleId) continue
+  for (const row of config.scales) {
+    const characterId = row.characterId ? characterIds.get(row.characterId) : undefined
+    const scaleId = scaleIds.get(row.key)
+    if (!characterId || !scaleId) continue
 
-      for (const band of scale.bands) {
-        const [row] = await scope
-          .insert(scaleBands, {
-            scaleId,
-            ordinal: band.ordinal,
-            minValue: band.min,
-            maxValue: band.max,
-            name: band.name,
-          })
-          .onConflictDoUpdate({
-            target: [scaleBands.runId, scaleBands.scaleId, scaleBands.ordinal],
-            set: { minValue: band.min, maxValue: band.max, name: band.name },
-          })
-          .returning({ id: scaleBands.id })
-        if (row) written.scaleBands.add(row.id)
-      }
-    }
+    const values = { minValue: row.min, maxValue: row.max, defaultValue: row.defaultValue }
+    const [assignment] = await scope
+      .insert(characterScales, { characterId, scaleId, externalId: row.externalId, ...values })
+      .onConflictDoUpdate({
+        target: [characterScales.runId, characterScales.characterId, characterScales.scaleId],
+        set: { externalId: row.externalId, ...values },
+      })
+      .returning({ id: characterScales.id })
+    if (assignment) written.characterScales.add(assignment.id)
   }
 
   return scaleIds

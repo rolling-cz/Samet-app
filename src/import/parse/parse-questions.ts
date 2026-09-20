@@ -1,23 +1,51 @@
 import type { CharacterAliases } from '../characters'
+import { answerId, FIRST_QUESTION_ORDINAL, questionId } from '../constants/question-ids'
 import {
+  BOOL_ANSWER_TEXTS,
   OTHER_ANSWER_MARKER,
   ORG_SOURCE_WORD,
   PLAYER_SOURCE_WORDS,
   QUESTION_TYPES,
   YES_WORDS,
 } from '../constants/sheet-vocabulary'
-import { chapterSheetName, QUESTION_COLUMNS, QUESTION_FILL_DOWN_COLUMNS } from '../constants/sheets'
+import {
+  ANSWER_BLOCKS_COLUMN,
+  ANSWER_ID_COLUMN,
+  ANSWER_LABEL_COLUMN,
+  chapterSheetName,
+  IMPACT_COLUMN,
+  QUESTION_COLUMNS,
+  QUESTION_CONDITION_COLUMN,
+  QUESTION_FILL_DOWN_COLUMNS,
+  QUESTION_PRIVATE_COLUMN,
+  QUESTION_SOURCE_COLUMN,
+} from '../constants/sheets'
 import type { IssueCollector } from '../issue-collector'
+import { parseCondition } from '../expression'
 import { parseScaleImpact } from '../scale-impact'
+import type { SheetRow } from '../sheet'
 import type { ImportRepairs, Workbook } from '../types/parsed-config'
-import type { ParsedAnswerOption, ParsedQuestion } from '../types/parsed-question'
+import type {
+  ParsedAnswerOption,
+  ParsedQuestion,
+  ParsedQuestionType,
+} from '../types/parsed-question'
 import { splitList } from '../utils/split-list'
 import { parseAnswerEffects } from './parse-answer-effects'
 import { readConfigSheet, requireColumns } from './read-config-sheet'
 import { resolveOwner, resolveReferencedCharacter } from './resolve-character-refs'
 
 /** Question type used when the sheet's value is unknown; already reported as an error. */
-const FALLBACK_QUESTION_TYPE: ParsedQuestion['type'] = 'text'
+const FALLBACK_QUESTION_TYPE: ParsedQuestionType = 'single'
+
+/**
+ * A filled-in `Type` cell is what starts a new question.
+ *
+ * It is the one column every question has and no answer row repeats — the ID
+ * may be blank (§4.2) and `Character` carries down over several questions of
+ * the same person.
+ */
+const QUESTION_START_COLUMN = 'Type'
 
 export const parseQuestions = (
   workbook: Workbook,
@@ -27,7 +55,13 @@ export const parseQuestions = (
   repairs: ImportRepairs,
 ): ParsedQuestion[] => {
   const name = chapterSheetName(chapter, 'Questions')
-  const read = readConfigSheet(workbook, name, repairs, QUESTION_FILL_DOWN_COLUMNS)
+  const read = readConfigSheet(
+    workbook,
+    name,
+    repairs,
+    QUESTION_COLUMNS,
+    QUESTION_FILL_DOWN_COLUMNS,
+  )
   if (!read) {
     issues.error(
       'chybejici_list',
@@ -40,131 +74,350 @@ export const parseQuestions = (
   if (!requireColumns(name, read.headers, QUESTION_COLUMNS, issues)) return []
 
   const questions: ParsedQuestion[] = []
-  const byId = new Map<string, ParsedQuestion>()
+  const seenQuestions = new Map<string, number>()
   const seenAnswers = new Map<string, number>()
+  /** Next ordinal per character; a poll belongs to nobody and takes none (§6.6). */
+  const nextOrdinal = new Map<string, number>()
+
+  let current: ParsedQuestion | undefined
 
   for (const row of read.rows) {
-    const questionId = row.get('Question ID')
-    if (questionId === '') {
-      issues.error(
-        'odpoved_bez_otazky',
-        row.at('Question ID'),
-        `Řádek nepatří k žádné otázce — sloupec \`Question ID\` je prázdný i po doplnění sloučených buněk.`,
-      )
+    // A blank row ends the group, so what follows belongs to no question yet.
+    if (row.precededByBlank) current = undefined
+
+    if (startsNewQuestion(row)) {
+      current = beginQuestion(row, chapter, nextOrdinal, aliases, issues, repairs)
+      questions.push(current)
+
+      const previous = seenQuestions.get(current.externalId)
+      if (previous !== undefined) {
+        issues.error(
+          'duplicitni_id',
+          row.at('ID'),
+          `Otázka \`${current.externalId}\` je v listu \`${name}\` dvakrát (poprvé na řádku ${previous}).`,
+          { value: current.externalId },
+        )
+      }
+      seenQuestions.set(current.externalId, row.rowNumber)
+    }
+
+    // An answer row before any question — typically after a blank row that
+    // ended the previous group (§11.1).
+    if (current === undefined) {
+      const orphan = row.get(ANSWER_ID_COLUMN) || row.get(ANSWER_LABEL_COLUMN)
+      if (orphan !== '') {
+        issues.error(
+          'odpoved_bez_otazky',
+          row.at(ANSWER_ID_COLUMN),
+          `Řádek odpovědi \`${orphan}\` nepatří k žádné otázce — nad ním žádná otázka nezačíná.`,
+          { value: orphan },
+        )
+      }
       continue
     }
 
-    let question = byId.get(questionId)
-    if (!question) {
-      const typeRaw = row.get('Typ')
-      const type = parseQuestionType(typeRaw)
-      if (!type) {
-        issues.error(
-          'chybejici_hodnota',
-          row.at('Typ'),
-          `Otázka \`${questionId}\` má neznámý typ „${typeRaw}" — čeká se ${QUESTION_TYPES.map((t) => `\`${t}\``).join(', ')}.`,
-          { value: typeRaw },
-        )
-      }
+    const option = readAnswer(row, current, aliases, repairs, issues)
+    if (!option) continue
 
-      const sourceRaw = row.get('Zdroj')
-      const source = sourceRaw === ORG_SOURCE_WORD ? 'org' : 'hrac'
-      if (sourceRaw !== '' && sourceRaw !== ORG_SOURCE_WORD && !isPlayerWord(sourceRaw)) {
-        issues.error(
-          'chybejici_hodnota',
-          row.at('Zdroj'),
-          `Otázka \`${questionId}\` má neznámý zdroj „${sourceRaw}" — čeká se \`hráč\` nebo \`org\`.`,
-          { value: sourceRaw },
-        )
-      }
-
-      const characterRef = row.get('Character')
-      question = {
-        externalId: questionId,
-        chapter,
-        characterRef,
-        characterId: resolveOwner(characterRef, aliases, repairs, row.at('Character'), `Otázka \`${questionId}\``, issues),
-        ordinal: byId.size + 1,
-        text: row.get('Text'),
-        type: type ?? FALLBACK_QUESTION_TYPE,
-        source,
-        isPaired: isYes(row.get('Parova')),
-        options: [],
-        location: row.at('Question ID'),
-      }
-      byId.set(questionId, question)
-      questions.push(question)
-
-      if (question.characterRef === '') {
-        issues.error('chybejici_hodnota', row.at('Character'), `Otázka \`${questionId}\` nemá postavu.`)
-      }
-      if (question.text === '') {
-        issues.warn(
-          'chybejici_hodnota',
-          row.at('Text'),
-          `Otázka \`${questionId}\` nemá text — v dotazníku bude prázdná.`,
-        )
-      }
-    }
-
-    const answerId = row.get('Answer ID')
-    // A question row with no answer is only a problem if no other row brings
-    // one; that is checked once the whole sheet is read.
-    if (answerId === '') continue
-
-    const previousAnswer = seenAnswers.get(answerId)
+    const previousAnswer = seenAnswers.get(option.externalId)
     if (previousAnswer !== undefined) {
       issues.error(
         'duplicitni_id',
-        row.at('Answer ID'),
-        `Odpověď \`${answerId}\` je v listu \`${name}\` dvakrát (poprvé na řádku ${previousAnswer}).`,
-        { value: answerId },
+        row.at(ANSWER_ID_COLUMN),
+        `Odpověď \`${option.externalId}\` je v listu \`${name}\` dvakrát (poprvé na řádku ${previousAnswer}).`,
+        { value: option.externalId },
       )
       continue
     }
-    seenAnswers.set(answerId, row.rowNumber)
+    seenAnswers.set(option.externalId, row.rowNumber)
+    current.options.push(option)
 
-    const { impacts, problems } = parseScaleImpact(row.get('Scale Impact'))
-    for (const problem of problems) {
-      issues.error(
-        'vadny_dopad_na_skalu',
-        row.at('Scale Impact'),
-        `Dopad na škálu „${problem.raw}" u odpovědi \`${answerId}\` se nedá přečíst: ${problem.detail}.`,
-        { value: problem.raw },
-      )
-    }
-
-    const option: ParsedAnswerOption = {
-      externalId: answerId,
-      label: row.get('Answer Text'),
-      ordinal: question.options.length + 1,
-      impacts,
-      blocks: splitList(row.get('Blocks')),
-      flags: splitList(row.get('Flags')),
-      effects: parseAnswerEffects(row.get('Effects'), answerId, row.at('Effects'), issues),
-      isOther: answerId.endsWith(OTHER_ANSWER_MARKER) || row.get('Answer Text') === OTHER_ANSWER_MARKER,
-      location: row.at('Answer ID'),
-    }
-    option.referencedCharacter = resolveReferencedCharacter(option, aliases.ids)
-    question.options.push(option)
-
-    // `scale_direct` writes an absolute value; the target scale comes from the
-    // impact column rather than a column of its own.
-    if (question.type === 'scale_direct' && question.scaleKey === undefined) {
-      const absolute = impacts.find((i) => i.mode === 'absolutni')
-      if (absolute) question.scaleKey = absolute.scale
-    }
+    readDirectTarget(current, option)
   }
 
   for (const question of questions) {
+    completeBoolAnswers(question)
     checkQuestionShape(question, issues)
   }
 
   return questions
 }
 
+const startsNewQuestion = (row: SheetRow): boolean => row.raw(QUESTION_START_COLUMN) !== ''
+
+const beginQuestion = (
+  row: SheetRow,
+  chapter: number,
+  nextOrdinal: Map<string, number>,
+  aliases: CharacterAliases,
+  issues: IssueCollector,
+  repairs: ImportRepairs,
+): ParsedQuestion => {
+  const typeRaw = row.get('Type')
+  const type = QUESTION_TYPES.find((known) => known === typeRaw)
+  if (!type) {
+    issues.error(
+      'chybejici_hodnota',
+      row.at('Type'),
+      `Otázka na řádku ${row.rowNumber} má neznámý typ „${typeRaw}" — čeká se ${QUESTION_TYPES.map((t) => `\`${t}\``).join(', ')}.`,
+      { value: typeRaw },
+    )
+  }
+  const resolvedType = type ?? FALLBACK_QUESTION_TYPE
+
+  const sourceRaw = row.get(QUESTION_SOURCE_COLUMN)
+  if (sourceRaw !== '' && sourceRaw !== ORG_SOURCE_WORD && !isPlayerWord(sourceRaw)) {
+    issues.error(
+      'chybejici_hodnota',
+      row.at(QUESTION_SOURCE_COLUMN),
+      `Otázka na řádku ${row.rowNumber} má neznámý zdroj „${sourceRaw}" — čeká se \`hráč\` nebo \`org\`.`,
+      { value: sourceRaw },
+    )
+  }
+
+  const isPoll = resolvedType === 'poll'
+  const characterRef = isPoll ? '' : row.get('Character')
+  const characterId = isPoll
+    ? undefined
+    : resolveOwner(
+        characterRef,
+        aliases,
+        repairs,
+        row.at('Character'),
+        `Otázka na řádku ${row.rowNumber}`,
+        issues,
+        row.raw('Character') !== '',
+      )
+
+  // A poll counts towards nobody's order (§6.6), so it neither takes an ordinal
+  // nor shifts the character's numbering.
+  let ordinal: number | undefined
+  if (!isPoll) {
+    const owner = characterId ?? characterRef
+    ordinal = nextOrdinal.get(owner) ?? FIRST_QUESTION_ORDINAL
+    nextOrdinal.set(owner, ordinal + 1)
+  }
+
+  const writtenId = row.get('ID')
+  const question: ParsedQuestion = {
+    externalId: writtenId,
+    idWasDerived: false,
+    chapter,
+    characterRef,
+    characterId,
+    ordinal,
+    // A vote carries its poll's ID in the `Text` column and shows the poll's
+    // own text in the app (§6.6).
+    text: resolvedType === 'poll-answer' ? '' : row.get('Text'),
+    type: resolvedType,
+    source: sourceRaw === ORG_SOURCE_WORD ? 'org' : 'hrac',
+    isPrivate: isYes(row.get(QUESTION_PRIVATE_COLUMN)),
+    pollRef: resolvedType === 'poll-answer' ? row.get('Text') : undefined,
+    condition: parseQuestionCondition(row, issues),
+    options: [],
+    location: row.at('ID'),
+  }
+
+  if (writtenId === '') {
+    if (isPoll) {
+      issues.error(
+        'chybejici_hodnota',
+        row.at('ID'),
+        'Anketa (`poll`) musí mít vyplněné `ID` — u ankety se nikdy negeneruje.',
+      )
+      question.externalId = `Q_poll_radek_${row.rowNumber}`
+    } else {
+      question.externalId = questionId(
+        characterId ?? characterRef,
+        chapter,
+        ordinal ?? FIRST_QUESTION_ORDINAL,
+      )
+      question.idWasDerived = true
+    }
+  }
+
+  if (!isPoll && characterRef === '') {
+    issues.error(
+      'chybejici_hodnota',
+      row.at('Character'),
+      `Otázka \`${question.externalId}\` nemá postavu.`,
+    )
+  }
+  if (resolvedType === 'poll-answer' && question.pollRef === '') {
+    issues.error(
+      'chybejici_hodnota',
+      row.at('Text'),
+      `Otázka \`${question.externalId}\` je typu \`poll-answer\`, ale ve sloupci \`Text\` nemá ID ankety.`,
+    )
+  }
+  if (resolvedType !== 'poll-answer' && question.text === '') {
+    issues.warn(
+      'chybejici_hodnota',
+      row.at('Text'),
+      `Otázka \`${question.externalId}\` nemá text — v dotazníku bude prázdná.`,
+    )
+  }
+
+  return question
+}
+
+const readAnswer = (
+  row: SheetRow,
+  question: ParsedQuestion,
+  aliases: CharacterAliases,
+  repairs: ImportRepairs,
+  issues: IssueCollector,
+): ParsedAnswerOption | undefined => {
+  const label = row.get(ANSWER_LABEL_COLUMN)
+  const writtenId = row.get(ANSWER_ID_COLUMN)
+
+  // A vote has no answers of its own: text, options and effects all come from
+  // the poll, so there is only one place to edit them (§6.6).
+  if (question.type === 'poll-answer') return undefined
+  if (writtenId === '' && label === '') return undefined
+
+  let externalId = writtenId
+  if (externalId === '') {
+    const derived = deriveAnswerId(question, label)
+    if (!derived) {
+      // A `bool` answer is recognised by its text, so anything else there is a
+      // typo that would silently become an answer nobody can refer to (§11.8).
+      const detail =
+        question.type === 'bool'
+          ? `u otázky typu \`bool\` smí být jen \`Ano\` nebo \`Ne\`, ne „${label}"`
+          : `bez \`${ANSWER_ID_COLUMN}\` se ID odvozuje jen u typu \`bool\` z textu \`Ano\` / \`Ne\``
+      issues.error(
+        question.type === 'bool' ? 'chybejici_hodnota' : 'chybejici_hodnota',
+        row.at(ANSWER_LABEL_COLUMN),
+        `Odpověď „${label}" u otázky \`${question.externalId}\`: ${detail}.`,
+        { value: label },
+      )
+
+      return undefined
+    }
+    externalId = derived
+    repairs.derivedAnswerIds++
+  }
+
+  const impactCell = row.get(IMPACT_COLUMN)
+  if (impactCell.includes(';')) repairs.semicolonSeparators++
+
+  const { impacts, problems } = parseScaleImpact(impactCell)
+  for (const problem of problems) {
+    issues.error(
+      'vadny_dopad_na_skalu',
+      row.at(IMPACT_COLUMN),
+      `Dopad „${problem.raw}" u odpovědi \`${externalId}\` se nedá přečíst: ${problem.detail}.`,
+      { value: problem.raw },
+    )
+  }
+
+  const option: ParsedAnswerOption = {
+    externalId,
+    label,
+    ordinal: question.options.length + 1,
+    impacts,
+    blocks: splitList(row.get(ANSWER_BLOCKS_COLUMN)),
+    effects: parseAnswerEffects(row.get('Effects'), externalId, row.at('Effects'), issues),
+    isOther: externalId.endsWith(OTHER_ANSWER_MARKER) || label === OTHER_ANSWER_MARKER,
+    isDerived: false,
+    location: row.at(ANSWER_ID_COLUMN),
+  }
+  option.referencedCharacter = resolveReferencedCharacter(option, aliases.ids)
+
+  return option
+}
+
+/**
+ * A question may itself be conditional from chapter 2 on (§4.2) — asked only
+ * when the expression holds. Conditional *sub*-questions stay out: this gates a
+ * whole question, it does not nest one inside another.
+ */
+const parseQuestionCondition = (row: SheetRow, issues: IssueCollector) => {
+  const raw = row.get(QUESTION_CONDITION_COLUMN)
+  if (raw === '') return undefined
+
+  const condition = parseCondition(raw)
+  if (!condition.ok) {
+    issues.error(
+      'vadny_vyraz',
+      row.at(QUESTION_CONDITION_COLUMN),
+      `Podmínka otázky je syntakticky vadná: ${condition.error}.`,
+      { value: condition.raw },
+    )
+  }
+
+  return condition
+}
+
+/** `bool` answers are recognised by their text, so row order does not matter (§6.1). */
+const deriveAnswerId = (question: ParsedQuestion, label: string): string | undefined => {
+  if (question.type !== 'bool') return undefined
+  const known = BOOL_ANSWER_TEXTS.find((text) => text === label)
+  if (!known) return undefined
+
+  return answerId(
+    question.characterId ?? question.characterRef,
+    question.chapter,
+    question.ordinal ?? FIRST_QUESTION_ORDINAL,
+    known,
+  )
+}
+
+/**
+ * A missing `Ano` / `Ne` row means "this answer has no effects", not "this
+ * answer cannot be given" (§6.1) — so the option is added with the derived ID
+ * and conditions can still refer to it.
+ */
+const completeBoolAnswers = (question: ParsedQuestion): void => {
+  if (question.type !== 'bool') return
+
+  for (const text of BOOL_ANSWER_TEXTS) {
+    if (question.options.some((option) => option.label === text)) continue
+
+    const externalId = deriveAnswerId(question, text)
+    if (!externalId) continue
+
+    question.options.push({
+      externalId,
+      label: text,
+      ordinal: question.options.length + 1,
+      impacts: [],
+      blocks: [],
+      effects: [],
+      isOther: false,
+      isDerived: true,
+      location: question.location,
+    })
+  }
+
+  question.options.sort(
+    (a, b) => BOOL_ANSWER_TEXTS.indexOf(a.label as never) - BOOL_ANSWER_TEXTS.indexOf(b.label as never),
+  )
+  question.options.forEach((option, index) => {
+    option.ordinal = index + 1
+  })
+}
+
+/**
+ * `scale_direct` / `resource_direct` write an absolute value; the target comes
+ * from the impact column rather than a column of its own, and must name a
+ * concrete account — routing is forbidden here (§4.4).
+ */
+const readDirectTarget = (question: ParsedQuestion, option: ParsedAnswerOption): void => {
+  if (question.target !== undefined) return
+  if (question.type !== 'scale_direct' && question.type !== 'resource_direct') return
+
+  const absolute = option.impacts.find((impact) => impact.mode === 'absolutni')
+  if (!absolute) return
+
+  question.target = { kind: absolute.kind, owner: absolute.owner, key: absolute.key }
+}
+
 /** Checks that need every answer row of the question to have been read. */
 const checkQuestionShape = (question: ParsedQuestion, issues: IssueCollector): void => {
+  if (question.type === 'poll-answer') return
+
   if (question.options.length === 0) {
     issues.error(
       'otazka_bez_odpovedi',
@@ -173,26 +426,41 @@ const checkQuestionShape = (question: ParsedQuestion, issues: IssueCollector): v
       { value: question.externalId },
     )
   }
-  if (question.type === 'scale_direct' && question.scaleKey === undefined) {
-    issues.error(
-      'vadny_dopad_na_skalu',
-      question.location,
-      `Otázka \`${question.externalId}\` je typu \`scale_direct\`, ale žádná její odpověď neurčuje škálu zápisem \`S_<Postava>_<Skala>=VALUE\`.`,
-      { value: question.externalId },
-    )
+
+  const expectedKind = question.type === 'scale_direct' ? 'skala' : 'zdroj'
+  if (question.type === 'scale_direct' || question.type === 'resource_direct') {
+    if (question.target === undefined) {
+      issues.error(
+        'vadny_dopad_na_skalu',
+        question.location,
+        `Otázka \`${question.externalId}\` je typu \`${question.type}\`, ale žádná její odpověď neurčuje cíl zápisem \`${expectedKind === 'skala' ? 'S_<Postava>_<Skala>' : 'R_<Vlastnik>_<Zdroj>'}=VALUE\`.`,
+        { value: question.externalId },
+      )
+    } else if (question.target.kind !== expectedKind) {
+      issues.error(
+        'vadny_dopad_na_skalu',
+        question.location,
+        `Otázka \`${question.externalId}\` je typu \`${question.type}\`, ale míří na ${question.target.kind === 'skala' ? 'škálu' : 'zdroj'} \`${question.target.owner}_${question.target.key}\`.`,
+        { value: question.externalId },
+      )
+    }
   }
-  if (question.isPaired && question.type !== 'single' && question.type !== 'multi') {
-    issues.error(
-      'chybejici_hodnota',
-      question.location,
-      `Párová otázka \`${question.externalId}\` musí být typu \`single\` nebo \`multi\`, aby mohla odkázat na druhou postavu.`,
-      { value: question.type },
-    )
+
+  // Absolute setting must always name a concrete account: the org is setting a
+  // balance and must never have it land somewhere else than they meant (§4.4).
+  for (const option of question.options) {
+    for (const impact of option.impacts) {
+      if (impact.mode !== 'absolutni' || impact.kind !== 'zdroj') continue
+      if (impact.forcedPrivate) continue
+      issues.error(
+        'vadny_dopad_na_skalu',
+        option.location,
+        `Odpověď \`${option.externalId}\` nastavuje zdroj \`${impact.externalId}\` absolutně, ale nejmenuje konkrétní účet — u absolutního nastavení je směrování zakázané (§4.4). Napište \`_private\`, nebo ID domácnosti.`,
+        { value: impact.raw },
+      )
+    }
   }
 }
-
-const parseQuestionType = (raw: string): ParsedQuestion['type'] | undefined =>
-  QUESTION_TYPES.find((type) => type === raw)
 
 /** `hráč`, `hrac`, `Hráč` — the sheet is written by hand. */
 const isPlayerWord = (value: string): boolean => PLAYER_SOURCE_WORDS.includes(value.toLowerCase())

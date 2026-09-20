@@ -3,7 +3,8 @@ import { boolean, check, foreignKey, integer, pgTable, text, unique, uuid } from
 import { createdAt } from './columns'
 import { stateSource } from './enums'
 import { characters } from './characters'
-import { flags, scaleBands, scales } from './scales'
+import { scales } from './scales'
+import { resources } from './resources'
 import { computations } from './computations'
 import { chapters, runs } from './runs'
 
@@ -18,7 +19,9 @@ import { chapters, runs } from './runs'
  * A character's scale value in a chapter.
  *
  * `wasClamped` and `rawValue` keep what the engine computed before clamping —
- * without them badly calibrated weights go unnoticed.
+ * without them badly calibrated weights go unnoticed. The bounds themselves
+ * are per character × scale (`character_scales`), so no range check can live
+ * here.
  */
 export const characterScaleValues = pgTable(
   'character_scale_values',
@@ -35,8 +38,6 @@ export const characterScaleValues = pgTable(
     /** Value before clamping, when clamping happened. */
     rawValue: integer('raw_value'),
     wasClamped: boolean('was_clamped').notNull().default(false),
-    /** Band derived from the value (§7.3, step 5). */
-    bandId: uuid('band_id'),
     source: stateSource('source').notNull(),
     /** The computation that produced this value; NULL is the initial state. */
     computationId: uuid('computation_id'),
@@ -46,7 +47,6 @@ export const characterScaleValues = pgTable(
     unique('character_scale_values_unique')
       .on(t.runId, t.chapterId, t.characterId, t.scaleId, t.computationId)
       .nullsNotDistinct(),
-    check('character_scale_values_range', sql`${t.value} between 1 and 10`),
     check(
       'character_scale_values_clamp_consistency',
       sql`(${t.wasClamped} = false) or (${t.rawValue} is not null and ${t.rawValue} <> ${t.value})`,
@@ -67,11 +67,6 @@ export const characterScaleValues = pgTable(
       foreignColumns: [scales.runId, scales.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'character_scale_values_band_fk',
-      columns: [t.runId, t.bandId],
-      foreignColumns: [scaleBands.runId, scaleBands.id],
-    }).onDelete('restrict'),
-    foreignKey({
       name: 'character_scale_values_computation_fk',
       columns: [t.runId, t.computationId],
       foreignColumns: [computations.runId, computations.id],
@@ -79,9 +74,17 @@ export const characterScaleValues = pgTable(
   ],
 )
 
-/** A character's flag in a chapter. Nothing is deleted: clearing is a new row with `value = false`. */
-export const characterFlags = pgTable(
-  'character_flags',
+/**
+ * A character's personal resource value in a chapter (§4.1).
+ *
+ * No clamp columns: a resource has no upper bound, so there is nothing to clamp
+ * and nothing to report. The audit carries the delta and the reason instead.
+ *
+ * For a `household` resource this is the personal account that survives
+ * marriage (§4.4); the joint one lives in `household_resource_values`.
+ */
+export const characterResourceValues = pgTable(
+  'character_resource_values',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     runId: text('run_id')
@@ -89,33 +92,33 @@ export const characterFlags = pgTable(
       .references(() => runs.id, { onDelete: 'restrict' }),
     chapterId: uuid('chapter_id').notNull(),
     characterId: uuid('character_id').notNull(),
-    flagId: uuid('flag_id').notNull(),
-    value: boolean('value').notNull(),
+    resourceId: uuid('resource_id').notNull(),
+    value: integer('value').notNull(),
     source: stateSource('source').notNull(),
     computationId: uuid('computation_id'),
     createdAt: createdAt(),
   },
   (t) => [
-    unique('character_flags_unique')
-      .on(t.runId, t.chapterId, t.characterId, t.flagId, t.computationId)
+    unique('character_resource_values_unique')
+      .on(t.runId, t.chapterId, t.characterId, t.resourceId, t.computationId)
       .nullsNotDistinct(),
     foreignKey({
-      name: 'character_flags_chapter_fk',
+      name: 'character_resource_values_chapter_fk',
       columns: [t.runId, t.chapterId],
       foreignColumns: [chapters.runId, chapters.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'character_flags_character_fk',
+      name: 'character_resource_values_character_fk',
       columns: [t.runId, t.characterId],
       foreignColumns: [characters.runId, characters.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'character_flags_flag_fk',
-      columns: [t.runId, t.flagId],
-      foreignColumns: [flags.runId, flags.id],
+      name: 'character_resource_values_resource_fk',
+      columns: [t.runId, t.resourceId],
+      foreignColumns: [resources.runId, resources.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'character_flags_computation_fk',
+      name: 'character_resource_values_computation_fk',
       columns: [t.runId, t.computationId],
       foreignColumns: [computations.runId, computations.id],
     }).onDelete('restrict'),
@@ -123,12 +126,12 @@ export const characterFlags = pgTable(
 )
 
 /**
- * Template variables (§8.4, §8.8): `{JMENO}`, `{PRIJMENI}`, `{VEK}`,
- * `{SKUPINA}` and whatever else a template author invents.
+ * Template variables (§8.3): `{JMENO}`, `{PRIJMENI}` and whatever else a
+ * template author invents.
  *
- * A table of its own because a surname changes with marriage and age grows with
- * every time skip, so the value is per chapter, not per character. Overwriting
- * `characters.last_name` would lose the history and break rule 3.
+ * A table of its own because a surname changes with marriage, so the value is
+ * per chapter, not per character. Overwriting `characters.last_name` would lose
+ * the history and break rule 3.
  *
  * A value missing for a chapter is derived from `characters` and the state.
  */
@@ -141,7 +144,7 @@ export const characterVariables = pgTable(
       .references(() => runs.id, { onDelete: 'restrict' }),
     chapterId: uuid('chapter_id').notNull(),
     characterId: uuid('character_id').notNull(),
-    /** Name without braces, upper case: `PRIJMENI`, `VEK`. */
+    /** Name without braces, upper case: `PRIJMENI`. */
     key: text('key').notNull(),
     value: text('value').notNull(),
     source: stateSource('source').notNull(),

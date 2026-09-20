@@ -3,15 +3,16 @@ import { createdAt } from './columns'
 import { chapters, runs } from './runs'
 
 /**
- * Household (§4.4) — characters sharing economic values, typically spouses.
+ * Household (§4.4) — characters sharing money, i.e. spouses.
  *
- * Shared values must never be handled by copying between characters, so a
- * household has its own identity and its own scale values
- * (`household_scale_values`).
+ * `externalId` is not taken from any sheet: it is both characters' IDs sorted
+ * alphabetically and glued together (`MarieMirek`, never `MirekMarie`). The
+ * same pair therefore always yields the same ID, even after a divorce and a
+ * second marriage, and an author can write `R_MarieMirek_Wealth` before the
+ * household exists.
  *
- * A single character is technically a household of one; one is created per
- * character when the run starts, which removes the "character without a
- * household" branch from the engine.
+ * A single character is NOT a household of one (§4.4): their money stays on
+ * their personal account and routing decides which of the two an impact hits.
  *
  * The household's identity survives chapters; who belongs to it is a
  * per-chapter snapshot in `household_memberships`. A divorce therefore deletes
@@ -24,7 +25,7 @@ export const households = pgTable(
     runId: text('run_id')
       .notNull()
       .references(() => runs.id, { onDelete: 'restrict' }),
-    /** Generated ID, e.g. `H_Marie` or `H_Marie_Mirek`. */
+    /** Derived from the member IDs, e.g. `MarieMirek` (§4.2). */
     externalId: text('external_id').notNull(),
     /** For the org only; never enters documents. */
     label: text('label'),

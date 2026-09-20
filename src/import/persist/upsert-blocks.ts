@@ -10,6 +10,7 @@ export const upsertBlocks = async (
   config: ParsedConfig,
   written: WrittenRows,
   characterIds: IdMap,
+  groupIds: IdMap,
   chapterIds: IdMap<number>,
 ): Promise<IdMap> => {
   const blockIds: IdMap = new Map()
@@ -19,14 +20,18 @@ export const upsertBlocks = async (
     if (!chapterId) continue
 
     for (const block of blocks) {
-      const characterId = block.characterId ? characterIds.get(block.characterId) : undefined
-      if (!characterId) continue
+      const characterId = block.characterId ? (characterIds.get(block.characterId) ?? null) : null
+      const groupId = block.groupId ? (groupIds.get(block.groupId) ?? null) : null
+      // A block belongs to a character or a group; the validation has already
+      // reported the case where it resolved to neither.
+      if (characterId === null && groupId === null) continue
 
+      const values = { chapterId, characterId, groupId }
       const [row] = await scope
-        .insert(contentBlocks, { externalId: block.externalId, chapterId, characterId })
+        .insert(contentBlocks, { externalId: block.externalId, ...values })
         .onConflictDoUpdate({
           target: [contentBlocks.runId, contentBlocks.externalId],
-          set: { chapterId, characterId },
+          set: values,
         })
         .returning({ id: contentBlocks.id })
       if (!row) continue
@@ -44,7 +49,9 @@ export const upsertBlocks = async (
       for (const variation of block.variations) {
         const values = {
           blockId,
-          priority: variation.priority,
+          ordinal: variation.ordinal,
+          // NULL means the block orders by rows (§8.2).
+          priority: variation.priority ?? null,
           description: variation.description || null,
           text: variation.text,
           conditionExpr: variation.condition.raw,
@@ -52,7 +59,10 @@ export const upsertBlocks = async (
         }
         const [row] = await scope
           .insert(blockVariations, { externalId: variation.externalId, ...values })
-          .onConflictDoUpdate({ target: [blockVariations.runId, blockVariations.externalId], set: values })
+          .onConflictDoUpdate({
+            target: [blockVariations.runId, blockVariations.externalId],
+            set: values,
+          })
           .returning({ id: blockVariations.id })
         if (row) written.blockVariations.add(row.id)
       }

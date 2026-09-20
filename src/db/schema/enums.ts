@@ -9,85 +9,24 @@ export const chapterStatus = pgEnum('chapter_status', ['rozpracovana', 'spocitan
 /** Org's decision about a touched chapter (cascade, §3.2). */
 export const cascadeDecision = pgEnum('cascade_decision', ['prepocitat', 'ponechat'])
 
-/** Question types (§6.1). Conditional sub-questions are deliberately out. */
+/**
+ * Question types (§6.1). Spelled as the author writes them in the sheet.
+ *
+ * `poll` is an opinion poll shared by several characters and `poll-answer` is
+ * one character's vote in it (§6.6). `scale_direct` / `resource_direct` set a
+ * value absolutely and must always name a concrete account (§4.4).
+ *
+ * Conditional sub-questions are deliberately out — the questionnaire is flat.
+ */
 export const questionType = pgEnum('question_type', [
   'bool',
   'single',
   'multi',
+  'poll',
+  'poll-answer',
   'scale_direct',
-  'text',
+  'resource_direct',
 ])
-
-/** What a rule condition talks about (§7.1) — structured, never parsed from text. */
-export const conditionSubject = pgEnum('condition_subject', [
-  'odpoved',
-  'skala',
-  'pasmo',
-  'priznak',
-  'clenstvi',
-  'vedeni',
-  'hod',
-])
-
-/** Condition operator. */
-export const conditionOperator = pgEnum('condition_operator', [
-  'eq',
-  'neq',
-  'gt',
-  'gte',
-  'lt',
-  'lte',
-  'in',
-  'not_in',
-  'obsahuje',
-  'je_pravda',
-  'je_nepravda',
-])
-
-/** Joins a condition to the previous one in the same group. */
-export const conditionConnector = pgEnum('condition_connector', ['AND', 'OR'])
-
-/** Effect kind (§7.1, §4.4). */
-export const effectKind = pgEnum('effect_kind', [
-  'zmena_skaly',
-  'nastaveni_skaly',
-  'pasmo',
-  'priznak',
-  'blok',
-  'clenstvi',
-  'vedeni',
-  'tag',
-  'domacnost_slouceni',
-  'domacnost_rozdeleni',
-])
-
-/**
- * Scale ownership (§4.4). `postava`: the value belongs to one character
- * (`Regime`, `Control`). `domacnost`: it belongs to the household and every
- * member reads and changes the same one (`Wealth`, `Bony`, company flat, car).
- */
-export const scaleScope = pgEnum('scale_scope', ['postava', 'domacnost'])
-
-/**
- * Merge on marriage (§4.4); the default is a sum clamped at 10.
- *
- * `otazka` means compute nothing — the value comes from an answer or from the
- * org. That is how money works: players decide themselves how much each
- * partner contributed, and a silent sum would take that away from them.
- */
-export const mergeStrategy = pgEnum('merge_strategy', [
-  'soucet',
-  'prumer',
-  'vyssi',
-  'otazka',
-])
-
-/**
- * Split on divorce or death (§4.4). Default `kopie`: each takes the current
- * household value. `otazka`: an answer or the org decides — never a silent
- * computation.
- */
-export const splitStrategy = pgEnum('split_strategy', ['kopie', 'polovina', 'otazka'])
 
 /**
  * Who fills the question in (§6.7). `org` is not printed into the player's
@@ -95,6 +34,36 @@ export const splitStrategy = pgEnum('split_strategy', ['kopie', 'polovina', 'ota
  * not a different mechanism, and the engine does not tell them apart.
  */
 export const questionSource = pgEnum('question_source', ['hrac', 'org'])
+
+/**
+ * Where a resource's value lives (§4.4). `private` belongs to one character;
+ * `household` means the resource also has a joint account, and an unsuffixed
+ * impact is routed to one or the other by marital status.
+ */
+export const resourceScope = pgEnum('resource_scope', ['private', 'household'])
+
+/**
+ * Which account an impact aims at (§4.4).
+ *
+ * `smerovany` is the plain `R_Marie_Wealth` form the author writes most of the
+ * time — the engine picks the account after the structural phase. The other two
+ * are the escape hatches: `_private` in the sheet, and a household ID written
+ * out in full.
+ */
+export const resourceTarget = pgEnum('resource_target', ['smerovany', 'osobni', 'domacnost'])
+
+/** Effect kind (§7.1, §4.4). Scales and resources are separate on purpose. */
+export const effectKind = pgEnum('effect_kind', [
+  'zmena_skaly',
+  'nastaveni_skaly',
+  'zmena_zdroje',
+  'nastaveni_zdroje',
+  'blok',
+  'clenstvi',
+  'vedeni',
+  'domacnost_slouceni',
+  'domacnost_rozdeleni',
+])
 
 /** Group membership action. */
 export const membershipAction = pgEnum('membership_action', ['pridat', 'odebrat'])
@@ -115,9 +84,4 @@ export const computationStatus = pgEnum('computation_status', ['navrh', 'potvrze
 export const uploadKind = pgEnum('upload_kind', ['konfigurace', 'sablona'])
 
 /** Document template kind (§8.6). */
-export const templateKind = pgEnum('template_kind', [
-  'postava',
-  'skupina',
-  'highlighty',
-  'dotaznik',
-])
+export const templateKind = pgEnum('template_kind', ['postava', 'skupina', 'dotaznik'])

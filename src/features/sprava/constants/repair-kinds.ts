@@ -4,7 +4,10 @@ export const COUNTED_REPAIR_KINDS = Object.freeze([
   'trimmedCells',
   'skippedEmptyRows',
   'resolvedCharacterNames',
-  'droppedScaleStrategies',
+  'derivedQuestionIds',
+  'derivedAnswerIds',
+  'addedBoolAnswers',
+  'semicolonSeparators',
 ] as const)
 
 export type CountedRepairKind = (typeof COUNTED_REPAIR_KINDS)[number]

@@ -2,18 +2,22 @@ import { sql } from 'drizzle-orm'
 import { boolean, check, foreignKey, integer, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 import { authorName } from './columns'
 import { characters } from './characters'
-import { rules } from './rules'
+import { blockVariations } from './content'
 import { chapters, runs } from './runs'
 
 /**
- * A dice roll (§7.4). Rolled once and stored per character, chapter and rule,
- * exactly like a player's answer.
+ * A dice roll (§7.4). Rolled once and stored per character, chapter and block
+ * variation, exactly like a player's answer.
+ *
+ * `occurrence` distinguishes several `RANDOM(n)` calls inside one condition,
+ * counted left to right from 0 — without it two rolls in one expression would
+ * collide on the unique.
  *
  * Recomputation never re-rolls; only an explicit org action can, keeping the old
  * number in `previousValue` and the whole change in the audit.
  *
  * A table of its own rather than a column on `answers`, because a roll belongs
- * to a rule, not to a question.
+ * to a condition, not to a question.
  */
 export const diceRolls = pgTable(
   'dice_rolls',
@@ -24,7 +28,9 @@ export const diceRolls = pgTable(
       .references(() => runs.id, { onDelete: 'restrict' }),
     chapterId: uuid('chapter_id').notNull(),
     characterId: uuid('character_id').notNull(),
-    ruleId: uuid('rule_id').notNull(),
+    blockVariationId: uuid('block_variation_id').notNull(),
+    /** Index of the `RANDOM(...)` call within the variant's condition, from 0. */
+    occurrence: integer('occurrence').notNull().default(0),
     sides: integer('sides').notNull(),
     value: integer('value').notNull(),
     /** Value before a re-roll or a manual override. */
@@ -37,7 +43,13 @@ export const diceRolls = pgTable(
     reason: text('reason'),
   },
   (t) => [
-    unique('dice_rolls_unique').on(t.runId, t.chapterId, t.characterId, t.ruleId),
+    unique('dice_rolls_unique').on(
+      t.runId,
+      t.chapterId,
+      t.characterId,
+      t.blockVariationId,
+      t.occurrence,
+    ),
     check('dice_rolls_value_in_range', sql`${t.value} between 1 and ${t.sides}`),
     check('dice_rolls_sides_sane', sql`${t.sides} >= 2`),
     foreignKey({
@@ -51,9 +63,9 @@ export const diceRolls = pgTable(
       foreignColumns: [characters.runId, characters.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'dice_rolls_rule_fk',
-      columns: [t.runId, t.ruleId],
-      foreignColumns: [rules.runId, rules.id],
+      name: 'dice_rolls_variation_fk',
+      columns: [t.runId, t.blockVariationId],
+      foreignColumns: [blockVariations.runId, blockVariations.id],
     }).onDelete('restrict'),
   ],
 )

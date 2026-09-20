@@ -1,5 +1,9 @@
+import type { ExpressionParse } from '../expression'
 import type { ScaleImpact } from '../scale-impact'
 import type { Sourced } from './sourced'
+import type { QUESTION_TYPES } from '../constants/sheet-vocabulary'
+
+export type ParsedQuestionType = (typeof QUESTION_TYPES)[number]
 
 /** One of `SNATEK(Mirek)`, `VEDENI(...)`, `CLENSTVI(...)` from the `Effects` column. */
 export interface ParsedAnswerEffect {
@@ -12,32 +16,43 @@ export interface ParsedAnswerOption extends Sourced {
   externalId: string
   label: string
   ordinal: number
-  /** `Scale Impact`, already parsed (§4.2). */
+  /** `Scale and Resources Impact`, already parsed (§4.2). */
   impacts: ScaleImpact[]
   /** `Blocks`: blocks this answer switches on (layer 2). */
   blocks: string[]
-  /** `Flags`: flags this answer sets (layer 2). */
-  flags: string[]
   /** `Effects`: structural effects (layer 2). */
   effects: ParsedAnswerEffect[]
   /** Character the option names, resolved from the ID suffix or from `SNATEK(…)`. */
   referencedCharacter?: string
   isOther: boolean
+  /**
+   * The row was not in the sheet: a `bool` question with no `Ano` / `Ne` row
+   * gets one with a derived ID and no effects (§6.1).
+   */
+  isDerived: boolean
 }
 
 export interface ParsedQuestion extends Sourced {
   externalId: string
+  /** The `ID` cell was empty and the import derived the ID (§4.2). */
+  idWasDerived: boolean
   chapter: number
-  /** What the author typed in the `Character` column. */
+  /** What the author typed in the `Character` column; empty for a `poll`. */
   characterRef: string
   /** Registry ID it resolved to; undefined when nothing matched. */
   characterId?: string
-  ordinal: number
+  /** Order within the character's chapter, from 1; undefined for a `poll` (§6.6). */
+  ordinal?: number
   text: string
-  type: 'bool' | 'single' | 'multi' | 'scale_direct' | 'text'
+  type: ParsedQuestionType
   source: 'hrac' | 'org'
-  isPaired: boolean
-  /** Target scale key for `scale_direct`, taken from the impact column. */
-  scaleKey?: string
+  /** The `Private` flag: impacts bypass routing and stay personal (§4.4). */
+  isPrivate: boolean
+  /** `poll-answer`: the poll ID the `Text` column holds (§6.6). */
+  pollRef?: string
+  /** `Condition`: the question is asked only when this holds (§4.2, chapters 2+). */
+  condition?: ExpressionParse
+  /** Target of `scale_direct` / `resource_direct`, taken from the impact column. */
+  target?: { kind: 'skala' | 'zdroj'; owner: string; key: string }
   options: ParsedAnswerOption[]
 }

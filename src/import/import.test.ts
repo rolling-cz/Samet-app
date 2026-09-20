@@ -1,290 +1,658 @@
 /**
- * The import end to end, on the real fixtures in `documents/`.
+ * The import end to end.
  *
- * `fixture-platny.xlsx` must come out usable; `fixture-vadny.xlsx` carries
- * deliberate mistakes and must be refused with all of them listed at once.
+ * Built on hand-made workbooks rather than a file, so each test shows the one
+ * row it is about. The real fixtures in `documents/` are exercised separately
+ * in `fixtures.test.ts`.
  */
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { importWorkbook, importXlsx } from './import-config'
+import { importWorkbook } from './import-config'
+import { buildWorkbook, defaultTemplates, type WorkbookParts } from './testing/build-workbook'
 import type { ImportResult } from './types/import-result'
-import type { Workbook } from './types/parsed-config'
 
-const valid = () => importXlsx(readFileSync('documents/fixture-platny.xlsx'))
-const broken = () => importXlsx(readFileSync('documents/fixture-vadny.xlsx'))
+const run = (parts: WorkbookParts = {}): ImportResult => importWorkbook(buildWorkbook(parts))
 
-/** Issues of one code, for readable assertions. */
+const withTemplates = (parts: WorkbookParts = {}): ImportResult =>
+  importWorkbook(buildWorkbook(parts), defaultTemplates())
+
 const byCode = (result: ImportResult, code: string) =>
-  result.issues.filter((i) => i.code === code)
+  result.issues.filter((issue) => issue.code === code)
 
-describe('fixture-platny.xlsx', () => {
-  it('is usable — no errors', () => {
-    const result = valid()
-    expect(result.errors.map((e) => `${e.code} ${e.location.sheet}${e.location.cell ?? ''}`)).toEqual(
-      [],
-    )
+/** A question of Marie's whose only answer carries the given impact. */
+const impactOf = (impact: string, extra: Record<string, string> = {}) => ({
+  questions: [
+    {
+      Character: 'Marie',
+      Type: 'single',
+      Text: 'Otázka?',
+      'ID Answer': 'A_Marie_2_1_X',
+      'Text response': 'X',
+      'Scale and Resources Impact': impact,
+      ...extra,
+    },
+  ],
+  content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+})
+
+describe('a workbook the author got right', () => {
+  it('is usable', () => {
+    const result = run()
+    expect(result.errors.map((e) => `${e.code} ${e.location.sheet}`)).toEqual([])
     expect(result.usable).toBe(true)
   })
 
-  it('reads the chapters, characters and groups it carries', () => {
-    const result = valid()
-    expect(result.config.chapters).toEqual([1, 2])
-    expect(result.config.characters.map((c) => c.externalId)).toEqual([
-      'Marie',
-      'Mirek',
-      'Karel',
-      'Vera',
-      'Rudi',
+  it('keeps diacritics in names intact', () => {
+    expect(run().config.characters[0]?.lastName).toBe('Balážová')
+  })
+
+  it('reads the groups registry, members and leader', () => {
+    const group = run().config.groups[0]
+    expect(group).toMatchObject({
+      externalId: 'SrdceParty',
+      name: 'Srdce party',
+      leaderRef: 'Mirek',
+    })
+    expect(group?.memberRefs).toEqual(['Marie', 'Mirek'])
+  })
+
+  it('groups the answer rows under the question that starts above them', () => {
+    const questions = run().config.questions.get(2) ?? []
+    expect(questions).toHaveLength(1)
+    expect(questions[0]?.options.map((o) => o.externalId)).toEqual([
+      'A_Marie_2_1_Ano',
+      'A_Marie_2_1_Ne',
     ])
-    expect(result.config.groups.map((g) => g.name)).toEqual(['Srdce party', 'Podnik'])
-  })
-
-  it('keeps diacritics in names and labels intact', () => {
-    const marie = valid().config.characters.find((c) => c.externalId === 'Marie')
-    expect(marie?.lastName).toBe('Balážová')
-    const regime = valid().config.scales.get(1)?.find((s) => s.key === 'Regime')
-    expect(regime?.label).toBe('Vztah k režimu')
-    expect(regime?.bands.map((b) => b.name)).toEqual([
-      'Odpůrkyně',
-      'Vlažná',
-      'Souhlasná',
-      'Oddaná',
-    ])
-  })
-
-  it('reads the starting values for chapter 1', () => {
-    const marie = valid().config.characters.find((c) => c.externalId === 'Marie')
-    expect(marie?.initialScales['Wealth_osobni']?.value).toBe(4)
-    expect(marie?.initialScales['Regime']?.value).toBe(6)
-  })
-
-  it('reads scale scope and bands from data, not from code', () => {
-    const scales = valid().config.scales.get(1) ?? []
-    const shared = scales.find((s) => s.key === 'Wealth_spolecny')
-    expect(shared?.scope).toBe('domacnost')
-    expect(shared?.mergeStrategy).toBe('otazka')
-    const control = scales.find((s) => s.key === 'Control')
-    expect(control?.bands).toEqual([
-      { ordinal: 1, min: 1, max: 4, name: 'Bez vlivu' },
-      { ordinal: 2, min: 5, max: 7, name: 'Slyšena' },
-      { ordinal: 3, min: 8, max: 10, name: 'Rozhoduje' },
-    ])
-  })
-
-  it('fills merged Question ID cells down onto the answer rows', () => {
-    const questions = valid().config.questions.get(1) ?? []
-    const first = questions.find((q) => q.externalId === 'Q_Marie_1_1')
-    expect(first?.options.map((o) => o.externalId)).toEqual([
-      'A_Marie_1_1_Karel',
-      'A_Marie_1_1_Vera',
-      'A_Marie_1_1_Marie',
-    ])
-  })
-
-  it('reads the org question source and the paired flag', () => {
-    const questions = valid().config.questions.get(2) ?? []
-    const marriage = questions.find((q) => q.externalId === 'Q_Marie_2_1')
-    expect(marriage?.source).toBe('org')
-    expect(marriage?.isPaired).toBe(true)
-    // §6.7: the marriage is entered once and the partner comes from the option.
-    const mirek = marriage?.options.find((o) => o.externalId === 'A_Marie_2_1_Mirek')
-    expect(mirek?.referencedCharacter).toBe('Mirek')
-    expect(mirek?.effects).toEqual([{ name: 'SNATEK', argument: 'Mirek', raw: 'SNATEK(Mirek)' }])
-  })
-
-  it('reads scale_direct as an absolute set fed by the answer', () => {
-    const questions = valid().config.questions.get(2) ?? []
-    const direct = questions.find((q) => q.externalId === 'Q_Marie_2_3')
-    expect(direct?.type).toBe('scale_direct')
-    expect(direct?.scaleKey).toBe('Wealth_spolecny')
-    expect(direct?.options[0]?.impacts[0]).toMatchObject({ mode: 'absolutni', fromAnswer: true })
-  })
-
-  it('fills merged Block ID cells down onto the variation rows', () => {
-    const blocks = valid().config.blocks.get(2) ?? []
-    const historie = blocks.find((b) => b.externalId === 'B_Marie_2_Historie_1')
-    expect(historie?.variations.map((v) => v.priority)).toEqual([1, 2, 3, 4, 5])
-    expect(historie?.characterRef).toBe('Marie')
-  })
-
-  it('parses every condition in the sheet without a syntax error', () => {
-    const result = valid()
-    expect(byCode(result, 'vadny_vyraz')).toEqual([])
-  })
-
-  it('counts the merged cells it filled down, for the import summary', () => {
-    expect(valid().config.repairs.filledDownCells).toBeGreaterThan(0)
-  })
-
-  it('warns that the Character column holds a name instead of a registry ID', () => {
-    const warnings = byCode(valid(), 'neznama_postava')
-    expect(warnings).toHaveLength(2)
-    expect(warnings[0]?.severity).toBe('varovani')
-    expect(warnings[0]?.suggestion).toBe('Vera')
-    // Resolved, so the question still belongs to a character.
-    const vera = (valid().config.questions.get(1) ?? []).find(
-      (q) => q.externalId === 'Q_Vera_1_1',
-    )
-    expect(vera?.characterId).toBe('Vera')
-  })
-
-  it('warns that chapter 1 never touches the joint account (§11.9)', () => {
-    expect(byCode(valid(), 'osamely_ucet')).toHaveLength(1)
   })
 })
 
-describe('fixture-vadny.xlsx', () => {
-  it('is refused', () => {
-    expect(broken().usable).toBe(false)
+describe('scales and resources are two different things (§4.1)', () => {
+  it('reads Min, Max and the default per pair of character and scale', () => {
+    const result = run({
+      scales: [
+        { Character: 'Marie', ID: 'S_Marie_Control', Min: '1', Max: '10', Default: '2' },
+        { Character: 'Mirek', ID: 'S_Mirek_Control', Min: '1', Max: '5', Default: '4' },
+      ],
+      ...impactOf('S_Marie_Control+1'),
+    })
+    expect(result.config.scales).toEqual([
+      expect.objectContaining({ externalId: 'S_Marie_Control', min: 1, max: 10, defaultValue: 2 }),
+      expect.objectContaining({ externalId: 'S_Mirek_Control', min: 1, max: 5, defaultValue: 4 }),
+    ])
   })
 
-  it('reports every deliberate mistake in one pass, not just the first', () => {
-    const codes = broken().errors.map((e) => e.code)
-    expect(new Set(codes)).toEqual(
-      new Set([
-        'vadny_vyraz',
-        'postava_bez_sablony',
-        'hodnota_mimo_rozsah',
-        'domacnostni_skala_bez_strategie',
-        'neznama_skala',
-        'neznamy_blok',
-        'neznama_odpoved',
-      ]),
-    )
+  it('rejects Min above Max', () => {
+    const result = run({
+      scales: [{ Character: 'Marie', ID: 'S_Marie_Regime', Min: '8', Max: '3', Default: '5' }],
+    })
+    expect(byCode(result, 'hodnota_mimo_rozsah')[0]?.message).toContain('menší než horní')
   })
 
-  it('points at the cell of the unclosed bracket (2_Content G5)', () => {
-    const issue = byCode(broken(), 'vadny_vyraz')[0]
-    expect(issue?.location).toMatchObject({ sheet: '2_Content', cell: 'G5', column: 'Conditions' })
-    expect(issue?.message).toContain('uzavírací závorka')
+  it('rejects a default outside the range', () => {
+    const result = run({
+      scales: [{ Character: 'Marie', ID: 'S_Marie_Regime', Min: '1', Max: '10', Default: '14' }],
+    })
+    expect(byCode(result, 'hodnota_mimo_rozsah')[0]?.message).toContain('14')
   })
 
-  it('suggests the right scale for the typo (2_Questions I5)', () => {
-    const issue = byCode(broken(), 'neznama_skala')[0]
-    expect(issue?.location).toMatchObject({ sheet: '2_Questions', row: 5 })
-    expect(issue?.value).toBe('S_Marie_Wealth_spolecnyy')
-    expect(issue?.suggestion).toBe('S_Marie_Wealth_spolecny')
+  it('rejects the same pair twice', () => {
+    const result = run({
+      scales: [
+        { Character: 'Marie', ID: 'S_Marie_Regime', Min: '1', Max: '10', Default: '5' },
+        { Character: 'Marie', ID: 'S_Marie_Regime', Min: '1', Max: '10', Default: '6' },
+      ],
+    })
+    expect(byCode(result, 'duplicitni_id')[0]?.value).toBe('S_Marie_Regime')
   })
 
-  it('reports the answer a condition invents (2_Content G10)', () => {
-    const issue = byCode(broken(), 'neznama_odpoved')[0]
-    expect(issue?.value).toBe('A_Karel_2_1_Mozna')
-    expect(issue?.location.sheet).toBe('2_Content')
+  it('reads a resource scope and gives resources no bounds to break', () => {
+    expect(run().config.resources[0]).toMatchObject({
+      externalId: 'R_Marie_Wealth',
+      scope: 'household',
+    })
   })
 
-  it('reports the block no Content sheet defines (2_Questions J9)', () => {
-    expect(byCode(broken(), 'neznamy_blok')[0]?.value).toBe('B_Mirek_2_Prace_9')
+  it('reports a resource whose rows disagree about its scope', () => {
+    const result = run({
+      resources: [
+        { Character: 'Marie', ID: 'R_Marie_Wealth', Scope: 'household', Default: '4' },
+        { Character: 'Mirek', ID: 'R_Mirek_Wealth', Scope: 'private', Default: '6' },
+      ],
+    })
+    expect(result.errors.some((issue) => issue.message.includes('rozsah patří zdroji'))).toBe(true)
   })
 
-  it('reports the character left without a template (Characters E6)', () => {
-    expect(byCode(broken(), 'postava_bez_sablony')[0]?.value).toBe('Rudi')
-  })
-
-  it('reports the starting value outside the scale range (Characters F6)', () => {
-    const issue = byCode(broken(), 'hodnota_mimo_rozsah')[0]
-    expect(issue?.location.cell).toBe('F6')
-    expect(issue?.message).toContain('14')
-  })
-
-  it('reports the household scale stripped of its strategies (1_Scales H3:I3)', () => {
-    const issue = byCode(broken(), 'domacnostni_skala_bez_strategie')[0]
-    expect(issue?.value).toBe('Wealth_spolecny')
-    expect(issue?.message).toContain('Slouceni')
-  })
-
-  it('catches the knock-on effect of the scale typo: nothing touches the joint account', () => {
-    // The typo in 2_Questions I5 means no answer reaches `Wealth_spolecny` in
-    // chapter 2, which §11.9 flags independently of the reference check.
-    const chapters = byCode(broken(), 'osamely_ucet').map((i) => i.message)
-    expect(chapters.some((m) => m.includes('kapitole 2'))).toBe(true)
+  it('rejects a scale ID that is not one', () => {
+    const result = run({
+      scales: [{ Character: 'Marie', ID: 'Regime', Min: '1', Max: '10', Default: '5' }],
+    })
+    expect(result.errors.some((issue) => issue.message.includes('není ID škály'))).toBe(true)
   })
 })
 
-/**
- * Two checks the faulty fixture's own legend claims but does not actually
- * contain, so they are exercised on a hand-built sheet instead.
- */
-describe('checks the faulty fixture claims but does not carry', () => {
-  const minimal = (contentRows: string[][]): Workbook =>
-    new Map<string, string[][]>([
-      [
-        'Characters',
-        [
-          ['Character ID', 'Jmeno', 'Prijmeni', 'Skupina', 'Template ID', 'S_Regime'],
-          ['Marie', 'Marie', 'Balážová', 'Srdce party', 'T_Marie', '5'],
-        ],
-      ],
-      [
-        '2_Scales',
-        [
-          ['Scale ID', 'Nazev', 'Rozsah', 'Min', 'Max', 'Prahy', 'Nazvy pasem'],
-          ['Regime', 'Režim', 'postava', '1', '10', '1-5;6-10', 'Nízko;Vysoko'],
-        ],
-      ],
-      [
-        '2_Questions',
-        [
-          ['Question ID', 'Character', 'Text', 'Typ', 'Zdroj', 'Answer ID', 'Answer Text', 'Scale Impact'],
-          ['Q_Marie_2_1', 'Marie', 'Otázka?', 'bool', 'hráč', 'A_Marie_2_1_Ano', 'Ano', 'S_Marie_Regime+1'],
-          ['', '', '', '', '', 'A_Marie_2_1_Ne', 'Ne', ''],
-        ],
-      ],
-      [
-        '2_Content',
-        [
-          ['Character', 'Block ID', 'Variation ID', 'Variation Description', 'Variation Text', 'Priority', 'Conditions'],
-          ...contentRows,
-        ],
-      ],
-    ])
+describe('routing of resource impacts (§4.4)', () => {
+  it('leaves a plain resource impact to be routed by marital status', () => {
+    const impact = run(impactOf('R_Marie_Wealth+3')).config.questions.get(2)?.[0]?.options[0]
+      ?.impacts[0]
+    expect(impact).toMatchObject({ kind: 'zdroj', forcedPrivate: false })
+  })
 
-  it('two variants of one block sharing a priority is an error', () => {
-    const result = importWorkbook(
-      minimal([
-        ['Marie', 'B_Marie_2_X', 'V_A', '', 'Text A', '1', 'A_Marie_2_1_Ano'],
-        ['', '', 'V_B', '', 'Text B', '2', 'A_Marie_2_1_Ne'],
-        ['', '', 'V_C', '', 'Text C', '2', 'DEFAULT'],
-      ]),
+  it('honours the _private suffix', () => {
+    const impact = run(impactOf('R_Marie_Wealth_private+3')).config.questions.get(2)?.[0]
+      ?.options[0]?.impacts[0]
+    expect(impact).toMatchObject({ externalId: 'R_Marie_Wealth', forcedPrivate: true })
+  })
+
+  it('reads the Private flag on the question', () => {
+    const result = run(impactOf('R_Marie_Wealth+3', { Private: 'ano' }))
+    expect(result.config.questions.get(2)?.[0]?.isPrivate).toBe(true)
+  })
+
+  it('accepts a joint account written by its derived household ID', () => {
+    const result = run(impactOf('R_Marie_Wealth-{input}, R_MarieMirek_Wealth+{input}'))
+    const impacts = result.config.questions.get(2)?.[0]?.options[0]?.impacts ?? []
+    expect(impacts.map((i) => i.owner)).toEqual(['Marie', 'MarieMirek'])
+    expect(byCode(result, 'neznamy_zdroj')).toEqual([])
+  })
+
+  it('says a household ID written backwards is just out of order', () => {
+    const result = run(impactOf('R_MirekMarie_Wealth+2'))
+    expect(byCode(result, 'poradi_domacnosti')[0]).toMatchObject({
+      value: 'MirekMarie',
+      suggestion: 'MarieMirek',
+    })
+  })
+
+  it('rejects an absolute resource set that does not name a concrete account', () => {
+    const result = run({
+      questions: [
+        {
+          Character: 'Marie',
+          Type: 'resource_direct',
+          Text: 'Stav účtu',
+          'ID Answer': 'A_Marie_2_1_VALUE',
+          'Text response': 'Nová hodnota',
+          'Scale and Resources Impact': 'R_Marie_Wealth=VALUE',
+        },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(
+      result.errors.some((issue) => issue.message.includes('nejmenuje konkrétní účet')),
+    ).toBe(true)
+  })
+})
+
+describe('question and answer IDs (§4.2, §6.1)', () => {
+  it('derives a question ID the author left empty, per character and chapter', () => {
+    const result = run({
+      questions: [
+        { Character: 'Marie', Type: 'bool', Text: 'První?', 'Text response': 'Ano' },
+        { Type: 'bool', Text: 'Druhá?', 'Text response': 'Ano' },
+        { Character: 'Mirek', Type: 'bool', Text: 'První?', 'Text response': 'Ano' },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect((result.config.questions.get(2) ?? []).map((q) => q.externalId)).toEqual([
+      'Q_Marie_2_1',
+      'Q_Marie_2_2',
+      'Q_Mirek_2_1',
+    ])
+    expect(result.config.repairs.derivedQuestionIds).toBe(3)
+  })
+
+  it('keeps an ID the author wrote', () => {
+    const question = run().config.questions.get(2)?.[0]
+    expect(question).toMatchObject({ externalId: 'Q_Marie_2_1', idWasDerived: false })
+  })
+
+  it('derives bool answer IDs from the Ano / Ne text', () => {
+    const result = run({
+      questions: [
+        {
+          Character: 'Marie',
+          Type: 'bool',
+          Text: 'Otázka?',
+          'Text response': 'Ne',
+          'Scale and Resources Impact': 'S_Marie_Regime-1',
+        },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect((result.config.questions.get(2)?.[0]?.options ?? []).map((o) => o.externalId)).toEqual([
+      'A_Marie_2_1_Ano',
+      'A_Marie_2_1_Ne',
+    ])
+  })
+
+  it('adds the missing half of a bool question with no effects', () => {
+    const result = run({
+      questions: [
+        {
+          Character: 'Marie',
+          Type: 'bool',
+          Text: 'Otázka?',
+          'Text response': 'Ano',
+          'Scale and Resources Impact': 'S_Marie_Regime+1',
+        },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    const ne = result.config.questions.get(2)?.[0]?.options.find((o) => o.label === 'Ne')
+    expect(ne).toMatchObject({ externalId: 'A_Marie_2_1_Ne', isDerived: true, impacts: [] })
+    expect(result.config.repairs.addedBoolAnswers).toBe(1)
+  })
+
+  it('rejects an answer text a bool question cannot have', () => {
+    const result = run({
+      questions: [
+        { Character: 'Marie', Type: 'bool', Text: 'Otázka?', 'Text response': 'Možná' },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(result.errors.some((issue) => issue.message.includes('Možná'))).toBe(true)
+  })
+
+  it('reports an answer row left behind a blank row', () => {
+    const result = run({
+      questions: [
+        { Character: 'Marie', Type: 'bool', Text: 'Otázka?', 'Text response': 'Ano' },
+        {},
+        { 'ID Answer': 'A_Sirotek_X', 'Text response': 'Osiřelá' },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(byCode(result, 'odpoved_bez_otazky')[0]?.value).toBe('A_Sirotek_X')
+  })
+
+  it('reports a question with no answer at all', () => {
+    const result = run({
+      questions: [{ Character: 'Marie', Type: 'single', Text: 'Komu odkážeš dílnu?' }],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(byCode(result, 'otazka_bez_odpovedi')).toHaveLength(1)
+  })
+})
+
+describe('polls (§6.6)', () => {
+  const pollSheet = (voteText: string): WorkbookParts => ({
+    questions: [
+      {
+        ID: 'Q_Group_Vedouci',
+        Type: 'poll',
+        Text: 'Kdo povede partu?',
+        'ID Answer': 'A_Group_Vedouci_Marie',
+        'Text response': 'Marie',
+      },
+      { 'ID Answer': 'A_Group_Vedouci_Mirek', 'Text response': 'Mirek' },
+      { Character: 'Marie', Type: 'poll-answer', Text: voteText },
+    ],
+    content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+  })
+
+  it('a poll belongs to nobody and takes no place in anyone`s order', () => {
+    const poll = (run(pollSheet('Q_Group_Vedouci')).config.questions.get(2) ?? []).find(
+      (q) => q.type === 'poll',
     )
-    const issue = result.errors.find((e) => e.code === 'stejna_priorita')
+    expect(poll?.characterRef).toBe('')
+    expect(poll?.ordinal).toBeUndefined()
+  })
+
+  it('a vote takes its poll from the Text column and counts in the order', () => {
+    const vote = (run(pollSheet('Q_Group_Vedouci')).config.questions.get(2) ?? []).find(
+      (q) => q.type === 'poll-answer',
+    )
+    expect(vote).toMatchObject({ pollRef: 'Q_Group_Vedouci', ordinal: 1, text: '' })
+    expect(vote?.options).toEqual([])
+  })
+
+  it('reports a vote pointing at a poll that is not there', () => {
+    const result = run(pollSheet('Q_Group_Neexistuje'))
+    expect(byCode(result, 'neznama_anketa')[0]?.value).toBe('Q_Group_Neexistuje')
+  })
+
+  it('a poll must carry its own ID', () => {
+    const result = run({
+      questions: [
+        {
+          Type: 'poll',
+          Text: 'Kdo povede partu?',
+          'ID Answer': 'A_X',
+          'Text response': 'Marie',
+        },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(result.errors.some((issue) => issue.message.includes('nikdy negeneruje'))).toBe(true)
+  })
+})
+
+describe('a question may be conditional from chapter 2 on (§4.2)', () => {
+  it('reads the condition and checks what it names', () => {
+    const result = run({
+      questions: [
+        {
+          Character: 'Marie',
+          Condition: 'S_Marie_Regime >= 5',
+          Type: 'bool',
+          Text: 'Otázka?',
+          'Text response': 'Ano',
+        },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(result.config.questions.get(2)?.[0]?.condition?.raw).toBe('S_Marie_Regime >= 5')
+    expect(result.errors).toEqual([])
+  })
+
+  it('reports a typo in the condition of a question, not only of a variant', () => {
+    const result = run({
+      questions: [
+        {
+          Character: 'Marie',
+          Condition: 'R_Marie_Welth >= 7',
+          Type: 'bool',
+          Text: 'Otázka?',
+          'Text response': 'Ano',
+        },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(byCode(result, 'neznamy_zdroj')[0]?.suggestion).toBe('R_Marie_Wealth')
+  })
+})
+
+describe('variant ordering (§8.2)', () => {
+  const block = (rows: Record<string, string>[]) =>
+    run({ content: rows.map((row, index) => (index === 0 ? { Character: 'Marie', 'Block ID': 'B_Marie_2_X', ...row } : row)) })
+
+  it('orders by rows when no variant carries a priority', () => {
+    const result = block([
+      { 'Variation ID': 'V_A', 'Variation Text': 'A', Conditions: 'A_Marie_2_1_Ano' },
+      { 'Variation ID': 'V_B', 'Variation Text': 'B' },
+    ])
+    const variations = result.config.blocks.get(2)?.[0]?.variations ?? []
+    expect(variations.map((v) => [v.ordinal, v.priority])).toEqual([
+      [1, undefined],
+      [2, undefined],
+    ])
+    expect(result.usable).toBe(true)
+  })
+
+  it('treats an empty condition as the fallback, same as DEFAULT', () => {
+    const result = block([
+      { 'Variation ID': 'V_A', 'Variation Text': 'A', Conditions: 'A_Marie_2_1_Ano' },
+      { 'Variation ID': 'V_B', 'Variation Text': 'B' },
+    ])
+    expect(result.config.blocks.get(2)?.[0]?.variations[1]?.isFallback).toBe(true)
+    expect(byCode(result, 'blok_bez_default')).toEqual([])
+  })
+
+  it('accepts a fallback written first but numbered last', () => {
+    const result = block([
+      { 'Variation ID': 'V_A', 'Variation Text': 'A', Priority: '9', Conditions: 'DEFAULT' },
+      { 'Variation ID': 'V_B', 'Variation Text': 'B', Priority: '1', Conditions: 'A_Marie_2_1_Ano' },
+    ])
+    expect(result.errors).toEqual([])
+  })
+
+  it('rejects a priority filled in on only some variants', () => {
+    const result = block([
+      { 'Variation ID': 'V_A', 'Variation Text': 'A', Priority: '1', Conditions: 'A_Marie_2_1_Ano' },
+      { 'Variation ID': 'V_B', 'Variation Text': 'B', Conditions: 'DEFAULT' },
+    ])
+    expect(byCode(result, 'chybejici_priorita')[0]?.message).toContain('`V_B`')
+  })
+
+  it('rejects two variants of one block sharing a priority', () => {
+    const result = block([
+      { 'Variation ID': 'V_A', 'Variation Text': 'A', Priority: '1', Conditions: 'A_Marie_2_1_Ano' },
+      { 'Variation ID': 'V_B', 'Variation Text': 'B', Priority: '2', Conditions: 'A_Marie_2_1_Ne' },
+      { 'Variation ID': 'V_C', 'Variation Text': 'C', Priority: '2', Conditions: 'DEFAULT' },
+    ])
+    const issue = byCode(result, 'stejna_priorita')[0]
     expect(issue?.message).toContain('`V_B`')
     expect(issue?.message).toContain('`V_C`')
   })
 
-  it('a block without a DEFAULT variant is an error', () => {
-    const result = importWorkbook(
-      minimal([
-        ['Marie', 'B_Marie_2_X', 'V_A', '', 'Text A', '1', 'A_Marie_2_1_Ano'],
-        ['', '', 'V_B', '', 'Text B', '2', 'A_Marie_2_1_Ne'],
-      ]),
-    )
-    expect(result.errors.some((e) => e.code === 'blok_bez_default')).toBe(true)
+  it('rejects a block with no fallback variant', () => {
+    const result = block([
+      { 'Variation ID': 'V_A', 'Variation Text': 'A', Priority: '1', Conditions: 'A_Marie_2_1_Ano' },
+      { 'Variation ID': 'V_B', 'Variation Text': 'B', Priority: '2', Conditions: 'A_Marie_2_1_Ne' },
+    ])
+    expect(byCode(result, 'blok_bez_default')).toHaveLength(1)
   })
 
-  it('a variant standing after DEFAULT can never be reached', () => {
-    const result = importWorkbook(
-      minimal([
-        ['Marie', 'B_Marie_2_X', 'V_A', '', 'Text A', '1', 'DEFAULT'],
-        ['', '', 'V_B', '', 'Text B', '2', 'A_Marie_2_1_Ano'],
-      ]),
-    )
-    expect(result.warnings.some((w) => w.code === 'nedosazitelna_varianta')).toBe(true)
+  it('rejects a variant standing after the fallback', () => {
+    const result = block([
+      { 'Variation ID': 'V_A', 'Variation Text': 'A', Priority: '1', Conditions: 'DEFAULT' },
+      { 'Variation ID': 'V_B', 'Variation Text': 'B', Priority: '2', Conditions: 'A_Marie_2_1_Ano' },
+    ])
+    expect(byCode(result, 'nedosazitelna_varianta')[0]?.value).toBe('V_B')
+  })
+})
+
+describe('nested blocks (§8.4)', () => {
+  it('records the blocks a variant text refers to', () => {
+    const result = run({
+      content: [
+        {
+          Character: 'Marie',
+          'Block ID': 'B_Marie_2_X',
+          'Variation ID': 'V_A',
+          'Variation Text': 'Text {BLOK B_Marie_2_Y}',
+        },
+        { Character: 'Marie', 'Block ID': 'B_Marie_2_Y', 'Variation ID': 'V_C', 'Variation Text': 'Vnořený' },
+      ],
+    })
+    expect(result.config.blocks.get(2)?.[0]?.variations[0]?.nestedBlocks).toEqual(['B_Marie_2_Y'])
   })
 
-  it('a missing required sheet is reported, not thrown', () => {
+  it('a block reachable only from another block still counts as reachable', () => {
+    const result = withTemplates({
+      content: [
+        {
+          Character: 'Marie',
+          'Block ID': 'B_Marie_2_X',
+          'Variation ID': 'V_A',
+          'Variation Text': 'Text {BLOK B_Marie_2_Y}',
+        },
+        { Character: 'Marie', 'Block ID': 'B_Marie_2_Y', 'Variation ID': 'V_C', 'Variation Text': 'Vnořený' },
+      ],
+    })
+    expect(byCode(result, 'blok_bez_znacky')).toEqual([])
+  })
+
+  it('reports a cycle instead of letting the substitution loop forever', () => {
+    const result = run({
+      content: [
+        {
+          Character: 'Marie',
+          'Block ID': 'B_Marie_2_X',
+          'Variation ID': 'V_A',
+          'Variation Text': 'A {BLOK B_Marie_2_Y}',
+        },
+        {
+          Character: 'Marie',
+          'Block ID': 'B_Marie_2_Y',
+          'Variation ID': 'V_C',
+          'Variation Text': 'B {BLOK B_Marie_2_X}',
+        },
+      ],
+    })
+    const issue = byCode(result, 'cyklus_bloku')[0]
+    expect(issue?.message).toContain('B_Marie_2_X')
+    expect(issue?.message).toContain('B_Marie_2_Y')
+  })
+
+  it('reports a block that refers to itself', () => {
+    const result = run({
+      content: [
+        {
+          Character: 'Marie',
+          'Block ID': 'B_Marie_2_X',
+          'Variation ID': 'V_A',
+          'Variation Text': 'A {BLOK B_Marie_2_X}',
+        },
+      ],
+    })
+    expect(byCode(result, 'cyklus_bloku')).toHaveLength(1)
+  })
+})
+
+describe('blocks may belong to a group (§8.2)', () => {
+  it('accepts a group in the Character column', () => {
+    const result = run({
+      content: [{ Character: 'SrdceParty', 'Block ID': 'B_Skupina_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(result.config.blocks.get(2)?.[0]).toMatchObject({
+      groupId: 'SrdceParty',
+      characterId: undefined,
+    })
+  })
+
+  it('reports an owner that is neither a character nor a group', () => {
+    const result = run({
+      content: [{ Character: 'Nikdo', 'Block ID': 'B_2_X', 'Variation ID': 'V_A' }],
+    })
+    expect(byCode(result, 'neznama_postava')[0]?.value).toBe('Nikdo')
+  })
+})
+
+describe('conditions reference scales and resources (§4.5)', () => {
+  const condition = (expression: string) =>
+    run({
+      content: [
+        {
+          Character: 'Marie',
+          'Block ID': 'B_Marie_2_X',
+          'Variation ID': 'V_A',
+          'Variation Text': 'A',
+          Priority: '1',
+          Conditions: expression,
+        },
+        { 'Variation ID': 'V_B', 'Variation Text': 'B', Priority: '2', Conditions: 'DEFAULT' },
+      ],
+    })
+
+  it('accepts a resource comparison', () => {
+    expect(condition('R_Marie_Wealth >= 7').errors).toEqual([])
+  })
+
+  it('reports a typo in a scale ID with a suggestion', () => {
+    const issue = byCode(condition('S_Marie_Regme >= 7'), 'neznama_skala')[0]
+    expect(issue).toMatchObject({ value: 'S_Marie_Regme', suggestion: 'S_Marie_Regime' })
+  })
+
+  it('reports an unclosed bracket at the cell it sits in', () => {
+    const issue = byCode(condition('!(A_Marie_2_1_Ano OR A_Marie_2_1_Ne'), 'vadny_vyraz')[0]
+    expect(issue?.location).toMatchObject({ sheet: '2_Content', column: 'Conditions' })
+    expect(issue?.message).toContain('uzavírací závorka')
+  })
+
+  it('reports an answer a condition invents', () => {
+    expect(byCode(condition('A_Marie_2_1_Mozna'), 'neznama_odpoved')[0]?.value).toBe(
+      'A_Marie_2_1_Mozna',
+    )
+  })
+})
+
+describe('tolerance the author has earned (§10.1)', () => {
+  it('resolves Věra to the registry ID Vera and says so', () => {
+    const result = run({
+      characters: [{ ID: 'Vera', Name: 'Věra', Surname: 'Svobodová' }],
+      groups: [{ ID: 'SrdceParty', Name: 'Srdce party', Members: 'Vera', Leader: 'Vera' }],
+      scales: [{ Character: 'Věra', ID: 'S_Vera_Regime', Min: '1', Max: '10', Default: '5' }],
+      resources: [{ Character: 'Vera', ID: 'R_Vera_Wealth', Scope: 'private', Default: '3' }],
+      questions: [
+        {
+          Character: 'Věra',
+          Type: 'bool',
+          Text: 'Otázka?',
+          'Text response': 'Ano',
+          'Scale and Resources Impact': 'S_Vera_Regime+1',
+        },
+      ],
+      content: [{ Character: 'Věra', 'Block ID': 'B_Vera_2_X', 'Variation ID': 'V_A' }],
+    })
+    const warning = byCode(result, 'neznama_postava')[0]
+    expect(warning).toMatchObject({ severity: 'varovani', suggestion: 'Vera' })
+    expect(result.config.questions.get(2)?.[0]?.characterId).toBe('Vera')
+  })
+
+  it('accepts both a comma and a semicolon between impacts', () => {
+    const result = run(impactOf('S_Marie_Regime+1; R_Marie_Wealth+2'))
+    expect(result.config.questions.get(2)?.[0]?.options[0]?.impacts).toHaveLength(2)
+    expect(result.config.repairs.semicolonSeparators).toBe(1)
+  })
+})
+
+describe('a broken workbook never takes the app down (§10.1)', () => {
+  it('reports a missing required sheet rather than throwing', () => {
     const result = importWorkbook(new Map())
     expect(result.usable).toBe(false)
-    expect(result.errors[0]?.code).toBe('chybejici_list')
+    expect(result.issues.map((i) => i.code)).toContain('chybejici_list')
   })
 
-  it('a missing required column is reported with the column name', () => {
-    const workbook = minimal([['Marie', 'B_1', 'V_A', '', 'T', '1', 'DEFAULT']])
+  it('reports a missing required column with its name', () => {
+    const workbook = buildWorkbook()
     workbook.set('Characters', [
-      ['Character ID', 'Jmeno'],
+      ['ID', 'Name'],
       ['Marie', 'Marie'],
     ])
     const result = importWorkbook(workbook)
-    const issue = result.errors.find((e) => e.code === 'chybejici_sloupec')
-    expect(issue?.value).toBe('Prijmeni')
+    expect(byCode(result, 'chybejici_sloupec')[0]?.value).toBe('Surname')
+  })
+
+  it('collects every mistake in one pass instead of stopping at the first', () => {
+    const result = run({
+      scales: [{ Character: 'Marie', ID: 'S_Marie_Regime', Min: '8', Max: '3', Default: '99' }],
+      content: [
+        {
+          Character: 'Nikdo',
+          'Block ID': 'B_Marie_2_X',
+          'Variation ID': 'V_A',
+          Priority: '1',
+          Conditions: 'A_Marie_2_1_Mozna',
+        },
+        { 'Variation ID': 'V_B', Priority: '1', Conditions: 'DEFAULT' },
+      ],
+    })
+    const codes = new Set(result.errors.map((e) => e.code))
+    expect(codes).toContain('hodnota_mimo_rozsah')
+    expect(codes).toContain('neznama_postava')
+    expect(codes).toContain('neznama_odpoved')
+    expect(codes).toContain('stejna_priorita')
+  })
+})
+
+describe('templates are assigned by file name (§10.2)', () => {
+  it('accepts <ID>_<kapitola>.md for a character and a group', () => {
+    const result = withTemplates()
+    expect(byCode(result, 'postava_bez_sablony')).toEqual([])
+    expect(byCode(result, 'neplatny_nazev_sablony')).toEqual([])
+  })
+
+  it('reports a file whose name belongs to nobody', () => {
+    const result = importWorkbook(buildWorkbook(), [
+      ...defaultTemplates(),
+      { filename: 'poznamky.md', markdown: 'nic' },
+    ])
+    expect(byCode(result, 'neplatny_nazev_sablony')[0]?.value).toBe('poznamky.md')
+  })
+
+  it('reports a character left without a template for a chapter', () => {
+    const result = importWorkbook(buildWorkbook(), [
+      { filename: 'Marie_2.md', markdown: '{BLOK B_Marie_2_X}' },
+    ])
+    expect(byCode(result, 'postava_bez_sablony').map((i) => i.value)).toContain('Mirek')
+  })
+
+  it('reports a marker no block backs, which would survive into the document', () => {
+    const result = importWorkbook(buildWorkbook(), [
+      { filename: 'Marie_2.md', markdown: '{BLOK B_Marie_2_X}\n{BLOK B_Neexistuje}' },
+      { filename: 'Mirek_2.md', markdown: '# Mirek' },
+      { filename: 'SrdceParty_2.md', markdown: '# Srdce party' },
+    ])
+    expect(byCode(result, 'znacka_bez_bloku')[0]?.value).toBe('B_Neexistuje')
   })
 })

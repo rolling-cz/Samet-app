@@ -3,8 +3,12 @@ import { MIN_VARIATION_PRIORITY } from '../constants/scale-defaults'
 import { chapterSheetName, CONTENT_COLUMNS, CONTENT_FILL_DOWN_COLUMNS } from '../constants/sheets'
 import { parseCondition } from '../expression'
 import type { IssueCollector } from '../issue-collector'
-import type { ParsedBlock } from '../types/parsed-block'
+import type { SheetRow } from '../sheet'
+import { blockMarkers } from '../template'
+import type { IssueLocation } from '../types/issue'
+import type { ParsedBlock, ParsedVariation } from '../types/parsed-block'
 import type { ImportRepairs, Workbook } from '../types/parsed-config'
+import type { ParsedGroup } from '../types/parsed-group'
 import { readConfigSheet, requireColumns } from './read-config-sheet'
 import { resolveOwner } from './resolve-character-refs'
 
@@ -12,14 +16,18 @@ export const parseContent = (
   workbook: Workbook,
   chapter: number,
   aliases: CharacterAliases,
+  groups: ParsedGroup[],
   issues: IssueCollector,
   repairs: ImportRepairs,
 ): ParsedBlock[] => {
   const name = chapterSheetName(chapter, 'Content')
-  const read = readConfigSheet(workbook, name, repairs, CONTENT_FILL_DOWN_COLUMNS)
+  const read = readConfigSheet(workbook, name, repairs, CONTENT_COLUMNS, CONTENT_FILL_DOWN_COLUMNS)
   // Content is optional: a chapter whose documents are not generated has none.
   if (!read) return []
   if (!requireColumns(name, read.headers, CONTENT_COLUMNS, issues)) return []
+
+  const groupIds = new Map(groups.map((group) => [group.externalId, group.externalId]))
+  for (const group of groups) groupIds.set(group.name, group.externalId)
 
   const blocks: ParsedBlock[] = []
   const byId = new Map<string, ParsedBlock>()
@@ -38,12 +46,26 @@ export const parseContent = (
 
     let block = byId.get(blockId)
     if (!block) {
-      const characterRef = row.get('Character')
+      const ownerRef = row.get('Character')
+      // The column holds a character or a group (§8.2); a group is looked up
+      // first because its ID never collides with a character's in practice and
+      // the character resolver would otherwise warn about a perfectly good name.
+      const groupId = groupIds.get(ownerRef)
       block = {
         externalId: blockId,
         chapter,
-        characterRef,
-        characterId: resolveOwner(characterRef, aliases, repairs, row.at('Character'), `Blok \`${blockId}\``, issues),
+        ownerRef,
+        groupId,
+        characterId: groupId
+          ? undefined
+          : resolveOwner(
+              ownerRef,
+              aliases,
+              repairs,
+              row.at('Character'),
+              `Blok \`${blockId}\``,
+              issues,
+            ),
         variations: [],
         location: row.at('Block ID'),
       }
@@ -73,38 +95,75 @@ export const parseContent = (
     }
     seenVariations.set(variationId, row.rowNumber)
 
-    const priorityRaw = row.get('Priority')
-    const priority = Number(priorityRaw)
-    if (!Number.isInteger(priority) || priority < MIN_VARIATION_PRIORITY) {
-      issues.error(
-        'chybejici_hodnota',
-        row.at('Priority'),
-        `Varianta \`${variationId}\` má neplatnou prioritu „${priorityRaw}" — čeká se celé číslo od ${MIN_VARIATION_PRIORITY}.`,
-        { value: priorityRaw },
-      )
-      continue
-    }
-
-    const condition = parseCondition(row.get('Conditions'))
-    if (!condition.ok) {
-      issues.error(
-        'vadny_vyraz',
-        row.at('Conditions'),
-        `Podmínka varianty \`${variationId}\` je syntakticky vadná: ${condition.error}.`,
-        { value: condition.raw },
-      )
-    }
-
-    block.variations.push({
-      externalId: variationId,
-      priority,
-      description: row.get('Variation Description'),
-      // Empty text is legitimate — the "nothing happened" variant (§8.2).
-      text: row.get('Variation Text'),
-      condition,
-      location: row.at('Variation ID'),
-    })
+    const variation = readVariation(row, variationId, block.variations.length + 1, issues)
+    if (variation) block.variations.push(variation)
   }
 
   return blocks
+}
+
+const readVariation = (
+  row: SheetRow,
+  variationId: string,
+  ordinal: number,
+  issues: IssueCollector,
+): ParsedVariation | undefined => {
+  const priority = readPriority(row.get('Priority'), variationId, row.at('Priority'), issues)
+  if (priority === 'vadna') return undefined
+
+  const condition = parseCondition(row.get('Conditions'))
+  if (!condition.ok) {
+    issues.error(
+      'vadny_vyraz',
+      row.at('Conditions'),
+      `Podmínka varianty \`${variationId}\` je syntakticky vadná: ${condition.error}.`,
+      { value: condition.raw },
+    )
+  }
+
+  const text = row.get('Variation Text')
+
+  return {
+    externalId: variationId,
+    ordinal,
+    priority,
+    description: row.get('Variation Description'),
+    // Empty text is legitimate — the "nothing happened" variant (§8.2).
+    text,
+    // A variant's text may hold another block's marker; the substitution runs
+    // in a loop until none is left (§8.4). A marker pointing back at this very
+    // block is kept, because that is the shortest cycle there is.
+    nestedBlocks: blockMarkers(text),
+    condition,
+    isFallback: condition.isDefault,
+    location: row.at('Variation ID'),
+  }
+}
+
+/**
+ * `Priority` is optional (§8.2): when no variant of a block has one, row order
+ * decides. An empty cell is therefore not an error — only a cell that is filled
+ * in and unreadable is.
+ */
+const readPriority = (
+  raw: string,
+  variationId: string,
+  location: IssueLocation,
+  issues: IssueCollector,
+): number | undefined | 'vadna' => {
+  if (raw === '') return undefined
+
+  const priority = Number(raw)
+  if (!Number.isInteger(priority) || priority < MIN_VARIATION_PRIORITY) {
+    issues.error(
+      'chybejici_hodnota',
+      location,
+      `Varianta \`${variationId}\` má neplatnou prioritu „${raw}" — čeká se celé číslo od ${MIN_VARIATION_PRIORITY}, nebo prázdná buňka.`,
+      { value: raw },
+    )
+
+    return 'vadna'
+  }
+
+  return priority
 }

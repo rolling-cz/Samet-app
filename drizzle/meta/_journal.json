@@ -43,6 +43,13 @@
       "when": 1789247559474,
       "tag": "0005_uploaded_files_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789888621021,
+      "tag": "0006_magenta_lockjaw",
+      "breakpoints": true
     }
   ]
 }
