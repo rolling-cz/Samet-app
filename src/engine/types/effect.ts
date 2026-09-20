@@ -1,20 +1,20 @@
-/** One action of a rule or of an answer option (§7.1). */
-import type { BandId, BlockId, CharacterId, FlagId, ScaleId } from './ids'
+/** Structural effects of an answer — the `Effects` column (§4.4). */
+import type { StructuralEffectKind } from '../constants/effectPhases'
+import type { CharacterId } from './ids'
 
-export type Effect =
-  | { kind: 'zmena_skaly'; characterId?: CharacterId; scaleId: ScaleId; delta: number; weight: number; usesDiceValue?: boolean }
-  | { kind: 'nastaveni_skaly'; characterId?: CharacterId; scaleId: ScaleId; value: number }
-  | { kind: 'pasmo'; characterId?: CharacterId; scaleId: ScaleId; bandId: BandId }
-  | { kind: 'priznak'; characterId?: CharacterId; flagId: FlagId; value: boolean }
-  | { kind: 'blok'; characterId?: CharacterId; blockId: BlockId }
-  | { kind: 'tag'; characterId?: CharacterId; code: string; note?: string }
-  /**
-   * `HOUSEHOLD_CREATE(A, B)` / `HOUSEHOLD_DELETE(A, B)` (§4.4). Both members
-   * are named outright, and the household's ID follows from them — so an
-   * effect can name a household before it exists.
-   *
-   * Group membership and leadership are deliberately absent: they are not
-   * state (§4.6).
-   */
-  | { kind: 'domacnost_vznik'; characterId: CharacterId; relatedCharacterId: CharacterId }
-  | { kind: 'domacnost_zanik'; characterId: CharacterId; relatedCharacterId: CharacterId }
+/**
+ * `HOUSEHOLD_CREATE(Marie, Mirek)` / `HOUSEHOLD_DELETE(Marie, Mirek)`.
+ *
+ * Both members are named outright and the household's ID follows from them, so
+ * an effect can name a household before it exists. The argument order decides
+ * which member `{input1}` belongs to, but not the ID (§4.4).
+ *
+ * Group membership and leadership are deliberately absent: they are not state
+ * (§4.6).
+ */
+export interface HouseholdEffect {
+  kind: StructuralEffectKind
+  members: [CharacterId, CharacterId]
+  /** The cell text, for the trace and for matching the derived impacts. */
+  raw: string
+}

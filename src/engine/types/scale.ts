@@ -1,41 +1,18 @@
-/** Scale, band and flag definitions (§4.1, §4.4). */
-import type { BandId, FlagId, ScaleId } from './ids'
+/** Scale definitions (§4.1) — one per pair of character × scale. */
+import type { CharacterId, ScaleKey } from './ids'
 
-/** Thresholds and names always come from data, never from code (§4.1). */
-export interface BandDefinition {
-  id: BandId
-  ordinal: number
-  /** Inclusive bounds. */
-  min: number
-  max: number
-  name: string
-}
-
+/**
+ * `Min` and `Max` belong to the pair, never to the scale: two characters may
+ * track `Regime` on different ranges, so nothing in the engine may assume 1–10.
+ */
 export interface ScaleDefinition {
-  id: ScaleId
-  key: string
+  /** `S_Marie_Regime`, as the author writes it in a condition or an impact. */
+  externalId: string
+  characterId: CharacterId
+  key: ScaleKey
   label: string
   min: number
   max: number
-  /**
-   * Who owns the value (§4.4). `domacnost` means the household holds it and
-   * all members read and change the same one — it is never copied.
-   */
-  scope: 'postava' | 'domacnost'
-  /**
-   * Merge on marriage; household scales only. `otazka` means do NOT compute —
-   * the value comes from an answer or from the org, which is how money works:
-   * players decide themselves how much each partner contributed.
-   */
-  mergeStrategy?: 'soucet' | 'prumer' | 'vyssi' | 'otazka'
-  /** Split on divorce or death; household scales only. */
-  splitStrategy?: 'kopie' | 'polovina' | 'otazka'
-  /** Ascending by `ordinal`. Need not cover the whole range. */
-  bands: BandDefinition[]
-}
-
-export interface FlagDefinition {
-  id: FlagId
-  key: string
-  label: string
+  /** Starting value for chapter 1; later chapters start from the snapshot. */
+  defaultValue: number
 }

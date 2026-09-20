@@ -1,28 +1,22 @@
-/** Run state at the start of a chapter — the first argument of `evaluate`. */
-import type { BandId, ChapterNumber, CharacterId, FlagId, HouseholdId, ScaleId } from './ids'
+/** Run state at the start of a chapter — the first argument of `evaluate` (§4.3). */
+import type { CharacterId, HouseholdId, ResourceKey, ScaleKey } from './ids'
 
 export interface CharacterState {
-  characterId: CharacterId
-  /** `postava`-scoped values only; shared ones live in `HouseholdState` (§4.4). */
-  scales: Record<ScaleId, number>
-  /** Derived from the value; kept for outputs and conditions. */
-  bands: Record<ScaleId, BandId>
-  flags: Record<FlagId, boolean>
+  scales: Record<ScaleKey, number>
+  /** The personal account, which marriage never dissolves (§4.4). */
+  resources: Record<ResourceKey, number>
   /**
    * Absent while the character is single: they are not a household of one, and
    * their money simply stays on the personal account (§4.4).
    */
   householdId?: HouseholdId
-  /** Template variables: `{PRIJMENI}`, `{VEK}`, … (§8.8). */
-  variables: Record<string, string>
 }
 
-/** Owner of shared values (§4.4). */
+/** Owner of the joint account (§4.4). */
 export interface HouseholdState {
-  householdId: HouseholdId
+  /** Both members, sorted — the same order the ID is built from. */
   memberIds: CharacterId[]
-  scales: Record<ScaleId, number>
-  bands: Record<ScaleId, BandId>
+  resources: Record<ResourceKey, number>
 }
 
 /**
@@ -30,8 +24,8 @@ export interface HouseholdState {
  * state (§4.6) — block variants and their conditions say it.
  */
 export interface RunState {
-  runId: string
-  chapter: ChapterNumber
+  /** Chapter already computed; `0` is the state the run starts from. */
+  completedChapter: number
   characters: Record<CharacterId, CharacterState>
   households: Record<HouseholdId, HouseholdState>
 }

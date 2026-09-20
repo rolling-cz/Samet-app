@@ -8,6 +8,7 @@ export { validateConfig, type ValidationInput } from './validate/validate-config
 export { readTemplateFiles, templateCoverage, type RawFile, type TemplateAssignment, type TemplateCoverage } from './template-upload'
 export { parseScaleImpact, splitImpactId, literalAmount, inputKeys } from './scale-impact'
 export { householdEffectImpacts } from './household-effect-impacts'
+export { toEngineConfig } from './to-engine-config'
 export { collectDefaultHouseholds } from './households'
 export type { ImpactKind, ImpactTerm, ScaleImpact } from './scale-impact'
 export { parseCondition, DEFAULT_CONDITION } from './expression'

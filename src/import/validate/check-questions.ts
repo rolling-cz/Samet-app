@@ -35,6 +35,16 @@ export const checkQuestions = (
       // A question may be conditional from chapter 2 on (§4.2); the language is
       // the same as a variant's, and so is the typo.
       if (question.condition) {
+        // A roll is stored per block variant (§7.4); a question has nowhere to
+        // keep one, so a `RANDOM` here could never be replayed.
+        if (question.condition.usesRandom) {
+          issues.error(
+            'vadny_vyraz',
+            question.location,
+            `Podmínka otázky \`${question.externalId}\` používá \`RANDOM\` — náhoda smí být jen v podmínkách variant bloků (\`N_Content\`), ne u otázek.`,
+            { value: question.condition.raw },
+          )
+        }
         checkConditionReferences(
           question.condition,
           `Podmínka otázky \`${question.externalId}\``,

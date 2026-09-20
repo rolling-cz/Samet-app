@@ -1,86 +1,169 @@
 /**
- * Trace — the data behind every "why" in the UI (architecture rule 1).
+ * Trace — the data behind every "why" in the UI (§7.5, architecture rule 1).
  *
- * Carries labelled data, not finished sentences: the wording belongs to the UI
- * and must be changeable without recomputing.
+ * Labelled data, never finished sentences: the wording belongs to the UI and
+ * must be changeable without recomputing. The array order is the order of
+ * evaluation.
+ *
+ * An entry is written even when the contributions cancel out: "nothing changed"
+ * is an answer the org may need to explain too.
  */
-import type { CharacterId, HouseholdId, RuleId } from './ids'
+import type { ResourceAccount, RoutingReason } from './account'
+import type { ConditionReading, ConditionResult } from './condition'
+import type {
+  AnswerOptionId,
+  BlockId,
+  CharacterId,
+  GroupId,
+  HouseholdId,
+  QuestionId,
+  ResourceKey,
+  ScaleKey,
+  VariationId,
+} from './ids'
+import type { EffectSource } from './source'
 
-export interface TraceContribution {
-  sourceKind: 'odpoved' | 'pravidlo' | 'hod' | 'pocatecni' | 'rucni'
-  sourceId: string
-  /** Readable source description, e.g. the answer `Karel` to `Q_Marie_1_1`. */
-  label: string
-  /**
-   * Which character the contribution came from. Required on shared scales
-   * (§4.4): Marie's money can change because of Mirek's answer, and without
-   * this there is no way to explain it.
-   */
-  characterId?: CharacterId
-  /** Set when a household is created or dissolved; §4.4 wants both inputs. */
-  householdId?: HouseholdId
-  /** Contribution to the numeric value, weight already applied. */
-  delta?: number
-  /** Source value — on a household merge, each of the two inputs. */
-  value?: number
-  weight?: number
+/**
+ * The fixed evaluation order (§7.3). `varianty` and `otazky` come after all of
+ * them: both are read over the finished state (§8.2).
+ */
+export type TracePhase = 'sber' | 'strukturalni' | 'hodnotove' | 'konflikty' | 'varianty' | 'otazky'
+
+/** One option's result in a poll, in the order the definition lists them (§6.6). */
+export interface PollTally {
+  optionId: AnswerOptionId
+  optionLabel: string
+  ordinal: number
+  votes: number
+  voterIds: CharacterId[]
+}
+
+export interface PollTrace {
+  phase: 'sber'
+  kind: 'anketa'
+  pollId: QuestionId
+  winnerOptionId: AnswerOptionId
+  /** The winner had no more votes than another option, so row order decided. */
+  decidedByRowOrder: boolean
+  tally: PollTally[]
+}
+
+export interface HouseholdTrace {
+  phase: 'strukturalni'
+  kind: 'domacnost_vznik' | 'domacnost_zanik'
+  householdId: HouseholdId
+  memberIds: [CharacterId, CharacterId]
+  source: EffectSource
+  /** Joint balances at the moment of the dissolution, before they are paid out. */
+  balances?: Record<ResourceKey, number>
+}
+
+export interface ScaleSetTrace {
+  phase: 'hodnotove'
+  kind: 'nastaveni_skaly'
+  characterId: CharacterId
+  scaleKey: ScaleKey
+  before: number
+  after: number
+  source: EffectSource
+}
+
+export interface ResourceSetTrace {
+  phase: 'hodnotove'
+  kind: 'nastaveni_zdroje'
+  account: ResourceAccount
+  resourceKey: ResourceKey
+  routing: RoutingReason
+  before: number
+  after: number
+  source: EffectSource
+}
+
+export interface ScaleShiftTrace {
+  phase: 'hodnotove'
+  kind: 'zmena_skaly'
+  characterId: CharacterId
+  scaleKey: ScaleKey
+  before: number
+  delta: number
+  /** Before clamping; equal to `after` when the value stayed inside the range. */
+  raw: number
+  after: number
+  source: EffectSource
 }
 
 /**
- * Fixed evaluation order (§7.3): collect answers, apply exclusions, structural
- * changes (households created and dissolved), then values (absolute
- * `scale_direct` settings first, then scale changes by descending priority),
- * then bands, then leftover conflicts.
- *
- * `strukturalni` must complete before `hodnotove`: a shared resource needs to
- * know its household members before contributions are summed into it.
- * Evaluating a marriage in between value changes would make the result depend
- * on rule order.
+ * A scale hit a bound (§4.1). Reported on its own because it signals badly
+ * tuned weights, not a detail to keep quiet about.
  */
-export type TracePhase =
-  | 'sber'
-  | 'vylouceni'
-  | 'strukturalni'
-  | 'hodnotove'
-  | 'pasma'
-  | 'konflikty'
-
-export interface TraceEntry {
-  id: string
-  /** Trace is a sequence, not a set. */
-  order: number
-  phase: TracePhase
-  kind:
-    | 'zmena_skaly'
-    | 'orez'
-    | 'priznak'
-    | 'pasmo'
-    | 'blok'
-    | 'tag'
-    | 'vylouceni'
-    | 'konflikt'
-    | 'domacnost_vznik'
-    | 'domacnost_zanik'
-
-  characterId?: CharacterId
-  /** Set on joint-account changes and when a household starts or ends (§4.4). */
-  householdId?: HouseholdId
-
-  subject: {
-    kind: 'skala' | 'priznak' | 'blok' | 'tag' | 'domacnost'
-    id: string
-    label: string
-  }
-
-  /** `before` is absent on blocks and tags. */
-  before?: number | string | boolean | null
-  after?: number | string | boolean | null
-
-  /** Absent for the initial state and for manual edits. */
-  ruleId?: RuleId
-  ruleName?: string
-  rulePriority?: number
-
-  contributions: TraceContribution[]
-  note?: string
+export interface ClampTrace {
+  phase: 'hodnotove'
+  kind: 'orez'
+  characterId: CharacterId
+  scaleKey: ScaleKey
+  raw: number
+  after: number
+  bound: 'min' | 'max'
+  source: EffectSource
 }
+
+export interface ResourceShiftTrace {
+  phase: 'hodnotove'
+  kind: 'zmena_zdroje'
+  account: ResourceAccount
+  resourceKey: ResourceKey
+  /** Which account this landed on and why (§4.4). */
+  routing: RoutingReason
+  before: number
+  delta: number
+  after: number
+  source: EffectSource
+}
+
+export interface ConflictTrace {
+  phase: 'konflikty'
+  kind: 'konflikt'
+  /** Index into `EvaluateResult.conflicts`. */
+  conflictIndex: number
+}
+
+export interface VariationEvaluation {
+  variationId: VariationId
+  priority?: number
+  ordinal: number
+  result: ConditionResult
+  readings: ConditionReading[]
+}
+
+export interface VariantTrace {
+  phase: 'varianty'
+  kind: 'varianta'
+  blockId: BlockId
+  characterId?: CharacterId
+  groupId?: GroupId
+  /** `null` while a missing roll leaves the block undecided (§7.4). */
+  variationId: VariationId | null
+  /** Up to and including the deciding variant; the rest were never read. */
+  evaluations: VariationEvaluation[]
+}
+
+export interface QuestionGateTrace {
+  phase: 'otazky'
+  kind: 'otazka'
+  questionId: QuestionId
+  characterId?: CharacterId
+  asked: boolean
+  readings: ConditionReading[]
+}
+
+export type TraceEntry =
+  | PollTrace
+  | HouseholdTrace
+  | ScaleSetTrace
+  | ResourceSetTrace
+  | ScaleShiftTrace
+  | ClampTrace
+  | ResourceShiftTrace
+  | ConflictTrace
+  | VariantTrace
+  | QuestionGateTrace
