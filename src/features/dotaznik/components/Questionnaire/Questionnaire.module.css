@@ -1,0 +1,30 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mui-spacing);
+  max-width: 60rem;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mui-spacing);
+  padding-bottom: calc(var(--mui-spacing) * 0.5);
+  border-bottom: 2px solid var(--run-accent);
+}
+
+.title {
+  font-size: 1.25rem;
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mui-spacing) * 0.75);
+}
+
+.empty {
+  color: var(--mui-palette-text-secondary);
+}

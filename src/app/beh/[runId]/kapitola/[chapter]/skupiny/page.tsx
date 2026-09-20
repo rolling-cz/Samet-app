@@ -7,10 +7,11 @@ interface SkupinyPageProps {
 
 const SkupinyPage = async ({ params }: SkupinyPageProps) => {
   const { runId, chapter: chapterSegment } = await params
-  const { chapter, availability } = await loadChapterPage(runId, chapterSegment)
+  const page = await loadChapterPage(runId, chapterSegment)
+  const { chapter, availability } = page
 
   if (availability._type === 'blocked') {
-    return <ChapterBlocked chapter={chapter} missingChapter={availability.missingChapter} />
+    return <ChapterBlocked runId={page.runId} chapter={chapter} missingChapter={availability.missingChapter} />
   }
 
   return <SectionPlaceholder section="skupiny" chapter={chapter} />

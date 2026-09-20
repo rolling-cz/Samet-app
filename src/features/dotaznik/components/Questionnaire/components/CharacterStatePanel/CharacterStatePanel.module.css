@@ -1,0 +1,63 @@
+.panel {
+  padding: var(--mui-spacing) calc(var(--mui-spacing) * 1.5);
+  background-color: var(--mui-palette-background-paper);
+  border: 1px solid var(--mui-palette-divider);
+  border-top: 3px solid var(--run-accent);
+  border-radius: var(--mui-shape-borderRadius);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--mui-spacing);
+  margin-bottom: calc(var(--mui-spacing) * 0.5);
+}
+
+.muted {
+  color: var(--mui-palette-text-secondary);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: calc(var(--mui-spacing) * 2);
+}
+
+.values {
+  margin: 0;
+}
+
+.value {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--mui-spacing);
+  padding: calc(var(--mui-spacing) * 0.125) 0;
+  border-bottom: 1px dotted var(--mui-palette-divider);
+}
+
+.value dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* A frame as well as the run colour: the shared account must not pass for a personal one. */
+.joint {
+  padding: calc(var(--mui-spacing) * 0.5) var(--mui-spacing);
+  border: 1px dashed var(--run-accent);
+  border-radius: var(--mui-shape-borderRadius);
+}
+
+.badge {
+  display: block;
+  font-weight: 600;
+}
+
+.partner {
+  color: inherit;
+}
+
+.partner + .partner::before {
+  content: ', ';
+}

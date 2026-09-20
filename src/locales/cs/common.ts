@@ -9,4 +9,5 @@ export const common = Object.freeze({
   cancel: 'Zrušit',
   save: 'Uložit',
   retry: 'Zkusit znovu',
+  fullName: (firstName: string, lastName: string) => `${firstName} ${lastName}`,
 })

@@ -1,0 +1,9 @@
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mui-spacing) * 0.5);
+}
+
+.notices:empty {
+  display: none;
+}

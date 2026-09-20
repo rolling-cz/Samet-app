@@ -1,0 +1,29 @@
+.line {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--mui-spacing) * 0.75);
+  min-height: 1.75rem;
+  color: var(--mui-palette-text-secondary);
+}
+
+.line[data-tone='saved'] {
+  color: var(--mui-palette-success-main);
+}
+
+.line[data-tone='unsaved'] {
+  color: var(--mui-palette-error-main);
+}
+
+.text {
+  color: inherit;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.cancel {
+  color: var(--mui-palette-text-secondary);
+  font-weight: 400;
+  text-decoration: underline;
+}

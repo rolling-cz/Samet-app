@@ -1,0 +1,5 @@
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--mui-spacing) * 0.75);
+}

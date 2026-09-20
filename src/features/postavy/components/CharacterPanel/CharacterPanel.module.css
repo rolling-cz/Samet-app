@@ -17,12 +17,16 @@
   position: sticky;
   top: 0;
   z-index: 1;
+  padding-bottom: calc(var(--mui-spacing) * 0.5);
+  background-color: inherit;
+  border-bottom: 1px solid var(--mui-palette-divider);
+}
+
+.title {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: var(--mui-spacing) calc(var(--mui-spacing) * 2);
-  background-color: inherit;
-  border-bottom: 1px solid var(--mui-palette-divider);
+  padding: var(--mui-spacing) calc(var(--mui-spacing) * 2) 0;
 }
 
 .muted {

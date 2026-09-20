@@ -1,0 +1,31 @@
+.extras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mui-spacing);
+  margin-top: calc(var(--mui-spacing) * 0.75);
+  padding-left: calc(var(--mui-spacing) * 1.5);
+  border-left: 2px solid var(--mui-palette-divider);
+}
+
+.inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--mui-spacing) * 1.5);
+}
+
+.inputs > * {
+  flex: 1 1 16rem;
+  max-width: 24rem;
+}
+
+.progress {
+  color: var(--mui-palette-text-secondary);
+}
+
+.progress[data-matches='true'] {
+  color: var(--mui-palette-success-main);
+}
+
+.progress[data-matches='false'] {
+  color: var(--mui-palette-warning-main);
+}

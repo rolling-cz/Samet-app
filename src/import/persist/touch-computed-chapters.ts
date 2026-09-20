@@ -1,4 +1,5 @@
 import { inArray } from 'drizzle-orm'
+import { touchChapters } from '@/core/services/touch-chapters'
 import type { RunScope } from '@/db'
 import { chapters, computations } from '@/db/schema'
 
@@ -13,19 +14,5 @@ export const touchComputedChapters = async (scope: RunScope, reason: string): Pr
   }
   if (chapterIds.size === 0) return []
 
-  const computed = inArray(chapters.id, [...chapterIds])
-
-  await scope.update(chapters, computed).set({
-    isTouched: true,
-    touchedAt: new Date(),
-    touchedReason: reason,
-    // A new touch asks for a new decision.
-    cascadeDecision: null,
-    cascadeDecidedAt: null,
-    cascadeDecidedBy: null,
-  })
-
-  const touched = await scope.select(chapters, computed)
-
-  return touched.map((chapter) => chapter.number).sort((a, b) => a - b)
+  return touchChapters(scope, inArray(chapters.id, [...chapterIds]), reason)
 }

@@ -1,3 +1,4 @@
+import type { CompletionStatus } from '@/computation'
 import type { chapterStatus, runStatus } from '@/db/schema'
 
 /** Display labels of the domain states (§13). */
@@ -12,5 +13,10 @@ export const statuses = Object.freeze({
     computed: 'spočítaná',
     released: 'vydaná',
   } satisfies Record<(typeof chapterStatus.enumValues)[number], string>),
-
+  /** Questionnaire completion of a character (§6.4). */
+  completion: Object.freeze({
+    empty: 'nevyplněno',
+    in_progress: 'rozpracováno',
+    done: 'hotovo',
+  } satisfies Record<CompletionStatus, string>),
 })
