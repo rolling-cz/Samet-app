@@ -860,11 +860,14 @@ Pravidla uplatňuj **globálně, ne jen v kritických místech.** Určovat u ka�
 | —     | ~~Test round-tripu (§8.5)~~ — **hotovo, prošlo.** Návrh výstupní vrstvy je potvrzený. |
 | 1–2   | Datové schéma + import tabulky + validace importu                                     |
 | 3–5   | Engine pravidel jako čistá funkce + testy. **Nejrizikovější část, dělej ji brzy.**    |
-| 6–7   | Rozvržení aplikace, seznam postav, zadávání odpovědí (§6.4)                           |
-| 8–9   | Trace „proč" + JSON mezivýstup + editace                                              |
+| 6     | Navigace po postavách a kapitolách (postava i kapitola v cestě URL) + **jádro přepočtu bez UI**: načíst stav a odpovědi, `evaluate`, v jedné transakci uložit přepočet, snapshot a vybrané varianty |
+| 7–8   | Zadávání odpovědí **kompletně pro kapitoly 1–3** (§6.4): podmíněné otázky, `{input}` pole, ankety, vyplněnost, stav postavy pod dotazníkem |
+| 9     | Sekce Přepočet: trace „proč", konflikty, náhled změn + JSON mezivýstup + editace     |
 | 10    | Naplňování dokumentů — mazání bloků v Markdownu lokálně, bez Googlu                   |
 | 11    | Zip výstupu, „Kopírovat do schránky", kontroly konzistence                            |
 | 12    | Rezerva, zkušební průchod celou kapitolou na reálných datech                          |
+
+**Proč je jádro přepočtu před dotazníkem** (změna proti původnímu pořadí „zadávání odpovědí → trace"): dotazník kapitoly 2 a 3 je lookup ve vybraných variantách a stav pod ním je snapshot — obojí vzniká až přepočtem předchozí kapitoly (§4.3, §4.5). Bez uloženého přepočtu by šel dotazník napsat jen pro kapitolu 1 a pak přepisovat. Rozvržení aplikace (hlavička, běhy, sekce, levý panel) už stojí. Obrazovka Přepočtu naopak zůstává až za dotazníkem: konflikty (`unresolved_value`, rozdělení, které nesedí) se řeší dopsáním hodnot v dotazníku a trace se má ladit nad odpověďmi zadanými v aplikaci, ne nad seedem.
 
 ## 16. Zodpovězeno
 

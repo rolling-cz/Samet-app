@@ -87,7 +87,9 @@ dialogy u zásadních akcí vždy jmenují běh („Uzamknout kapitolu 2 běhu
 **Běh je v cestě URL** (`/beh/<runId>/<sekce>`), ne v cookie: dvě záložky smějí
 držet dva různé běhy a sdílená cookie by jednu z nich tiše přepnula. Písmeno
 běhu začíná s každým datem zahájení znovu od `A`; A/B/C jsou běhy téhož data
-(`nextRunLetter`).
+(`nextRunLetter`). **Ze stejného důvodu patří do cesty i kapitola a vybraná
+postava** (např. `/beh/<runId>/kapitola/<n>/postavy/<id>`), ne do stavu
+komponenty ani do cookie.
 
 **Jméno z „Kdo jsi?" čte server z cookie** (`readAuthor` v
 `src/core/services/auth-cookies.ts`); formuláře ho neposílají. Middleware
@@ -815,6 +817,28 @@ CONSTRAINT` na nich ztroskotá. Skončí s nulovým exit kódem a chybami ve vý
 - **Lokální Postgres:** `scripts/pg.sh start` (bez Dockeru a bez roota).
   Node je přes nvm, v novém shellu je potřeba `source ~/.nvm/nvm.sh`.
 - Než začneš stavět další vrstvu, ověř `npm run typecheck` a `npm test`.
+
+## Pořadí dalších kroků (§15.2)
+
+Engine je hotový, rozvržení aplikace (hlavička, běhy, sekce, levý panel) stojí.
+Dál v tomhle pořadí:
+
+1. **Navigace po postavách a kapitolách** — položky levého panelu a stavy kapitol
+   v hlavičce jako odkazy, postava i kapitola v cestě URL.
+2. **Jádro přepočtu bez UI** — volající vrstva mimo `src/engine/`: načte stav
+   a odpovědi všech dosud odehraných kapitol, zavolá `evaluate` a **v jedné
+   transakci** zapíše `computations` (trace, konflikty), snapshot škál, zdrojů
+   a domácností a `selected_variations`. K tomu čtecí metody v `RunScope`
+   („otázky položené v kapitole N", „stav před kapitolou N"). **Žádná obrazovka**,
+   nanejvýš tlačítko „Přepočítat" s počtem konfliktů.
+3. **Zadávání odpovědí kompletně pro kapitoly 1–3** — dotazník se na otázky
+   a stav ptá jen přes metody z kroku 2, nikdy si je neskládá sám.
+4. **Sekce Přepočet** — trace „proč", konflikty, náhled změn, editace.
+
+Krok 2 je před dotazníkem, protože dotazník kapitoly 2+ je lookup ve vybraných
+variantách a stav pod ním je snapshot; bez uloženého přepočtu by šel napsat jen
+pro kapitolu 1. Obrazovka Přepočtu je až za dotazníkem, protože konflikty se
+řeší dopsáním hodnot v dotazníku. Kroky 1 a 2 na sobě nezávisí.
 
 ## Rozsah MVP (§14)
 
