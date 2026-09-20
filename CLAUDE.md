@@ -853,14 +853,10 @@ Dál v tomhle pořadí; kroky 1–2 mají zadání v
 1. **Navigace po postavách a kapitolách** — **hotovo.** Položky levého panelu
    a stavy kapitol v hlavičce jsou odkazy, postava i kapitola jsou v cestě URL;
    cesty skládá `src/core/constants/routes.ts`, adresu čte `useRunLocation`.
-   „Lze kapitolu otevřít?" je zatím zástupné (`chapterAvailability` podle stavu
-   předchozí kapitoly) — krok 2 ho nahradí rozhodnutím podle přepočtů.
-2. **Jádro přepočtu bez UI** — volající vrstva mimo `src/engine/`: načte stav
-   a odpovědi všech dosud odehraných kapitol, zavolá `evaluate` a **v jedné
-   transakci** zapíše `computations` (trace, konflikty), snapshot škál, zdrojů
-   a domácností a `selected_variations`. K tomu čtecí metody v `RunScope`
-   („otázky položené v kapitole N", „stav před kapitolou N"). **Žádná obrazovka**,
-   nanejvýš tlačítko „Přepočítat" s počtem konfliktů.
+   „Lze kapitolu otevřít?" rozhoduje `loadChapterAvailability` z jádra přepočtu.
+2. **Jádro přepočtu bez UI** — **hotovo**, žije v `src/computation/` (viz sekce
+   „Jádro přepočtu" níže). V sekci Přepočet je jen tlačítko „Přepočítat";
+   potvrzení přepočtu zatím nemá UI (`confirmComputation`, `scripts/compute-demo.ts`).
 3. **Zadávání odpovědí kompletně pro kapitoly 1–3** — dotazník se na otázky
    a stav ptá jen přes metody z kroku 2, nikdy si je neskládá sám.
 4. **Sekce Přepočet** — trace „proč", konflikty, náhled změn, editace.
@@ -869,6 +865,39 @@ Krok 2 je před dotazníkem, protože dotazník kapitoly 2+ je lookup ve vybran�
 variantách a stav pod ním je snapshot; bez uloženého přepočtu by šel napsat jen
 pro kapitolu 1. Obrazovka Přepočtu je až za dotazníkem, protože konflikty se
 řeší dopsáním hodnot v dotazníku. Kroky 1 a 2 na sobě nezávisí.
+
+## Jádro přepočtu (`src/computation/`)
+
+```
+načti(runId, kapitola) → evaluate(stav, odpovědi, konfigurace) → ulož(výsledek)
+```
+
+- **`convert/` jsou čisté funkce s testy** (řádky ↔ `RunState`, řádky →
+  `AnswerInput[]`, hody, otisk vstupů, smyčka hodů). Na databázi sahá jen tenká
+  slupka v `services/` a `read/`, vždy přes `forRun(runId)`.
+- **Mapování UUID ↔ ID z tabulky je na jednom místě** (`IdDirectory`,
+  `build-id-directory.ts`), oběma směry; neznámé ID je `UnknownIdError`, nikdy
+  vynechaný řádek.
+- **`runComputation`** běží celé v jedné transakci a vždy založí novou verzi
+  `draft`. Co nejde spočítat (chybí odpovědi, konfigurace, výchozí přepočet),
+  vrací jako data (`ComputationOutcome`), ne jako výjimku.
+- **Výchozí přepočet kapitoly** = vydaný, jinak poslední potvrzený; z draftu se
+  nikdy nevychází (`pickBaseline`).
+- **Snapshot nese `chapter_id` přepočítané kapitoly** = stav *po* ní. Stav před
+  kapitolou 1 se čte z konfiguračních tabulek (`initialStateFromRows`), řádky
+  `source = 'initial'` se nezapisují.
+- **`selected_variations` nese u každého přepočtu výběr celého běhu**, ne jen
+  bloky kapitoly N+1 — další kapitola vychází jen z tohohle snapshotu a engine
+  potřebuje i starší výběry.
+- **Domácnost založená ve hře** dostane řádek v `households` se
+  `source = 'computation'`; import ji nepovažuje za entitu, kterou soubor odebral.
+- **`{input}` hodnoty** jsou v `answer_input_values` (odpověď × volba × název pole).
+- **Hody hází jádro** (1–100), ukládá je ve stejné transakci a nikdy je
+  nepřehazuje; smyčka má horní mez `MAX_ROLL_ROUNDS`.
+- **Dotazník a obrazovky se na otázky a stav ptají jen přes** `loadAskedQuestions`,
+  `loadCharacterState`, `loadChapterAvailability`, `loadComputationBlockers`.
+- Ořez škály a každý nový hod jdou do `audit_log` při přepočtu (i nanečisto),
+  s vazbou na `computation_id`.
 
 ## Rozsah MVP (§14)
 

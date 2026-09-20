@@ -4,7 +4,7 @@
  * A run has one valid config, so an entity dropped from the sheet has to leave
  * the database too — otherwise the engine would keep computing with it.
  */
-import { inArray, type SQL } from 'drizzle-orm'
+import { eq, inArray, type SQL } from 'drizzle-orm'
 import type { PgColumn } from 'drizzle-orm/pg-core'
 import { isForeignKeyViolation, type RunScope, type RunScopedTable } from '@/db'
 import {
@@ -79,7 +79,15 @@ export const findStaleRows = async (scope: RunScope, written: WrittenRows): Prom
   await collect(scope, written, 'scales', scales, (r) => ({ id: r.id, label: r.key })),
   await collect(scope, written, 'resources', resources, (r) => ({ id: r.id, label: r.key })),
   await collect(scope, written, 'characters', characters, (r) => ({ id: r.id, label: r.externalId })),
-  await collect(scope, written, 'households', households, (r) => ({ id: r.id, label: r.externalId })),
+  // Households founded in play are state, not config the sheet could have dropped.
+  await collect(
+    scope,
+    written,
+    'households',
+    households,
+    (r) => ({ id: r.id, label: r.externalId }),
+    eq(households.source, 'initial'),
+  ),
   await collect(scope, written, 'groups', groups, (r) => ({ id: r.id, label: r.externalId })),
 ]
 

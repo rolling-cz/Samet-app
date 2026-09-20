@@ -10,4 +10,12 @@ export const audit = Object.freeze({
       : `Import konfigurace ze souboru ${filename}.`,
   configEmergencyFix: (filename: string, touchedChapters: number[]) =>
     `Nouzová oprava konfigurace ze souboru ${filename}; dotčené kapitoly: ${touchedChapters.join(', ')}.`,
+  computationRun: (runId: string, chapter: number, version: number, conflictCount: number) =>
+    `Přepočet kapitoly ${chapter} běhu ${runId}, verze ${version}; konfliktů: ${conflictCount}.`,
+  computationConfirmed: (runId: string, chapter: number, version: number) =>
+    `Potvrzen přepočet kapitoly ${chapter} běhu ${runId}, verze ${version}.`,
+  rollCreated: (variationId: string, occurrence: number, value: number) =>
+    `Hozeno ${value} pro variantu ${variationId} (výskyt ${occurrence}).`,
+  scaleClamped: (characterId: string, scaleKey: string, raw: number, value: number) =>
+    `Škála ${scaleKey} postavy ${characterId} oříznuta z ${raw} na ${value}.`,
 })

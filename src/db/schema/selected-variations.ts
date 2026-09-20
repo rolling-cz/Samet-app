@@ -14,9 +14,13 @@ import { runs } from './runs'
  *
  * Owner and chapter are the block's: `content_blocks` says whose block it is
  * and which chapter's documents and questionnaire it belongs to (`2_Content` →
- * chapter 2). The computation is the one of the chapter **before** — computing
- * chapter 1 selects the variants of chapter 2, so they are known before that
- * questionnaire opens.
+ * chapter 2). Computing chapter N decides the blocks of chapter N+1, so they are
+ * known before that questionnaire opens.
+ *
+ * A computation stores the **whole run's** selection so far, not only the blocks
+ * it decided itself: the next chapter starts from this snapshot alone, and the
+ * engine needs every earlier selection to tell which questions were asked
+ * (`RunState.selectedVariants`, §4.5). Still one variant per block.
  *
  * A block left undecided by a missing roll (§7.4) has no row here.
  */

@@ -25,7 +25,8 @@ export const upsertHouseholds = async (
   if (createdInChapterId === undefined) return householdIds
 
   for (const household of config.households) {
-    const values = { createdInChapterId }
+    // A household founded in play that the sheet now starts with becomes config.
+    const values = { createdInChapterId, source: 'initial' as const }
     const [row] = await scope
       .insert(households, { externalId: household.externalId, ...values })
       .onConflictDoUpdate({ target: [households.runId, households.externalId], set: values })

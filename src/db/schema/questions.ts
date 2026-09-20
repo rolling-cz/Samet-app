@@ -273,3 +273,43 @@ export const answerSelectedOptions = pgTable(
     }).onDelete('restrict'),
   ],
 )
+
+/**
+ * The numbers the org typed into an answer's `{input}` fields (§4.4) — how much
+ * each spouse puts into the joint account, or takes out of it.
+ *
+ * Part of the answer, like `numericValue` of a `scale_direct`: entered once in
+ * the questionnaire and read by every computation after it, and after the game
+ * it says who brought what. `effect_inputs` only describes the fields.
+ *
+ * Tied to the answer and the option, not to `answer_selected_options`: a
+ * marriage is a `bool` question, which stores no selected options.
+ */
+export const answerInputValues = pgTable(
+  'answer_input_values',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => runs.id, { onDelete: 'restrict' }),
+    answerId: uuid('answer_id').notNull(),
+    answerOptionId: uuid('answer_option_id').notNull(),
+    /** Placeholder name as written, without braces: `input1`. */
+    inputKey: text('input_key').notNull(),
+    value: integer('value').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('answer_input_values_unique').on(t.runId, t.answerId, t.answerOptionId, t.inputKey),
+    foreignKey({
+      name: 'answer_input_values_answer_fk',
+      columns: [t.runId, t.answerId],
+      foreignColumns: [answers.runId, answers.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'answer_input_values_option_fk',
+      columns: [t.runId, t.answerOptionId],
+      foreignColumns: [answerOptions.runId, answerOptions.id],
+    }).onDelete('restrict'),
+  ],
+)

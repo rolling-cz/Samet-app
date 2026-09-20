@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { adminRoute, chapterRoute, runHomeRoute, sectionRoute } from './constants/routes'
 import type { ChapterSummary } from './types/chapter-summary'
-import { chapterAvailability } from './utils/chapter-availability'
 import { defaultChapterNumber } from './utils/default-chapter-number'
 import { parseChapterNumber } from './utils/parse-chapter-number'
 import { parseRunLocation } from './utils/parse-run-location'
@@ -100,23 +99,5 @@ describe('switchRunRoute', () => {
 
   it('lets the other run pick its default chapter when the address has none', () => {
     expect(switchRunRoute({}, RUN_B)).toBe(runHomeRoute(RUN_B))
-  })
-})
-
-describe('chapterAvailability', () => {
-  it('always opens chapter 1', () => {
-    expect(chapterAvailability(chaptersWith('in_progress', 'in_progress', 'in_progress'), 1)).toEqual({ _type: 'open' })
-  })
-
-  it('blocks a chapter whose predecessor has no confirmed computation', () => {
-    expect(chapterAvailability(chaptersWith('in_progress', 'in_progress', 'in_progress'), 2)).toEqual({
-      _type: 'blocked',
-      missingChapter: 1,
-    })
-  })
-
-  it('opens a chapter after a computed or released predecessor', () => {
-    expect(chapterAvailability(chaptersWith('computed', 'in_progress', 'in_progress'), 2)).toEqual({ _type: 'open' })
-    expect(chapterAvailability(chaptersWith('released', 'released', 'in_progress'), 3)).toEqual({ _type: 'open' })
   })
 })

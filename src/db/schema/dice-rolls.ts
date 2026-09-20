@@ -1,13 +1,16 @@
 import { sql } from 'drizzle-orm'
 import { boolean, check, foreignKey, integer, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 import { authorName } from './columns'
-import { characters } from './characters'
 import { blockVariations } from './content'
-import { chapters, runs } from './runs'
+import { runs } from './runs'
 
 /**
- * A dice roll (§7.4). Rolled once and stored per character, chapter and block
- * variation, exactly like a player's answer.
+ * A dice roll (§7.4). Rolled once and stored, exactly like a player's answer.
+ *
+ * A roll belongs to the variant, not to a character and a chapter: the
+ * variant's block says whose it is — a character's or a group's — and which
+ * chapter's documents it fills, so neither is stored a second time and a group
+ * block's roll has somewhere to go.
  *
  * `occurrence` distinguishes several `RANDOM(n)` calls inside one condition,
  * counted left to right from 0 — without it two rolls in one expression would
@@ -26,8 +29,6 @@ export const diceRolls = pgTable(
     runId: text('run_id')
       .notNull()
       .references(() => runs.id, { onDelete: 'restrict' }),
-    chapterId: uuid('chapter_id').notNull(),
-    characterId: uuid('character_id').notNull(),
     blockVariationId: uuid('block_variation_id').notNull(),
     /** Index of the `RANDOM(...)` call within the variant's condition, from 0. */
     occurrence: integer('occurrence').notNull().default(0),
@@ -43,25 +44,9 @@ export const diceRolls = pgTable(
     reason: text('reason'),
   },
   (t) => [
-    unique('dice_rolls_unique').on(
-      t.runId,
-      t.chapterId,
-      t.characterId,
-      t.blockVariationId,
-      t.occurrence,
-    ),
+    unique('dice_rolls_unique').on(t.runId, t.blockVariationId, t.occurrence),
     check('dice_rolls_value_in_range', sql`${t.value} between 1 and ${t.sides}`),
     check('dice_rolls_sides_sane', sql`${t.sides} >= 2`),
-    foreignKey({
-      name: 'dice_rolls_chapter_fk',
-      columns: [t.runId, t.chapterId],
-      foreignColumns: [chapters.runId, chapters.id],
-    }).onDelete('restrict'),
-    foreignKey({
-      name: 'dice_rolls_character_fk',
-      columns: [t.runId, t.characterId],
-      foreignColumns: [characters.runId, characters.id],
-    }).onDelete('restrict'),
     foreignKey({
       name: 'dice_rolls_variation_fk',
       columns: [t.runId, t.blockVariationId],

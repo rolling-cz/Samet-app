@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
-import type { ChapterAvailability } from '../types/chapter-availability'
-import { chapterAvailability } from '../utils/chapter-availability'
+import { loadChapterAvailability, type ChapterAvailability } from '@/computation'
 import { parseChapterNumber } from '../utils/parse-chapter-number'
 import { loadRunShell } from './load-run-shell'
 
@@ -19,5 +18,5 @@ export const loadChapterPage = async (runId: string, chapterSegment: string): Pr
   const chapter = parseChapterNumber(chapterSegment)
   if (!shell || chapter === undefined || !shell.chapters.some((row) => row.number === chapter)) notFound()
 
-  return { runId: shell.run.id, chapter, availability: chapterAvailability(shell.chapters, chapter) }
+  return { runId: shell.run.id, chapter, availability: await loadChapterAvailability(shell.run.id, chapter) }
 }
