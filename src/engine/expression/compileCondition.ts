@@ -26,10 +26,8 @@ import { parseExpressionTree } from './parseExpressionTree'
 
 export interface CompileScope {
   catalog: Catalog
-  /** Variant or question the expression belongs to, for the error. */
+  /** Variant the expression belongs to, for the error. */
   ownerId: string
-  /** `RANDOM` is allowed in block variants only; a question has nowhere to store the roll (§7.4). */
-  allowRandom: boolean
 }
 
 interface NodeScope extends CompileScope {
@@ -155,9 +153,6 @@ const toNumber = (node: jsep.Expression, scope: NodeScope): CompiledNumber => {
 const randomCondition = (call: jsep.CallExpression, scope: NodeScope): CompiledCondition => {
   const callee = call.callee.type === 'Identifier' ? String((call.callee as jsep.Identifier).name) : ''
   if (callee !== RANDOM_FUNCTION) return invalid(scope, `unknown function ${callee}`)
-  if (!scope.allowRandom) {
-    return fail('random_in_question', scope.ownerId, `"${scope.expression}": ${RANDOM_FUNCTION} is allowed in block variants only`)
-  }
 
   const [argument, ...extra] = call.arguments
   const percent = argument?.type === 'Literal' ? (argument as jsep.Literal).value : undefined

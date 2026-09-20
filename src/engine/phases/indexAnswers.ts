@@ -3,10 +3,9 @@
  * that was asked and has no answer stops the computation, and every problem is
  * listed at once.
  *
- * A question of the chapter being computed counts as asked when its condition
- * holds over the incoming state — the same reading the previous computation
- * made. For earlier chapters the recorded answers are the record of what was
- * asked.
+ * A question of the chapter being computed counts as asked when its variant is
+ * among the ones stored with the incoming state (§4.5). For earlier chapters
+ * the recorded answers are the record of what was asked.
  */
 import type { Catalog } from '../catalog/buildCatalog'
 import { failIfAny, type EngineProblem } from '../errors/engineInputError'
@@ -24,23 +23,6 @@ export interface AnswerLookup {
 export interface AnswerIndex extends AnswerLookup {
   /** Questions of the computed chapter that are actually put to the org. */
   asked: Set<QuestionId>
-}
-
-/**
- * The answers as given, before any check — enough to read the conditions that
- * decide which of the chapter's questions are asked at all. Unknown questions
- * are skipped here and reported by `indexAnswers`.
- */
-export const preliminaryLookup = (answers: AnswerInput[], catalog: Catalog): AnswerLookup => {
-  const byQuestion = new Map<QuestionId, AnswerInput>()
-  const chosen = new Set<AnswerOptionId>()
-  for (const answer of answers) {
-    if (!catalog.questions.has(answer.questionId) || byQuestion.has(answer.questionId)) continue
-    byQuestion.set(answer.questionId, answer)
-    for (const optionId of answer.selectedOptionIds) chosen.add(optionId)
-  }
-
-  return { byQuestion, chosen }
 }
 
 type Report = (subject: string, detail: string) => void
@@ -107,7 +89,7 @@ export const indexAnswers = (
       continue
     }
     if (question.chapter === chapter && !asked.has(question.id)) {
-      report(question.id, 'answer to a question whose condition did not hold — it was never asked')
+      report(question.id, 'answer to a question whose variant was not selected — it was never asked')
       continue
     }
     if (byQuestion.has(question.id)) {

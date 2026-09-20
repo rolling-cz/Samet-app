@@ -22,7 +22,6 @@ import {
   QUESTION_SOURCE_COLUMN,
 } from '../constants/sheets'
 import type { IssueCollector } from '../issue-collector'
-import { parseCondition } from '../expression'
 import { householdEffectImpacts } from '../household-effect-impacts'
 import { parseScaleImpact } from '../scale-impact'
 import type { SheetRow } from '../sheet'
@@ -30,6 +29,7 @@ import type { ImportRepairs, Workbook } from '../types/parsed-config'
 import type {
   ParsedAnswerOption,
   ParsedQuestion,
+  ParsedQuestionCondition,
   ParsedQuestionType,
 } from '../types/parsed-question'
 import { splitList } from '../utils/split-list'
@@ -215,7 +215,7 @@ const beginQuestion = (
     source: sourceRaw === ORG_SOURCE_WORD ? 'org' : 'player',
     isPrivate: isYes(row.get(QUESTION_PRIVATE_COLUMN)),
     pollRef: resolvedType === 'poll-answer' ? row.get('Text') : undefined,
-    condition: parseQuestionCondition(row, issues),
+    condition: parseQuestionCondition(row),
     options: [],
     location: row.at('ID'),
   }
@@ -342,25 +342,15 @@ const readAnswer = (
 }
 
 /**
- * A question may itself be conditional from chapter 2 on (§4.2) — asked only
- * when the expression holds. Conditional *sub*-questions stay out: this gates a
- * whole question, it does not nest one inside another.
+ * A question may itself be conditional from chapter 2 on (§4.5). The cell holds
+ * one `Variation ID`, so there is nothing to parse; whether it names a variant
+ * the question may wait for is settled once the content sheets are read.
  */
-const parseQuestionCondition = (row: SheetRow, issues: IssueCollector) => {
+const parseQuestionCondition = (row: SheetRow): ParsedQuestionCondition | undefined => {
   const raw = row.get(QUESTION_CONDITION_COLUMN)
   if (raw === '') return undefined
 
-  const condition = parseCondition(raw)
-  if (!condition.ok) {
-    issues.error(
-      'invalid_expression',
-      row.at(QUESTION_CONDITION_COLUMN),
-      `Podmínka otázky je syntakticky vadná: ${condition.error}.`,
-      { value: condition.raw },
-    )
-  }
-
-  return condition
+  return { raw, location: row.at(QUESTION_CONDITION_COLUMN) }
 }
 
 /** `bool` answers are recognised by their text, so row order does not matter (§6.1). */

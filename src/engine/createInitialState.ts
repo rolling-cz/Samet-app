@@ -60,5 +60,5 @@ export const createInitialState = (config: EngineConfig): RunState => {
 
   failIfAny(problems)
 
-  return normalizeState({ completedChapter: 0, characters, households })
+  return normalizeState({ completedChapter: 0, characters, households, selectedVariants: { characters: {}, groups: {} } })
 }

@@ -5,6 +5,7 @@ import type { ParsedConfig } from '../types/parsed-config'
 import type { ParsedTemplate } from '../types/parsed-template'
 import { templateCoverage } from '../template-upload'
 import { suggestClosest } from '../utils/suggest-closest'
+import { blocksDecidingQuestions } from './check-question-conditions'
 
 /** `{S_Regime}` prints a scale value; the prefix is the author's. */
 const SCALE_VARIABLE_PREFIX = 'S_'
@@ -18,7 +19,8 @@ const RESOURCE_VARIABLE_PREFIX = 'R_'
  * the marker would survive into the printed document.
  *
  * A block reachable only from another block's `Variation Text` counts as
- * marked: nesting is a legitimate way in (§11, 6g).
+ * marked: nesting is a legitimate way in (§11, 6g). So does a block a
+ * question's `Condition` points at — it exists to decide the question (§8.2).
  */
 export const checkTemplates = (
   config: ParsedConfig,
@@ -37,7 +39,7 @@ export const checkTemplates = (
   for (const key of scaleKeys) knownVariables.push(`${SCALE_VARIABLE_PREFIX}${key}`)
   for (const key of resourceKeys) knownVariables.push(`${RESOURCE_VARIABLE_PREFIX}${key}`)
 
-  const markedBlocks = new Set<string>()
+  const markedBlocks = blocksDecidingQuestions(config)
   for (const blocks of config.blocks.values()) {
     for (const block of blocks) {
       for (const variation of block.variations) {
@@ -94,7 +96,7 @@ export const checkTemplates = (
     issues.error(
       'block_without_marker',
       { sheet },
-      `Blok \`${blockId}\` je v listu \`${sheet}\`, ale žádná nahraná šablona ani text jiné varianty na něj nemá značku \`{BLOK ${blockId}}\` — jeho text se nikam nedostane.`,
+      `Blok \`${blockId}\` je v listu \`${sheet}\`, ale žádná nahraná šablona ani text jiné varianty na něj nemá značku \`{BLOK ${blockId}}\` a neodkazuje na něj ani sloupec \`Condition\` žádné otázky — k ničemu se nepoužije.`,
       { value: blockId },
     )
   }

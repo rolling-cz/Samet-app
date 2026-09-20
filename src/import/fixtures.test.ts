@@ -20,7 +20,7 @@ import type { UploadedTemplate } from './types/parsed-template'
 import { readWorkbook } from './workbook'
 
 /** Mistakes the faulty workbook carries, per `fixtures-ocekavane-vysledky.md`. */
-const EXPECTED_WORKBOOK_ERRORS = 37
+const EXPECTED_WORKBOOK_ERRORS = 38
 
 /** Mistakes that only show once the templates are uploaded (§10.2). */
 const EXPECTED_TEMPLATE_ERRORS = 5
@@ -94,6 +94,18 @@ describe('fixture-platny.xlsx', () => {
   it('parses every condition in the sheet without a syntax error', () => {
     expect(result.issues.filter((i) => i.code === 'invalid_expression')).toEqual([])
   })
+
+  it('ties five questions to a variant and keeps their marker-less blocks out of the orphans', () => {
+    const conditions = [...result.config.questions.values()].flat().flatMap((q) => (q.condition ? [q.condition.raw] : []))
+    expect(conditions).toEqual([
+      'V_Marie_1_Questions_1_A',
+      'V_Marie_1_Questions_2_A',
+      'V_Marie_1_Questions_3_A',
+      'V_Antonin_1_Questions_1_A',
+      'V_Antonin_2_Questions_1_A',
+    ])
+    expect(result.issues.filter((i) => i.code === 'block_without_marker')).toEqual([])
+  })
 })
 
 describe('fixture-vadny.xlsx', () => {
@@ -132,6 +144,9 @@ describe('fixture-vadny.xlsx', () => {
       'question_without_answers',
       'invalid_impact',
       'invalid_expression',
+      'question_condition_not_variation',
+      'unknown_variation',
+      'foreign_variation',
       'block_without_default',
       'duplicate_priority',
       'missing_priority',
@@ -145,6 +160,27 @@ describe('fixture-vadny.xlsx', () => {
     ]) {
       expect(codes).toContain(code)
     }
+  })
+
+  it('refuses all three kinds of a faulty question Condition and leaves the valid ones alone', () => {
+    const found = result.errors
+      .filter((e) => e.location.column === 'Condition')
+      .map((e) => `${e.location.sheet}:${e.location.row} ${e.code}`)
+
+    expect(found).toEqual([
+      '2_Questions:3 unknown_variation',
+      '2_Questions:7 question_condition_not_variation',
+      '2_Questions:9 question_condition_not_variation',
+      '2_Questions:10 foreign_variation',
+      '2_Questions:14 question_condition_not_variation',
+      '2_Questions:16 question_condition_not_variation',
+    ])
+  })
+
+  it('reports the one true orphan, not the blocks that only decide a question', () => {
+    expect(result.errors.filter((e) => e.code === 'block_without_marker').map((e) => e.value)).toEqual([
+      'B_Mirek_1_Sirotek_1',
+    ])
   })
 
   it('suggests the scale the author meant', () => {

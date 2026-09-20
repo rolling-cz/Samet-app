@@ -395,16 +395,16 @@ describe('variants and question gates', () => {
       questions1: [
         { Character: 'Org', ID: 'Q_Org_1_1', Type: 'scale_direct', Text: 'Nastav', [ANSWER_ID_COLUMN]: 'A_Org_1_1_N', [ANSWER_LABEL_COLUMN]: 'N', [IMPACT_COLUMN]: 'S_Marie_Regime=VALUE' },
       ],
-      questions2: [{ ...single('Marie', '', 'Q_Marie_2_1'), [QUESTION_CONDITION_COLUMN]: 'S_Marie_Regime >= 5', [ANSWER_ID_COLUMN]: 'A_Marie_2_1_X' }],
+      questions2: [{ ...single('Marie', '', 'Q_Marie_2_1'), [QUESTION_CONDITION_COLUMN]: 'V_A', [ANSWER_ID_COLUMN]: 'A_Marie_2_1_X' }],
       content2: [
-        { Character: 'Marie', 'Block ID': 'B_Marie_1_X', 'Variation ID': 'V_A', 'Variation Text': 'Vysoký režim', Priority: '1', Conditions: 'S_Marie_Regime >= 5' },
-        { 'Variation ID': 'V_B', 'Variation Text': 'Nízký režim', Priority: '2', Conditions: 'DEFAULT' },
+        { Character: 'Marie', 'Block ID': 'B_Marie_1_Questions_1', 'Variation ID': 'V_A', Priority: '1', Conditions: 'S_Marie_Regime >= 5' },
+        { 'Variation ID': 'V_B', Priority: '2', Conditions: 'DEFAULT' },
       ],
     })
     const result = run1(config, [setValue('Q_Org_1_1', 'A_Org_1_1_N', 9)])
 
     expect(result.questions).toEqual([{ questionId: 'Q_Marie_2_1', characterId: 'Marie', asked: true }])
-    expect(result.variants).toEqual([{ blockId: 'B_Marie_1_X', characterId: 'Marie', status: 'selected', variationId: 'V_A', text: 'Vysoký režim' }])
+    expect(result.variants).toEqual([{ blockId: 'B_Marie_1_Questions_1', characterId: 'Marie', status: 'selected', variationId: 'V_A', text: '' }])
   })
 
   it('picks by priority over row order, falls back to DEFAULT and accepts an empty text (9)', () => {
@@ -439,9 +439,124 @@ describe('variants and question gates', () => {
     variation.condition = 'S_Marie_Regme >= 3'
     expect(() => run1(config, answers)).toThrow(/unknown_identifier.*S_Marie_Regme/)
 
-    variation.condition = 'RANDOM(50)'
-    config.questions[1]!.condition = 'RANDOM(50)'
-    expect(() => run1(config, answers)).toThrow(/random_in_question/)
+  })
+})
+
+describe('question conditions are a lookup in the selected variants (§4.5)', () => {
+  /** Two questions hang on the two variants of one block; a third has no condition. */
+  const gatedConfig = (): EngineConfig =>
+    configFrom({
+      questions1: [
+        { ...single('Marie', ''), [ANSWER_ID_COLUMN]: 'A_Marie_1_1_Karel', [ANSWER_LABEL_COLUMN]: 'Karel' },
+        { [ANSWER_ID_COLUMN]: 'A_Marie_1_1_Mirek', [ANSWER_LABEL_COLUMN]: 'Mirek' },
+      ],
+      questions2: [
+        { ...single('Marie', '', 'Q_Marie_2_1'), [QUESTION_CONDITION_COLUMN]: 'V_Marie_1_Questions_1_A' },
+        { ...single('Marie', '', 'Q_Marie_2_2'), Character: '', [QUESTION_CONDITION_COLUMN]: 'V_Marie_1_Questions_1_B' },
+        { ...single('Marie', '', 'Q_Marie_2_3'), Character: '' },
+      ],
+      content2: [
+        { Character: 'Marie', 'Block ID': 'B_Marie_1_Questions_1', 'Variation ID': 'V_Marie_1_Questions_1_A', Conditions: 'A_Marie_1_1_Karel' },
+        { 'Variation ID': 'V_Marie_1_Questions_1_B' },
+      ],
+    })
+
+  const askedAfter = (config: EngineConfig, optionId: string): string[] =>
+    run1(config, [choose('Q_Marie_1_1', optionId)])
+      .questions.filter((gate) => gate.asked)
+      .map((gate) => gate.questionId)
+
+  it('always asks a question with an empty Condition', () => {
+    const config = gatedConfig()
+
+    expect(askedAfter(config, 'A_Marie_1_1_Karel')).toContain('Q_Marie_2_3')
+    expect(askedAfter(config, 'A_Marie_1_1_Mirek')).toContain('Q_Marie_2_3')
+  })
+
+  it('asks a question exactly when its variant is among the character\'s selected ones', () => {
+    const result = run1(gatedConfig(), [choose('Q_Marie_1_1', 'A_Marie_1_1_Karel')])
+
+    expect(result.state.selectedVariants).toEqual({ characters: { Marie: ['V_Marie_1_Questions_1_A'] }, groups: {} })
+    expect(ofKind(result.trace, 'question').map((entry) => [entry.questionId, entry.asked, entry.condition])).toEqual([
+      ['Q_Marie_2_1', true, { variationId: 'V_Marie_1_Questions_1_A', blockId: 'B_Marie_1_Questions_1', selectedVariationId: 'V_Marie_1_Questions_1_A' }],
+      ['Q_Marie_2_2', false, { variationId: 'V_Marie_1_Questions_1_B', blockId: 'B_Marie_1_Questions_1', selectedVariationId: 'V_Marie_1_Questions_1_A' }],
+      ['Q_Marie_2_3', true, undefined],
+    ])
+  })
+
+  it('never asks both questions hanging on two variants of the same block', () => {
+    const config = gatedConfig()
+
+    expect(askedAfter(config, 'A_Marie_1_1_Karel')).toEqual(['Q_Marie_2_1', 'Q_Marie_2_3'])
+    expect(askedAfter(config, 'A_Marie_1_1_Mirek')).toEqual(['Q_Marie_2_2', 'Q_Marie_2_3'])
+  })
+
+  it('changes the chapter 2 questionnaire when a chapter 1 answer flips the deciding variant', () => {
+    const config = gatedConfig()
+    const chapter2 = (chapter1Option: string, chapter2Question: string) => {
+      const first = [choose('Q_Marie_1_1', chapter1Option)]
+      const answers = [...first, choose(chapter2Question, `A_${chapter2Question.slice('Q_'.length)}_X`), choose('Q_Marie_2_3', 'A_Marie_2_3_X')]
+
+      return evaluate(run1(config, first).state, { chapter: 2, answers, rolls: [] }, config)
+    }
+
+    expect(chapter2('A_Marie_1_1_Karel', 'Q_Marie_2_1').state.completedChapter).toBe(2)
+    expect(chapter2('A_Marie_1_1_Mirek', 'Q_Marie_2_2').state.completedChapter).toBe(2)
+    // The questionnaire comes from the stored selection, not from re-reading the answers.
+    expect(() => chapter2('A_Marie_1_1_Mirek', 'Q_Marie_2_1')).toThrow(/missing_answer Q_Marie_2_2/)
+    expect(() => chapter2('A_Marie_1_1_Karel', 'Q_Marie_2_2')).toThrow(/never asked/)
+  })
+
+  it('stores the selection per owner, groups included, and nothing after the last chapter', () => {
+    const { chapter1, chapter2 } = runFixture()
+
+    expect(chapter1.state.selectedVariants.characters.Marie).toEqual(
+      chapter1.variants.filter((variant) => variant.characterId === 'Marie').map((variant) => variant.variationId),
+    )
+    expect(chapter1.state.selectedVariants.groups.Funkcionari).toEqual(['V_Funkcionari_1_Vedeni_1_B'])
+    expect(chapter2.state.selectedVariants.characters.Antonin).toContain('V_Antonin_2_Questions_1_A')
+  })
+
+  it('leaves an undecided block out of the selection and refuses to build the next chapter on it', () => {
+    const config = configFrom({
+      questions1: [single('Marie', '')],
+      questions2: [{ ...single('Marie', '', 'Q_Marie_2_1'), [QUESTION_CONDITION_COLUMN]: 'V_A' }],
+      content2: [
+        { Character: 'Marie', 'Block ID': 'B_Marie_1_Questions_1', 'Variation ID': 'V_A', Conditions: 'RANDOM(50)' },
+        { 'Variation ID': 'V_B' },
+      ],
+    })
+    const answers = [choose('Q_Marie_1_1', 'A_Marie_1_1_X')]
+    const draft = run1(config, answers)
+
+    expect(draft.missingRolls).toHaveLength(1)
+    expect(draft.state.selectedVariants.characters).toEqual({})
+    expect(() => evaluate(draft.state, { chapter: 2, answers, rolls: [] }, config)).toThrow(/inconsistent_state Q_Marie_2_1/)
+  })
+
+  it('fails loudly on a Condition that is not the same character\'s variant of the same chapter', () => {
+    const config = gatedConfig()
+    const question = config.questions.find((candidate) => candidate.id === 'Q_Marie_2_1')
+    if (!question) throw new Error('fixture has no Q_Marie_2_1')
+    const answers = [choose('Q_Marie_1_1', 'A_Marie_1_1_Karel')]
+
+    question.conditionVariationId = 'RANDOM(50)'
+    expect(() => run1(config, answers)).toThrow(/invalid_question_condition Q_Marie_2_1/)
+
+    question.conditionVariationId = 'V_Marie_1_Questions_1_A'
+    question.characterId = 'Mirek'
+    expect(() => run1(config, answers)).toThrow(/invalid_question_condition Q_Marie_2_1.*not to Mirek/)
+  })
+
+  it('refuses a state whose stored variants do not fit the config', () => {
+    const config = gatedConfig()
+    const state = run1(config, [choose('Q_Marie_1_1', 'A_Marie_1_1_Karel')]).state
+    const chapter2 = (selectedVariants: typeof state.selectedVariants) =>
+      evaluate({ ...state, selectedVariants }, { chapter: 2, answers: [], rolls: [] }, config)
+
+    expect(() => chapter2({ characters: { Marie: ['V_Neexistuje'] }, groups: {} })).toThrow(/inconsistent_state V_Neexistuje/)
+    expect(() => chapter2({ characters: { Mirek: ['V_Marie_1_Questions_1_A'] }, groups: {} })).toThrow(/does not own block/)
+    expect(() => chapter2({ characters: { Marie: ['V_Marie_1_Questions_1_A', 'V_Marie_1_Questions_1_B'] }, groups: {} })).toThrow(/two selected variants/)
   })
 })
 

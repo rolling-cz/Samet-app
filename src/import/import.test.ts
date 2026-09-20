@@ -324,38 +324,102 @@ describe('polls (§6.6)', () => {
   })
 })
 
-describe('a question may be conditional from chapter 2 on (§4.2)', () => {
-  it('reads the condition and checks what it names', () => {
-    const result = run({
-      questions: [
-        {
-          Character: 'Marie',
-          Condition: 'S_Marie_Regime >= 5',
-          Type: 'bool',
-          Text: 'Otázka?',
-          'Text response': 'Ano',
-        },
-      ],
-      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
-    })
-    expect(result.config.questions.get(2)?.[0]?.condition?.raw).toBe('S_Marie_Regime >= 5')
-    expect(result.errors).toEqual([])
+describe('a question\'s Condition is one Variation ID (§4.5)', () => {
+  /** Marie's question with the given `Condition`; her block `B_Marie_2_Questions_1` decides it. */
+  const conditional = (condition: string, character = 'Marie'): WorkbookParts => ({
+    questions: [
+      { Character: character, Condition: condition, Type: 'bool', Text: 'Otázka?', 'Text response': 'Ano' },
+    ],
+    content: [
+      { Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A', 'Variation Text': 'Text' },
+      {
+        Character: 'Marie',
+        'Block ID': 'B_Marie_2_Questions_1',
+        'Variation ID': 'V_Marie_2_Questions_1_A',
+        Conditions: 'S_Marie_Regime >= 5',
+      },
+      { 'Variation ID': 'V_Marie_2_Questions_1_B' },
+      { Character: 'SrdceParty', 'Block ID': 'B_SrdceParty_2_X', 'Variation ID': 'V_SrdceParty_2_X_A' },
+    ],
   })
 
-  it('reports a typo in the condition of a question, not only of a variant', () => {
-    const result = run({
-      questions: [
-        {
-          Character: 'Marie',
-          Condition: 'R_Marie_Welth >= 7',
-          Type: 'bool',
-          Text: 'Otázka?',
-          'Text response': 'Ano',
-        },
-      ],
-      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+  it('accepts a variant of the same character and chapter, and an empty cell', () => {
+    const result = run(conditional('V_Marie_2_Questions_1_A'))
+
+    expect(result.errors).toEqual([])
+    expect(result.config.questions.get(2)?.[0]?.condition?.raw).toBe('V_Marie_2_Questions_1_A')
+    expect(run(conditional('')).config.questions.get(2)?.[0]?.condition).toBeUndefined()
+  })
+
+  it.each([
+    ['an expression', 'S_Marie_Regime >= 5 AND V_Marie_2_Questions_1_A'],
+    ['a negation', '!V_Marie_2_Questions_1_A'],
+    ['an answer ID', 'A_Marie_2_1_Ano'],
+    ['a scale ID', 'S_Marie_Regime'],
+    ['DEFAULT', 'DEFAULT'],
+    ['RANDOM', 'RANDOM(50)'],
+  ])('refuses %s — only a bare Variation ID may stand there', (_, condition) => {
+    const result = run(conditional(condition))
+
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toMatchObject({
+      code: 'question_condition_not_variation',
+      value: condition,
+      location: { sheet: '2_Questions', column: 'Condition' },
     })
-    expect(byCode(result, 'unknown_resource')[0]?.suggestion).toBe('R_Marie_Wealth')
+  })
+
+  it('refuses a variant the same chapter\'s content does not have, and suggests the near one', () => {
+    const result = run(conditional('V_Marie_2_Questions_1_C'))
+
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toMatchObject({
+      code: 'unknown_variation',
+      value: 'V_Marie_2_Questions_1_C',
+      suggestion: 'V_Marie_2_Questions_1_A',
+      location: { sheet: '2_Questions', column: 'Condition' },
+    })
+  })
+
+  it('looks only into the content sheet of the question\'s own chapter', () => {
+    const base = conditional('')
+    const result = run({
+      ...base,
+      extra: {
+        '3_Questions': [
+          ['Character', 'Condition', 'ID', 'Type', 'Text', 'ID Answer', 'Text response'],
+          ['Marie', 'V_Marie_2_Questions_1_A', '', 'bool', 'Otázka?', '', 'Ano'],
+        ],
+      },
+    })
+
+    expect(byCode(result, 'unknown_variation')[0]).toMatchObject({
+      value: 'V_Marie_2_Questions_1_A',
+      location: { sheet: '3_Questions' },
+    })
+  })
+
+  it('refuses a variant of another character or of a group', () => {
+    expect(run(conditional('V_Marie_2_Questions_1_A', 'Mirek')).errors.map((issue) => issue.code)).toEqual([
+      'foreign_variation',
+    ])
+    expect(run(conditional('V_SrdceParty_2_X_A')).errors.map((issue) => issue.code)).toEqual(['foreign_variation'])
+  })
+
+  it('does not call a block orphaned when only a Condition points at it', () => {
+    const templates = [
+      { filename: 'Marie_2.md', markdown: '# Marie\n{BLOK B_Marie_2_X}' },
+      { filename: 'Mirek_2.md', markdown: '# Mirek' },
+      { filename: 'SrdceParty_2.md', markdown: '# Srdce party\n{BLOK B_SrdceParty_2_X}' },
+    ]
+    const orphans = (condition: string) =>
+      byCode(importWorkbook(buildWorkbook(conditional(condition)), templates), 'block_without_marker').map(
+        (issue) => issue.value,
+      )
+
+    expect(orphans('V_Marie_2_Questions_1_A')).toEqual([])
+    // No marker and no reference: the same block is reported.
+    expect(orphans('')).toEqual(['B_Marie_2_Questions_1'])
   })
 })
 

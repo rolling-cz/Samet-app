@@ -74,8 +74,8 @@ const toQuestion = (question: ParsedQuestion): QuestionDefinition | undefined =>
   if (question.characterId !== undefined) definition.characterId = question.characterId
   if (question.ordinal !== undefined) definition.ordinal = question.ordinal
   if (question.pollRef !== undefined && question.pollRef !== '') definition.pollId = question.pollRef
-  // The engine reads the author's text, so the trace can quote it (§4.5).
-  if (question.condition !== undefined) definition.condition = question.condition.raw
+  // Validation has made sure the cell is one `Variation ID` (§4.5).
+  if (question.condition !== undefined) definition.conditionVariationId = question.condition.raw
 
   return definition
 }

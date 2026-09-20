@@ -14,7 +14,7 @@ export type EngineProblemCode =
   | 'invalid_roll'
   | 'invalid_expression'
   | 'unknown_identifier'
-  | 'random_in_question'
+  | 'invalid_question_condition'
   | 'block_without_result'
 
 export interface EngineProblem {

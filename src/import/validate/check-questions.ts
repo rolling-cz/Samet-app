@@ -4,7 +4,6 @@ import type { ParsedAnswerOption, ParsedQuestion } from '../types/parsed-questio
 import { householdExternalId } from '@/engine'
 import { splitHouseholdId } from '../utils/household-id'
 import { suggestClosest } from '../utils/suggest-closest'
-import { answersUpTo, checkConditionReferences, type ReferenceScope } from './check-references'
 import { householdResourceIds, knownResourceIds, knownScaleIds } from './known-scale-ids'
 
 export const checkQuestions = (
@@ -21,38 +20,9 @@ export const checkQuestions = (
   for (const [chapter, questions] of config.questions) {
     const blockIds = new Set((config.blocks.get(chapter) ?? []).map((b) => b.externalId))
     const knownBlockIds = [...blockIds]
-    const scope: ReferenceScope = {
-      chapter,
-      answerIds: answersUpTo(config.questions, chapter),
-      scaleIds,
-      resourceIds: new Set([...resourceIds, ...jointIds]),
-    }
-
     for (const question of questions) {
       checkOwner(question, characterIds, knownCharacters, issues)
       checkPollReference(question, polls, issues)
-
-      // A question may be conditional from chapter 2 on (§4.2); the language is
-      // the same as a variant's, and so is the typo.
-      if (question.condition) {
-        // A roll is stored per block variant (§7.4); a question has nowhere to
-        // keep one, so a `RANDOM` here could never be replayed.
-        if (question.condition.usesRandom) {
-          issues.error(
-            'invalid_expression',
-            question.location,
-            `Podmínka otázky \`${question.externalId}\` používá \`RANDOM\` — náhoda smí být jen v podmínkách variant bloků (\`N_Content\`), ne u otázek.`,
-            { value: question.condition.raw },
-          )
-        }
-        checkConditionReferences(
-          question.condition,
-          `Podmínka otázky \`${question.externalId}\``,
-          question.location,
-          scope,
-          issues,
-        )
-      }
 
       for (const option of question.options) {
         for (const impact of option.impacts) {

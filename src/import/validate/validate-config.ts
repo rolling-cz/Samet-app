@@ -9,6 +9,7 @@ import type { ParsedConfig } from '../types/parsed-config'
 import type { ParsedTemplate } from '../types/parsed-template'
 import { checkCharacters } from './check-characters'
 import { checkContent } from './check-content'
+import { checkQuestionConditions } from './check-question-conditions'
 import { checkQuestions } from './check-questions'
 import { checkUntouchedScales } from './check-scale-usage'
 import { checkScales } from './check-scales'
@@ -27,6 +28,7 @@ export const validateConfig = ({ config, templates }: ValidationInput, issues: I
   checkCharacters(config, issues)
   checkScales(config, issues)
   checkQuestions(config, characterIds, issues)
+  checkQuestionConditions(config, issues)
   checkContent(config, characterIds, groupIds, issues)
   checkUntouchedScales(config, issues)
   if (templates) checkTemplates(config, templates, issues)

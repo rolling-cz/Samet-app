@@ -70,7 +70,7 @@ const selectVariant = (context: EvaluationContext, scope: EnvironmentScope, bloc
   if (block.groupId !== undefined) selection.groupId = block.groupId
 
   for (const variation of orderedVariations(block)) {
-    const condition = compileCondition(variation.condition, { catalog: context.catalog, ownerId: variation.id, allowRandom: true })
+    const condition = compileCondition(variation.condition, { catalog: context.catalog, ownerId: variation.id })
     const percents = new Map<number, number>()
     percentsOf(condition, percents)
 

@@ -5,7 +5,7 @@
  * is a different input source, not a different mechanism (§6.7).
  */
 import type { HouseholdEffect } from './effect'
-import type { AnswerOptionId, ChapterNumber, CharacterId, QuestionId } from './ids'
+import type { AnswerOptionId, ChapterNumber, CharacterId, QuestionId, VariationId } from './ids'
 import type { ImpactDefinition } from './impact'
 
 /** As the author spells it in the `Type` column (§6.1). */
@@ -41,10 +41,11 @@ export interface QuestionDefinition {
   /** `poll-answer`: the poll whose text, options and effects it uses (§6.6). */
   pollId?: QuestionId
   /**
-   * The question is asked only when this holds; from chapter 2 on (§4.2). An
-   * absent condition means always asked. `RANDOM` is forbidden here (§7.4).
+   * The `Condition` column (§4.5): not an expression but one variant of the
+   * same character and chapter. The question is asked only when that variant
+   * was selected; absent means always asked.
    */
-  condition?: string
+  conditionVariationId?: VariationId
   /** In row order; a `poll-answer` has none of its own — it votes among the poll's (§6.6). */
   options: AnswerOptionDefinition[]
 }

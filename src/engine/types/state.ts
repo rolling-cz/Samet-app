@@ -1,5 +1,5 @@
 /** Run state at the start of a chapter — the first argument of `evaluate` (§4.3). */
-import type { CharacterId, HouseholdId, ResourceKey, ScaleKey } from './ids'
+import type { CharacterId, GroupId, HouseholdId, ResourceKey, ScaleKey, VariationId } from './ids'
 
 export interface CharacterState {
   scales: Record<ScaleKey, number>
@@ -20,12 +20,27 @@ export interface HouseholdState {
 }
 
 /**
- * Groups are not here on purpose: who belongs to one and who leads it is not
- * state (§4.6) — block variants and their conditions say it.
+ * Variants chosen per owner, sorted (§4.3). They are state, not a by-product
+ * of the documents: a question's `Condition` is looked up here (§4.5).
+ */
+export interface SelectedVariants {
+  characters: Record<CharacterId, VariationId[]>
+  groups: Record<GroupId, VariationId[]>
+}
+
+/**
+ * Group membership and leadership are not here on purpose: they are not state
+ * (§4.6) — block variants and their conditions say it.
  */
 export interface RunState {
   /** Chapter already computed; `0` is the state the run starts from. */
   completedChapter: number
   characters: Record<CharacterId, CharacterState>
   households: Record<HouseholdId, HouseholdState>
+  /**
+   * For chapter `completedChapter + 1`: chosen while `completedChapter` was
+   * computed, so they are known before that questionnaire opens. Empty at the
+   * start of the run — chapter 1 has no `1_Content`.
+   */
+  selectedVariants: SelectedVariants
 }

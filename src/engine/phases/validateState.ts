@@ -1,18 +1,61 @@
 /**
  * The incoming state must match the config: every character with every scale
  * and personal account it was given, every household a real pair whose members
- * point back at it. A mismatch is a bug in whoever saved the snapshot, and the
- * engine names it rather than filling anything in.
+ * point back at it, every stored variant one of the owner's blocks for the
+ * chapter being computed. A mismatch is a bug in whoever saved the snapshot,
+ * and the engine names it rather than filling anything in.
  */
 import type { Catalog } from '../catalog/buildCatalog'
 import { failIfAny, type EngineProblem } from '../errors/engineInputError'
-import type { ChapterNumber } from '../types/ids'
+import type { BlockId, ChapterNumber, VariationId } from '../types/ids'
 import type { RunState } from '../types/state'
 import { splitHouseholdId } from '../utils/splitHouseholdId'
 
+type Report = (subject: string, detail: string) => void
+
+/**
+ * The selection decides the questionnaire (§4.5), so a stray ID is not
+ * harmless: it would ask, or skip, a question nobody chose to.
+ */
+const checkSelectedVariants = (state: RunState, catalog: Catalog, chapter: ChapterNumber, report: Report): void => {
+  const decidedBlocks = new Set<BlockId>()
+  const checkOwner = (ownerKind: 'character' | 'group', ownerId: string, variationIds: VariationId[]): void => {
+    for (const variationId of variationIds) {
+      const block = catalog.variations.get(variationId)?.block
+      if (!block) {
+        report(variationId, 'selected variant is not in the config')
+        continue
+      }
+      if (block.chapter !== chapter) report(variationId, `selected for chapter ${chapter}, but its block belongs to chapter ${block.chapter}`)
+      if ((ownerKind === 'character' ? block.characterId : block.groupId) !== ownerId) {
+        report(variationId, `stored under ${ownerKind} ${ownerId}, who does not own block ${block.id}`)
+      }
+      if (decidedBlocks.has(block.id)) report(block.id, 'has two selected variants; a block returns one (§8.2)')
+      decidedBlocks.add(block.id)
+    }
+  }
+
+  for (const [characterId, variationIds] of Object.entries(state.selectedVariants.characters)) {
+    checkOwner('character', characterId, variationIds)
+  }
+  for (const [groupId, variationIds] of Object.entries(state.selectedVariants.groups)) {
+    checkOwner('group', groupId, variationIds)
+  }
+
+  // A draft with an undecided block must not be built on: whether the question
+  // was asked is unknown, and "not asked" would be a guess.
+  for (const question of catalog.config.questions) {
+    if (question.chapter !== chapter || question.conditionVariationId === undefined) continue
+    const block = catalog.variations.get(question.conditionVariationId)?.block
+    if (block && !decidedBlocks.has(block.id)) {
+      report(question.id, `block ${block.id} has no selected variant, so the questionnaire cannot be decided`)
+    }
+  }
+}
+
 export const validateState = (state: RunState, catalog: Catalog, chapter: ChapterNumber): void => {
   const problems: EngineProblem[] = []
-  const report = (subject: string, detail: string): void => {
+  const report: Report = (subject, detail) => {
     problems.push({ code: 'inconsistent_state', subject, detail })
   }
 
@@ -56,6 +99,8 @@ export const validateState = (state: RunState, catalog: Catalog, chapter: Chapte
       if (state.characters[memberId]?.householdId !== householdId) report(householdId, `${memberId} does not point back at it`)
     }
   }
+
+  checkSelectedVariants(state, catalog, chapter, report)
 
   failIfAny(problems)
 }

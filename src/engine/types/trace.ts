@@ -153,7 +153,14 @@ export interface QuestionGateTrace {
   questionId: QuestionId
   characterId?: CharacterId
   asked: boolean
-  readings: ConditionReading[]
+  /** Absent when the `Condition` cell is empty — the question is always asked. */
+  condition?: {
+    /** The variant the question waits for (§4.5). */
+    variationId: VariationId
+    blockId: BlockId
+    /** What that block returned instead; `null` while a missing roll leaves it undecided. */
+    selectedVariationId: VariationId | null
+  }
 }
 
 export type TraceEntry =

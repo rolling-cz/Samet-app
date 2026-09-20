@@ -197,6 +197,23 @@ export const buildCatalog = (config: EngineConfig): Catalog => {
     }
   }
 
+  // `Condition` names one variant of the same character and chapter (§4.5);
+  // anything else would make the lookup quietly answer "not asked".
+  for (const question of config.questions) {
+    if (question.conditionVariationId === undefined) continue
+    const owner = variations.get(question.conditionVariationId)?.block
+    const report = (detail: string): void => {
+      problems.push({ code: 'invalid_question_condition', subject: question.id, detail })
+    }
+
+    if (!owner) report(`${question.conditionVariationId} is not a variant of any block`)
+    else if (owner.chapter !== question.chapter) {
+      report(`${question.conditionVariationId} belongs to chapter ${owner.chapter}, the question to chapter ${question.chapter}`)
+    } else if (owner.characterId === undefined || owner.characterId !== question.characterId) {
+      report(`${question.conditionVariationId} belongs to ${owner.characterId ?? owner.groupId ?? '?'}, not to ${question.characterId ?? 'nobody'}`)
+    }
+  }
+
   failIfAny(problems)
 
   return {

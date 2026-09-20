@@ -12,11 +12,9 @@ export interface ReferenceScope {
 }
 
 /**
- * §11.6d: an identifier a condition invents is an error, never a silent false.
- *
- * Shared by block variants and by the question-level `Condition` column,
- * because the language is the same in both places (§4.5) and so is the mistake
- * the author makes.
+ * §11.6d: an identifier a variant's condition invents is an error, never a
+ * silent false. The `Condition` column of `N_Questions` is not an expression
+ * and has its own check (§4.5).
  */
 export const checkConditionReferences = (
   condition: ExpressionParse,

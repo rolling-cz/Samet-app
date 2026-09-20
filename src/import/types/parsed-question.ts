@@ -1,4 +1,3 @@
-import type { ExpressionParse } from '../expression'
 import type { ScaleImpact } from '../scale-impact'
 import type { Sourced } from './sourced'
 import type { AnswerEffectName, QUESTION_TYPES } from '../constants/sheet-vocabulary'
@@ -36,6 +35,10 @@ export interface ParsedAnswerOption extends Sourced {
   isDerived: boolean
 }
 
+export interface ParsedQuestionCondition extends Sourced {
+  raw: string
+}
+
 export interface ParsedQuestion extends Sourced {
   externalId: string
   /** The `ID` cell was empty and the import derived the ID (§4.2). */
@@ -54,8 +57,12 @@ export interface ParsedQuestion extends Sourced {
   isPrivate: boolean
   /** `poll-answer`: the poll ID the `Text` column holds (§6.6). */
   pollRef?: string
-  /** `Condition`: the question is asked only when this holds (§4.2, chapters 2+). */
-  condition?: ExpressionParse
+  /**
+   * `Condition` as written (§4.5, chapters 2+). Not an expression: it must be
+   * one `Variation ID` of the same character and chapter, which the validation
+   * checks — the cell is kept raw so the message can quote it.
+   */
+  condition?: ParsedQuestionCondition
   /** Target of `scale_direct` / `resource_direct`, taken from the impact column. */
   target?: { kind: 'scale' | 'resource'; owner: string; key: string }
   options: ParsedAnswerOption[]

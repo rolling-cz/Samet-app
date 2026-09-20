@@ -3,7 +3,7 @@
  * bytes whatever order the phases touched things in (§2).
  */
 import { compareIds } from './compareIds'
-import type { CharacterState, HouseholdState, RunState } from '../types/state'
+import type { CharacterState, HouseholdState, RunState, SelectedVariants } from '../types/state'
 
 const sortRecord = <T>(record: Record<string, T>): Record<string, T> => {
   const sorted: Record<string, T> = {}
@@ -30,6 +30,21 @@ const normalizeHousehold = (household: HouseholdState): HouseholdState => ({
   resources: sortRecord(household.resources),
 })
 
+const sortVariantIds = (byOwner: Record<string, string[]>): Record<string, string[]> => {
+  const sorted: Record<string, string[]> = {}
+  for (const ownerId of Object.keys(byOwner).sort(compareIds)) {
+    const variationIds = byOwner[ownerId]
+    if (variationIds) sorted[ownerId] = [...variationIds].sort(compareIds)
+  }
+
+  return sorted
+}
+
+const normalizeSelectedVariants = (selected: SelectedVariants): SelectedVariants => ({
+  characters: sortVariantIds(selected.characters),
+  groups: sortVariantIds(selected.groups),
+})
+
 export const normalizeState = (state: RunState): RunState => {
   const characters: Record<string, CharacterState> = {}
   for (const id of Object.keys(state.characters).sort(compareIds)) {
@@ -43,5 +58,10 @@ export const normalizeState = (state: RunState): RunState => {
     if (household) households[id] = normalizeHousehold(household)
   }
 
-  return { completedChapter: state.completedChapter, characters, households }
+  return {
+    completedChapter: state.completedChapter,
+    characters,
+    households,
+    selectedVariants: normalizeSelectedVariants(state.selectedVariants),
+  }
 }

@@ -78,7 +78,7 @@ export const ANSWER_LABEL_COLUMN = 'Text response'
 /** Structural effects of an answer (§4.4, layer 2). */
 export const EFFECTS_COLUMN = 'Effects'
 
-/** A question-level condition; from chapter 2 on, a question may have one (§4.2). */
+/** One `Variation ID` the question waits for; from chapter 2 on (§4.5). */
 export const QUESTION_CONDITION_COLUMN = 'Condition'
 
 /**

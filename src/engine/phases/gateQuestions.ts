@@ -1,15 +1,16 @@
 /**
- * Which questions of a chapter are asked (§4.2). A question without a condition
- * always is; otherwise its expression is read over the state the chapter
- * starts from — the finished state of the chapter before it — together with
- * the answers given so far. `RANDOM` has no place here (§7.4).
+ * Which questions of a chapter are asked (§4.5). A lookup, not an evaluation:
+ * a question without a `Condition` always is; otherwise its variant must be
+ * among the ones selected for its character when the chapter before was
+ * computed. The catalog has already checked that the variant exists and
+ * belongs to the same character and chapter.
  */
 import type { Catalog } from '../catalog/buildCatalog'
 import { fail } from '../errors/engineInputError'
-import { compileCondition } from '../expression/compileCondition'
-import { environmentFor, type EnvironmentScope } from '../expression/conditionEnvironment'
-import { evaluateCondition } from '../expression/evaluateCondition'
+import type { BlockDefinition } from '../types/block'
+import type { VariationId } from '../types/ids'
 import type { QuestionGate } from '../types/result'
+import type { SelectedVariants } from '../types/state'
 import type { QuestionGateTrace } from '../types/trace'
 
 export interface QuestionGates {
@@ -17,28 +18,50 @@ export interface QuestionGates {
   traces: QuestionGateTrace[]
 }
 
-export const gateQuestions = (catalog: Catalog, scope: EnvironmentScope, chapter: number): QuestionGates => {
+/** An owner nothing was selected for — the start of the run, or a group-only chapter. */
+const NO_VARIANTS: ReadonlySet<VariationId> = Object.freeze(new Set<VariationId>())
+
+/** A block returns one variant (§8.2); `null` while a missing roll leaves it undecided. */
+const selectedOf = (block: BlockDefinition, selected: ReadonlySet<VariationId>): VariationId | null =>
+  block.variations.find((variation) => selected.has(variation.id))?.id ?? null
+
+export const gateQuestions = (catalog: Catalog, selected: SelectedVariants, chapter: number): QuestionGates => {
   const gates: QuestionGate[] = []
   const traces: QuestionGateTrace[] = []
+  const selectedByCharacter = new Map<string, ReadonlySet<VariationId>>()
+  for (const [characterId, variationIds] of Object.entries(selected.characters)) {
+    selectedByCharacter.set(characterId, new Set(variationIds))
+  }
 
   for (const question of catalog.config.questions) {
     // A poll is nobody's question and is never "asked" on its own (§6.6).
     if (question.chapter !== chapter || question.type === 'poll') continue
 
     const gate: QuestionGate = { questionId: question.id, asked: true }
-    if (question.characterId !== undefined) gate.characterId = question.characterId
+    const trace: QuestionGateTrace = { phase: 'questions', kind: 'question', questionId: question.id, asked: true }
+    if (question.characterId !== undefined) {
+      gate.characterId = question.characterId
+      trace.characterId = question.characterId
+    }
 
-    if (question.condition !== undefined) {
-      const condition = compileCondition(question.condition, { catalog, ownerId: question.id, allowRandom: false })
-      const outcome = evaluateCondition(condition, environmentFor(scope))
-      if (outcome.result === 'unknown') fail('random_in_question', question.id, 'a question condition cannot be undecided')
-      gate.asked = outcome.result === 'holds'
-      traces.push({ phase: 'questions', kind: 'question', questionId: question.id, ...(gate.characterId !== undefined ? { characterId: gate.characterId } : {}), asked: gate.asked, readings: outcome.readings })
-    } else {
-      traces.push({ phase: 'questions', kind: 'question', questionId: question.id, ...(gate.characterId !== undefined ? { characterId: gate.characterId } : {}), asked: true, readings: [] })
+    if (question.conditionVariationId !== undefined) {
+      const block =
+        catalog.variations.get(question.conditionVariationId)?.block ??
+        fail('invalid_question_condition', question.id, `${question.conditionVariationId} is not a variant of any block`)
+      // The catalog refuses a condition on a question without a character.
+      const owned = (question.characterId === undefined ? undefined : selectedByCharacter.get(question.characterId)) ?? NO_VARIANTS
+
+      gate.asked = owned.has(question.conditionVariationId)
+      trace.asked = gate.asked
+      trace.condition = {
+        variationId: question.conditionVariationId,
+        blockId: block.id,
+        selectedVariationId: selectedOf(block, owned),
+      }
     }
 
     gates.push(gate)
+    traces.push(trace)
   }
 
   return { gates, traces }

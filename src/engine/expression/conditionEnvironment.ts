@@ -1,7 +1,6 @@
 /**
- * Binds a compiled condition to real data: answers, poll winners, the working
- * state and stored rolls. One place, so a question's gate and a variant's
- * condition cannot read the same identifier differently.
+ * Binds a variant's compiled condition to real data: answers, poll winners,
+ * the working state and stored rolls.
  */
 import type { Catalog } from '../catalog/buildCatalog'
 import { fail } from '../errors/engineInputError'
@@ -36,7 +35,7 @@ export interface RollScope {
   percentOf: (occurrence: number) => number
 }
 
-export const environmentFor = (scope: EnvironmentScope, rolls?: RollScope): ConditionEnvironment => ({
+export const environmentFor = (scope: EnvironmentScope, rolls: RollScope): ConditionEnvironment => ({
   isChosen: (optionId, questionId) => {
     const question =
       scope.catalog.questions.get(questionId) ?? fail('unknown_reference', questionId, 'unknown question')
@@ -47,7 +46,7 @@ export const environmentFor = (scope: EnvironmentScope, rolls?: RollScope): Cond
         `a condition reads ${optionId}, but chapter ${question.chapter} has not been played yet`,
       )
     }
-    // A question that was never asked (its own condition did not hold) has no
+    // A question that was never asked (its variant was not selected) has no
     // answer, and none of its options was chosen. A question that was asked
     // and not answered never gets here — `indexAnswers` has already failed.
     if (!scope.answers.byQuestion.has(questionId)) return false
@@ -65,8 +64,6 @@ export const environmentFor = (scope: EnvironmentScope, rolls?: RollScope): Cond
     return { value: readResource(scope.state, routed.account, resourceKey), account: routed.account }
   },
   roll: (occurrence) => {
-    if (!rolls) return fail('random_in_question', 'RANDOM', 'a roll was requested outside a block variant')
-
     const key = rollKey(rolls.owner, rolls.variationId, occurrence)
     const value = rolls.rolls.get(key)
     if (value === undefined) {
