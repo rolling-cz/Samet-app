@@ -15,7 +15,7 @@ Dnes se to dělá ručně v tabulkách. Při **23 postavách ve dvou souběžný
 **Cílem je nástroj, který:**
 
 1. Sesbírá odpovědi na konci kapitoly.
-2. Deterministicky přepočítá vnitřní stav každé postavy (škály, příznaky, členství ve skupinách).
+2. Deterministicky přepočítá vnitřní stav každé postavy (škály, příznaky).
 3. Vygeneruje editovatelný mezivýstup (např. ve formátu JSON) {?} a z něj tisknutelné dokumenty pro hráče.
 4. Umožní kdykoli — i po hře — dohledat **proč** došlo k dané změně.
 
@@ -117,7 +117,7 @@ Opatření:
 - **Běh (Run)** — jedna instance hry, viz §3.2. Nejvyšší úroveň izolace dat. Dva běhy probíhají současně a **nesmí** se navzájem vidět ani ovlivňovat.
 - **Kapitola (Chapter)** — 1, 2, 3. Každý běh prochází kapitolami sekvenčně.
 - **Postava (Character)** — v rámci běhu. Má stav (viz níže) a přiřazeného hráče.
-- **Skupina (Group)** — organizace/parta. Má členy, vedoucího {?}, vlastní dokument.
+- **Skupina (Group)** — organizace/parta. Má vlastní dokument (šablonu). **Členy ani vedení skupiny aplikace nesleduje** — vyjadřují je varianty bloků (§4.6).
 - **Škála (Scale)** — číselná osa reprezentující vnitřní stav postavy. Každá postava může mít různé škály.
   Příklady: Regime`(přesvědčení o komunismu),`Control`(kontrola nad organizací),`, Smutek `(blízkost k sebevraždě)`.
   **Rozsah: celá čísla, hranice `Min` a `Max` jsou definované pro každou škálu každé postavy v listu `Scales`** (typicky 1–10). Hodnoty mimo rozsah se ořezávají na hranici (clamp), ne obtáčejí. Každý ořez se zapíše do auditu.
@@ -125,7 +125,7 @@ Opatření:
   Na rozdíl od Škály se **neořezává** (žádný clamp). Patří postavě nebo domácnosti.
   Každá změna se zapíše do auditu (delta + důvod).
 - **Domácnost (Household)** — postavy sdílející majetek === manželé. Viz §4.4.
-- **Vztah mezi postavami** — **není samostatná entita**, viz §4.6. Strukturně existuje jen členství ve skupině, vedení skupiny a domácnost.
+- **Vztah mezi postavami** — **není samostatná entita**, viz §4.6. Strukturně existuje jen domácnost (§4.4). Členství ve skupině ani vedení skupiny se nemodelují (§4.6).
 - **Otázka (Question)** a **Odpověď (Answer)** — viz §6.
 - **Pravidlo (Rule)** — viz §7.
 - **Dokument (Document)** — vygenerovaný výstup pro tisk, viz §8.
@@ -134,8 +134,9 @@ Opatření:
 
 Zdrojem konfigurace je Google Sheet s tabulkami (per kapitola):
 
-- **`Characters`** _(doplnit do tabulky)_ — registr postav: ID, jméno, příjmení, skupina/skupiny {?}, domácnost
-- `Groups` - registr skupin: ID, název, seznam členů, vedoucí
+- **`Characters`** _(doplnit do tabulky)_ — registr postav: ID, jméno, příjmení, `Household`
+  - `Household` (domácnost) slouží k nastavení **výchozích domácností, se kterými hra začíná**. Hodnota je ID domácnosti podle §4.2 (např. `MarieMirek`), vyplněné u obou členů; prázdné = postava začíná bez domácnosti.
+- `Groups` — registr skupin: ID, název. **Slouží jen pro informaci a pro kontrolu**, že je pro každou skupinu nahraná šablona (§10.2, §11). Členy ani vedení nenese — viz §4.6.
 - `Scales` — seznam postav a škál, které mají (viz níže)
 - `Resources` — seznam postav a zdrojů, které mají (viz níže)
 - `1_Questions`, `2_Questions`, `3_Questions` — otázky + odpovědi + jejich dopady na škály a zdroje. Od listu #2 i podmínky otázky
@@ -145,14 +146,15 @@ Zdrojem konfigurace je Google Sheet s tabulkami (per kapitola):
 
 **Defaultní (počáteční) hodnoty škál a zdrojů nejsou v listu `Characters`.** Žijí v listech `Scales` a `Resources`, které obsahují seznam postav a to, jaké škály a zdroje která postava má:
 
-| List        | Obsah pro každou dvojici postava × škála / zdroj                      |
-| ----------- | --------------------------------------------------------------------- |
-| `Scales`    | postava, škála, **`Min`**, **`Max`**, **defaultní hodnota**           |
-| `Resources` | postava, zdroj, **defaultní hodnota** (zdroje nemají `Min` ani `Max`) |
+| List        | Obsah pro každou dvojici postava × škála / zdroj                                         |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| `Scales`    | postava, škála, **`Min`**, **`Max`**, **defaultní hodnota**                              |
+| `Resources` | postava **nebo domácnost**, zdroj, **defaultní hodnota** (zdroje nemají `Min` ani `Max`) |
 
 - `Min` a `Max` mají **jen škály** (zdroje jsou bez horní hranice, §4.1). Každá škála každé postavy tak může mít jiný rozsah.
 - Defaultní hodnota je **počáteční stav pro kapitolu 1**. Od kapitoly 2 se vychází ze snapshotu stavu po předchozí kapitole (§4.3).
 - Jednu škálu nebo zdroj lze mít u více postav; každá dvojice postava × škála / zdroj je samostatný řádek.
+- **Řádek v `Resources` smí místo postavy nést ID domácnosti** (např. `MarieMirek`, zdroj `R_MarieMirek_Wealth`). Defaultní hodnota je pak **počáteční zůstatek společného účtu výchozí domácnosti** (ze sloupce `Household` v `Characters`, viz níže). Řádek smí mít jen domácnost, která ve sloupci `Household` je.
 
 **Postavy se v aplikaci nepopisují [ROZHODNUTO].** Vše, co engine potřebuje k rozhodnutí o vývoji postavy, plyne **výhradně z odpovědí na otázky a ze škál a zdrojů**. Charakterizace postavy (povaha, minulost, fixní rysy typu „závislý na piku") žije v **pevných odstavcích šablony Google Docu**, kterých se engine nikdy nedotkne — není to datový model.
 
@@ -182,7 +184,8 @@ Zdrojem konfigurace je Google Sheet s tabulkami (per kapitola):
 
 ### 4.3 Stav postavy
 
-Stav postavy v kapitole N = `{ škály: {…}, zdroje: {…}, členství: […], household: "…" }`. {?}
+Stav postavy v kapitole N = `{ škály: {…}, zdroje: {…}, household: "…" }`. {?}
+Výchozí `household` pro kapitolu 1 je ze sloupce `Household` v listu `Characters` (§4.2).
 Stav se **ukládá jako snapshot po každé kapitole**, nikdy se nepřepisuje. Historie stavů je součástí auditu.
 
 ---
@@ -191,7 +194,7 @@ Stav se **ukládá jako snapshot po každé kapitole**, nikdy se nepřepisuje. H
 
 Některé postavy sdílejí majetek — manželé mají společný účet (to je zdroj). Sdílené hodnoty nesmí být řešené kopírováním mezi postavami; potřebují vlastního vlastníka.
 
-**Zavádí se entita `Domácnost` (Household).** Je to skupina postav, které sdílejí ekonomické hodnoty. Vzniká sňatkem, může zaniknout rozvodem nebo úmrtím.
+**Zavádí se entita `Domácnost` (Household).** Je to skupina postav, které sdílejí ekonomické hodnoty. Vzniká sňatkem (nebo je nastavená od začátku hry, §4.2), může zaniknout rozvodem nebo úmrtím.
 
 **Postava smí být v jednu chvíli nejvýše v jedné domácnosti.** Kontrola konzistence (§11).
 
@@ -245,16 +248,34 @@ Prakticky to znamená: **kdo se v téhle kapitole oženil, tomu už příspěvky
 
 Výchozí chování: **příspěvky členů domácnosti se sčítají.** Když Marie i Mirek odpoví tak, že každý přinese +2 na `Wealth`, společný účet vzroste o 4. Oba do něj vydělávají, takže je to správně.
 
-#### Vznik a zánik domácnosti
+#### Vznik a zánik domácnosti [ROZHODNUTO]
 
-Obojí je **efekt odpovědi** (§6.7), ne ruční operace nad databází.
+Obojí je **efekt odpovědi** (§6.7), ne ruční operace nad databází. Efekt se zapisuje do sloupce `Effects` v `N_Questions` jako volání funkce. Názvy efektů jsou **anglicky, velkými písmeny** (jako `RANDOM` a `DEFAULT`), argumenty jsou **ID postav z registru `Characters`**, nikdy volný text:
 
-- **Sňatek.** Vznikne domácnost s ID podle §4.2 (postavy abecedně, např. `MarieMirek`). Osobní účty obou zůstávají. Součástí otázky, zda došlo k sňatku je i rozhodnutí, kolik ze soukromých zdrojů bude přepsáno ke zdrojům domácnosti. Organizátor napíše hodnotu do inputu. **Kolik kdo vloží do společného, je otázka v dotazníku**
-  - R_Antonin_Wealth-{input}, R_AntoninMarketa_Wealth+{input}
-  - {input} signál pro zobrazení input pole. Hodnota je ta stejná
-- **Rozvod nebo úmrtí.** Domácnost zaniká. Co si kdo odnáší ze společného účtu, je **rovněž otázka nebo rozhodnutí orga**. Ne tiché dopočítání.
-  - R_AntoninMarketa_Wealth-{input1}-{input2}, R_Antonin_Wealth+{input1}, R_Marketa_Wealth+{input2}
-  - R_AntoninMarketa_Wealth = {input1}+{input2}
+| Efekt                    | Význam                                 | Příklad                          |
+| ------------------------ | -------------------------------------- | -------------------------------- |
+| `HOUSEHOLD_CREATE(A, B)` | Sňatek. Vznikne domácnost obou postav. | `HOUSEHOLD_CREATE(Marie, Mirek)` |
+| `HOUSEHOLD_DELETE(A, B)` | Rozvod nebo úmrtí. Domácnost zaniká.   | `HOUSEHOLD_DELETE(Marie, Mirek)` |
+
+- ID domácnosti se odvozuje podle §4.2 (`MarieMirek`) a **nezávisí na pořadí argumentů**.
+- Více efektů v jedné buňce se odděluje středníkem nebo novým řádkem.
+- Sňatky a rozvody jsou **organizátorské otázky** (§6.7), protože se týkají víc postav najednou.
+
+**Efekt sám vyvolá vstupní pole a doplní dopad na zdroje.** Autor `Scale and Resources Impact` u takové odpovědi nepíše — aplikace ho odvodí z efektu. `{input1}` je pole první postavy z efektu, `{input2}` druhé (v pořadí, v jakém je autor napsal). Kolik kdo vloží do společného účtu, resp. kolik si z něj odnáší, je **rozhodnutí orga zadané do inputu**, ne tiché dopočítání.
+
+| Efekt                            | Odvozený dopad                                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `HOUSEHOLD_CREATE(Marie, Mirek)` | `R_Marie_Wealth_private-{input1}, R_Mirek_Wealth_private-{input2}, R_MarieMirek_Wealth+{input1}+{input2}` |
+| `HOUSEHOLD_DELETE(Marie, Mirek)` | `R_MarieMirek_Wealth-{input1}-{input2}, R_Marie_Wealth_private+{input1}, R_Mirek_Wealth_private+{input2}` |
+
+- **Sňatek.** Osobní účty obou zůstávají, do společného se přepíše to, co org zadá do inputů.
+- **Rozvod nebo úmrtí.** Co si kdo odnáší ze společného účtu, zadává org do inputů. Ne tiché dopočítání.
+- Odvození se zatím týká jen zdroje `Wealth` (viz {?} výše).
+- **Výchozí domácnost** (sloupec `Household` v `Characters`, §4.2) má počáteční zůstatek společného účtu v listu `Resources`: řádek s ID domácnosti místo postavy.
+- **Chybí-li výchozí domácnosti řádek v `Resources` pro některý zdroj** (zatím jen `Wealth`), **import skončí chybou.** Nic se tiše nedoplňuje nulou.
+- {?} Má se při zániku součet `{input1}`+`{input2}` porovnávat se zůstatkem společného účtu? (Původní poznámka: `R_AntoninMarketa_Wealth = {input1}+{input2}`.)
+- **Konflikty (engine je nevyřeší sám, §7.3):** `HOUSEHOLD_CREATE` pro postavu, která už v domácnosti je; `HOUSEHOLD_DELETE` domácnosti, která neexistuje.
+- Syntaxi efektů hlídá validace importu (§11, bod 10).
 
 #### Dopad na transparentnost
 
@@ -264,6 +285,7 @@ Proto:
 
 1. Trace u směrované zdroje **vždy uvádí cílový účet a důvod směrování**: „+3 Wealth → společný účet, Marie je v manželství s Mirkem Pokorným".
 2. Trace u sdíleného zdroje **vždy uvádí, od koho změna přišla**: „−3 Wealth_spolecny, zdroj: odpověď Mirka Pokorného na Q_Mirek_2_1".
+3. Trace u dopadů odvozených z efektu domácnosti **uvádí efekt a zadané hodnoty**: „−500 Wealth (soukromý účet) → společný účet, HOUSEHOLD_CREATE(Marie, Mirek) na Q_Organizatori_1_1".
 
 ---
 
@@ -290,7 +312,7 @@ Autor hry podmínky píše jako **výrazy v jedné buňce**, například `A_Mari
 | Vrstva | Kde                                                  | K čemu                                         |
 | ------ | ---------------------------------------------------- | ---------------------------------------------- |
 | 1      | Sloupec `Scale and Resources Impact` v `N_Questions` | Odpověď posune škály                           |
-| 2      | Sloupec`Effects` v `N_Questions`                     | Odpověď vyvolá sňatek, změní vedení skupiny    |
+| 2      | Sloupec `Effects` v `N_Questions` (§4.4)             | Odpověď vyvolá vznik nebo zánik domácnosti     |
 | 3      | Sloupce `Priority` a `Conditions` v `N_Content`      | **Která varianta bloku se použije** — viz §8.2 |
 
 ### 4.6 Text není stav [ROZHODNUTO]
@@ -298,6 +320,8 @@ Autor hry podmínky píše jako **výrazy v jedné buňce**, například `A_Mari
 Obecné pravidlo, které řeší celou třídu otázek:
 
 > **Text, který se jen tiskne, nikdy není datový model. Co má ovlivnit budoucnost, jsou škály, zdroje, variace.**
+
+**Důsledek: členství ve skupině a vedení skupiny nejsou stav.** Kdo je členem a kdo skupinu vede, se nesleduje ani v listu `Groups`, ani v efektech. Vyjadřují to **varianty bloků**: jejich podmínky (odkazy na odpovědi, škály a zdroje) určují, jaký text o členství a vedení se dostane do dokumentu. List `Groups` slouží jen k tomu, aby aplikace znala seznam skupin a mohla zkontrolovat, že každá skupina má šablonu (§10.2, §11).
 
 ---
 
@@ -384,7 +408,7 @@ Důsledky:
 
 **Levý panel — seznam postav**
 
-- Jméno, skupina a **indikátor vyplněnosti**: nevyplněno / rozpracováno / hotovo. Barva plus tvar, ne jen barva.
+- Jméno a **indikátor vyplněnosti**: nevyplněno / rozpracováno / hotovo. Barva plus tvar, ne jen barva.
 - Nahoře souhrn: **„Vyplněno 14 / 23"**.
 - Hledání podle jména a filtr „jen nevyplněné".
 - Panel si drží pozici při přepínání postav — org projíždí seznam shora dolů.
@@ -397,10 +421,10 @@ Důsledky:
 
 **Ostatní sekce**
 
-- **Skupiny** — členové, vedení
+- **Skupiny** — seznam skupin z listu `Groups` a stav šablon (která skupina má nahranou šablonu v které kapitole, §10.2)
 - **Přepočet** — spuštění, konflikty k rozhodnutí (§7.3), náhled změn s trace „proč" (§7.5).
 - **Výstupy** — dvě záložky nad jedním výsledkem přepočtu:
-  - _Přehled_ — stavy škál, zdroje a variace všech postav. Členové a vedení skupin. Tady tabulka smysl dává.
+  - _Přehled_ — stavy škál, zdroje a variace všech postav. Tady tabulka smysl dává.
   - _Dokumenty_ — vygenerované `.md` (tlačítko „Kopírovat do schránky" (§10.5), stažení zipu), `.pdf` (všechny dokumenty v 1)
 - **Správa** — nahrání `.xlsx` a šablon, archiv nahraných souborů, výsledky validací (§11), audit log. Věci, které se nedělají denně.
 
@@ -489,6 +513,10 @@ Některá rozhodnutí nedělají hráči, ale orgové mezi kapitolami.
 
 Organizátorská otázka se chová úplně stejně jako hráčská: stejné typy (§6.1), stejné dopady na škály, stejné zapínání bloků a příznaků, stejná pravidla. **Je to jen jiný zdroj vstupu, ne jiný mechanismus** — engine mezi nimi nerozlišuje.
 
+#### Sňatky a rozvody [ROZHODNUTO]
+
+Sňatky a rozvody patří mezi organizátorské otázky, protože se týkají víc postav najednou. Nesou efekt `HOUSEHOLD_CREATE` / `HOUSEHOLD_DELETE` (§4.4), který v dotazníku sám vyvolá vstupní pole a dopad na zdroje.
+
 #### Zobrazení v UI [ROZHODNUTO]
 
 Organizátorské otázky jsou **v jednom proudu s ostatními otázkami postavy**, na svém místě podle pořadí — ne v odděleném bloku. Je jich málo, takže zvláštní sekce by byla víc práce než užitku a rozbila by plynulý průchod dotazníkem.
@@ -511,8 +539,7 @@ PODMÍNKA  →  EFEKT   [priorita, váha]
 - **EFEKT** — jedna nebo více akcí:
   - změna škály, zdrojů (`S_Marie_Wealth_osobni += 3`)
   - přiřazení textového bloku do dokumentu
-  - změna členství ve skupině / vedení skupiny
-  - vznik nebo zánik domácnosti (§4.4)
+  - vznik nebo zánik domácnosti (`HOUSEHOLD_CREATE` / `HOUSEHOLD_DELETE`, §4.4)
 
 ### 7.2 Váhy
 
@@ -528,7 +555,7 @@ Faktory mají různou váhu. Váha je číslo u pravidla nebo u dopadu odpovědi
 
 1. Sběr všech odpovědí
 2. Aplikace vyloučení (negací)
-3. **Strukturální efekty** — vznik a zánik domácností, změny členství a vedení skupin. Podle priority sestupně.
+3. **Strukturální efekty** — vznik a zánik domácností. Nejdřív všechny `HOUSEHOLD_DELETE`, potom `HOUSEHOLD_CREATE` (rozvod a nový sňatek v jedné kapitole tak nevyrobí dvě domácnosti); mezi efekty téhož druhu na pořadí nezáleží.
 4. **Hodnotové efekty** — nejprve absolutní nastavení hodnot z input otázek (§6.7), pak změny škál a příznaků podle priority sestupně. **U směrovaných škál se tady rozhoduje cílový účet podle rodinného stavu z fáze 3** (§4.4). U škál s rozsahem `household` se efekty členů sčítají.
 5. Detekce a nahlášení zbylých konfliktů
 
@@ -549,7 +576,7 @@ Tím je dohledatelnost splněná bez jakéhokoli seedování — v datech prost�
 
 Logika algoritmu musí být **human-readable**. Pravidla se v UI zobrazují v přirozeném jazyce, ne jako kód. Např.:
 
-> _„Protože Marie odpověděla ‚Karel' na Q_Marie_1_1 (+3 Wealth) a je členkou Srdce party (−2 Regime), její Wealth vzrostl z 4 na 7"_
+> _„Protože Marie odpověděla ‚Karel' na Q_Marie_1_1 (+3 Wealth), její Wealth vzrostl z 4 na 7"_
 
 ---
 
@@ -651,7 +678,7 @@ Po importu je zdrojem pravdy databáze aplikace. Do prvního přepočtu jde nahr
 | Postavu     | `<ID postavy>_<číslo kapitoly>.md` | `Marie_2.md`       |
 | Skupinu     | `<ID skupiny>_<číslo kapitoly>.md` | `Funkcionari_2.md` |
 
-Aplikace si šablony pamatuje a ukáže, které postavě nebo skupině a v které kapitole která šablona patří a která chybí.
+Aplikace si šablony pamatuje a ukáže, které postavě nebo skupině a v které kapitole která šablona patří a která chybí. Seznam skupin se bere z listu `Groups`.
 
 ### 10.4 Výstup: jeden zip
 
@@ -689,9 +716,10 @@ Sada automatických kontrol (list `Validations`), spuštitelná kdykoli:
    6f. **Fallback varianta (`DEFAULT` / prázdná podmínka) není poslední v pořadí vyhodnocení** — všechny varianty za ní jsou nedosažitelné (§8.2)
    6g. **Cyklus mezi bloky** — blok se přímo nebo přes jiné bloky odkazuje sám na sebe (§8.4). Blok, na který vede značka jen z `Variation Text` jiného bloku, se u kontroly 6 počítá jako dosažitelný.
    6h. **Blok, kde má `Priority` jen část variant** — pořadí není jednoznačné (§8.2). Buď mají číslo všechny varianty bloku, nebo žádná.
-7. **Škály a zdroje** (`Scales`, `Resources`, §4.2): `Min` větší než `Max`, defaultní hodnota mimo rozsah `Min`–`Max`, postava neuvedená v registru `Characters`, duplicitní řádek postava × škála / zdroj
+7. **Škály a zdroje** (`Scales`, `Resources`, §4.2): `Min` větší než `Max`, defaultní hodnota mimo rozsah `Min`–`Max`, postava neuvedená v registru `Characters`, duplicitní řádek postava × škála / zdroj, `Household` v `Characters`, které neodpovídá ID domácnosti dvou postav se stejnou hodnotou, řádek v `Resources` s ID domácnosti, která není ve sloupci `Household`, výchozí domácnost bez řádku v `Resources`
 8. **ID otázek a ankety** (§4.2, §6.6): `poll` bez vyplněného ID, `poll-answer` odkazující na neexistující anketu, duplicitní ID otázky (ručně zadané i automaticky doplněné), řádek odpovědi u `bool` otázky s textem jiným než `Ano` / `Ne`
-9. **Šablony** (§10.2): soubor, jehož název neodpovídá žádné dvojici postava / skupina × kapitola, a postava nebo skupina, které chybí šablona v některé kapitole
+9. **Šablony** (§10.2): soubor, jehož název neodpovídá žádné dvojici postava / skupina × kapitola, a postava nebo skupina, které chybí šablona v některé kapitole (seznam skupin se bere z listu `Groups`)
+10. **Efekty** (`Effects`, §4.4): neznámý efekt, špatný počet argumentů, argument, který není ID postavy z registru `Characters`, oba argumenty téže postavy
 
 ---
 
