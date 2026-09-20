@@ -376,12 +376,18 @@ citovat, co napsal.
 **Každý výskyt `RANDOM` má vlastní hod** (§7.6). Klíč hodu je
 `(postava, kapitola, varianta, pořadí výskytu ve výrazu)`.
 `RANDOM(50) AND RANDOM(50)` musí dát 25 %, ne 50 %. **`RANDOM` smí jen v podmínkách
-variant bloků**, v podmínkách otázek nikdy — import to odmítne.
+variant bloků** (`N_Content`).
 
-**Kdy se podmínky čtou:** **podmínky otázek** (`Condition` v `N_Questions`)
-a **podmínky variant bloků** se vyhodnocují **společně**, nad **hotovým stavem
-po hodnotové fázi** — musí vidět hodnotu, kterou org nastavil v téže kapitole,
-jinak by popisovaly loňský svět.
+**Výrazy se vyhodnocují jen v `N_Content`.** Sloupec `Condition` v `N_Questions`
+(od kapitoly 2) nese **jediné `Variation ID`**, nic jiného — žádné `AND`, `OR`,
+`!`, porovnání, `RANDOM` ani `DEFAULT`; prázdná buňka = otázka se položí vždy.
+Varianta musí patřit **téže postavě** a existovat v `N_Content` **téže kapitoly**
+(`2_Content` rozhoduje o `2_Questions`). Import to kontroluje.
+
+**Vybrané varianty jsou stav.** Engine je vrací, ukládají se per vlastník
+a kapitola a slouží třem věcem: naplnění dokumentu, rozhodnutí o otázkách
+v dotazníku a auditu. Varianty se vybírají při přepočtu předchozí kapitoly,
+takže jsou známé dřív, než se dotazník otevře — žádná cykličnost.
 
 ## Bloky a jejich varianty (§8.2)
 
@@ -598,7 +604,8 @@ toho nabídni „mysleli jste …?".
 postava mimo registr, duplicitní řádek postava × škála/zdroj, duplicitní ID
 otázky, `poll` bez ID, `poll-answer` na neexistující anketu, blok bez fallback
 varianty, fallback varianta jinde než poslední, částečně vyplněná `Priority`,
-cyklus mezi bloky, `RANDOM` v podmínce otázky, `Household` v `Characters`, které neodpovídá dvojici
+cyklus mezi bloky, `Condition` v `N_Questions`, které není `Variation ID` téže
+postavy a kapitoly, `Household` v `Characters`, které neodpovídá dvojici
 postav, řádek v `Resources` s domácností mimo `Household`, výchozí domácnost bez řádku
 v `Resources`, šablona bez adresáta a adresát bez šablony, neplatný
 efekt (neznámá funkce, špatný počet argumentů, ID mimo registr).
@@ -708,10 +715,9 @@ přepíná záložky a mačká Ctrl+V (§10.5).
 - Tabulky, sloupce a identifikátory v kódu jsou **anglicky** (`character_scale_values`).
   Stejně názvy efektů v `Effects` (`HOUSEHOLD_CREATE`) — velkými písmeny jako
   `RANDOM` a `DEFAULT`.
-- **Čeština v kódu jen ve stringech, které vidí uživatel.** Názvy proměnných,
-  typů, funkcí i hodnoty diskriminantů, kódů a databázových enumů
-  (`'scale_shift'`, `'personal'`, `'in_progress'`, `'released'`) jsou anglicky.
-  České popisky stavů žijí v `src/locales/cs/statuses.ts`.
+- Hodnoty doménových stavů jsou **česky bez diakritiky** (`rozpracovana`,
+  `spocitana`, `vydana`, `smerovana`, `domacnost`, `nedopocitano`) — aby se
+  v SQL literálech nemíchala diakritika.
 - Dokumentace (`.md`) česky. **Komentáře v kódu anglicky** — viz globální
   `~/.claude/CLAUDE.md`: co nejstručněji, jen k nezjevným věcem, a vysvětlují
   **proč**, ne co kód dělá.
@@ -746,21 +752,6 @@ postava × škála**.
   v `src/db/schema/` je jediný zdroj pravdy o struktuře databáze.
 - Co Drizzle neumí vyjádřit, patří do `db/sql/` jako **idempotentní** skript
   a pouští se `npm run db:sql` po migracích (`npm run db:setup` udělá obojí).
-- **Databáze se schématem nesynchronizuje sama.** Po každé změně v
-  `src/db/schema/` — vlastní i stažené pullem — je potřeba `npm run db:setup`
-  (= `db:migrate` + `db:sql`). Stará databáze se neprojeví při startu, ale až
-  při zápisu, jako `Failed query: insert into …`. **Když na tuhle hlášku
-  narazíš, první krok je porovnat sloupce v databázi se schématem**, ne hledat
-  chybu v importu. Úplně načisto: `npm run db:reset` (jen lokálně).
-- **`drizzle-kit push` se tu nepoužívá.** Unikáty `(run_id, id)` jsou cílem
-  kompozitních cizích klíčů, push si je chce pokaždé přegenerovat a `DROP
-CONSTRAINT` na nich ztroskotá. Skončí s nulovým exit kódem a chybami ve výpisu,
-  takže tiše neudělá nic. Schéma se mění **výhradně migracemi**.
-- **Migrace musí jít přehrát na prázdné databázi.** `drizzle-kit` umí
-  vygenerovat migraci, která nejdřív zahodí tabulku `CASCADE` a pak ruší
-  constrainty, které tím už zmizely — projde na tvojí databázi a spadne na
-  cizí. Po `db:generate` proto vždycky `npm run db:reset` a ověř, že migrace
-  sedne načisto.
 - **Unikát, na který míří cizí klíč, musí být `unique()`, ne `uniqueIndex()`.**
   Drizzle generuje `CREATE UNIQUE INDEX` až za `ALTER TABLE ADD CONSTRAINT
 ... FOREIGN KEY`, takže FK na `(run_id, id)` by v migraci neměl na co ukázat

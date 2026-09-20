@@ -138,7 +138,7 @@ Zdrojem konfigurace je Google Sheet s tabulkami (per kapitola):
 - `Groups` — registr skupin: ID, název. **Slouží jen pro informaci a pro kontrolu**, že je pro každou skupinu nahraná šablona (§10.2, §11). Členy ani vedení nenese — viz §4.6.
 - `Scales` — seznam postav a škál, které mají (viz níže)
 - `Resources` — seznam postav a zdrojů, které mají (viz níže)
-- `1_Questions`, `2_Questions`, `3_Questions` — otázky + odpovědi + jejich dopady na škály a zdroje. Od listu #2 i podmínky otázky
+- `1_Questions`, `2_Questions`, `3_Questions` — otázky + odpovědi + jejich dopady na škály a zdroje. Od listu #2 i sloupec `Condition` (`Variation ID`, §4.5)
 - `2_Content`, `3_Content` — bloky, verze a jejich podmínky, texty do šablon
 
 #### Listy `Scales` a `Resources` [ROZHODNUTO]
@@ -185,6 +185,8 @@ Zdrojem konfigurace je Google Sheet s tabulkami (per kapitola):
 
 Stav postavy v kapitole N = `{ škály: {…}, zdroje: {…}, household: "…" }`. {?}
 Výchozí `household` pro kapitolu 1 je ze sloupce `Household` v listu `Characters` (§4.2).
+Součástí stavu jsou i **vybrané varianty** (`Variation ID`) každé postavy a skupiny v dané kapitole. Vznikají při přepočtu (§7.3), naplňují dokumenty (§8.3) a rozhodují, které otázky se v té kapitole položí (§4.5). Aplikace je proto musí umět vyhledat podle dvojice vlastník × kapitola.
+
 Stav se **ukládá jako snapshot po každé kapitole**, nikdy se nepřepisuje. Historie stavů je součástí auditu.
 
 ---
@@ -251,9 +253,9 @@ Výchozí chování: **příspěvky členů domácnosti se sčítají.** Když M
 
 Obojí je **efekt odpovědi** (§6.7), ne ruční operace nad databází. Efekt se zapisuje do sloupce `Effects` v `N_Questions` jako volání funkce. Názvy efektů jsou **anglicky, velkými písmeny** (jako `RANDOM` a `DEFAULT`), argumenty jsou **ID postav z registru `Characters`**, nikdy volný text:
 
-| Efekt                    | Význam                                 | Příklad                          |
-| ------------------------ | -------------------------------------- | -------------------------------- |
-| `HOUSEHOLD_CREATE(A, B)` | Sňatek. Vznikne domácnost obou postav. | `HOUSEHOLD_CREATE(Marie, Mirek)` |
+| Efekt                      | Význam                                 | Příklad                            |
+| -------------------------- | -------------------------------------- | ---------------------------------- |
+| `HOUSEHOLD_CREATE(A, B)`   | Sňatek. Vznikne domácnost obou postav. | `HOUSEHOLD_CREATE(Marie, Mirek)`   |
 | `HOUSEHOLD_DISSOLVE(A, B)` | Rozvod nebo úmrtí. Domácnost zaniká.   | `HOUSEHOLD_DISSOLVE(Marie, Mirek)` |
 
 - ID domácnosti se odvozuje podle §4.2 (`MarieMirek`) a **nezávisí na pořadí argumentů**.
@@ -262,9 +264,9 @@ Obojí je **efekt odpovědi** (§6.7), ne ruční operace nad databází. Efekt 
 
 **Efekt sám vyvolá vstupní pole a doplní dopad na zdroje.** Autor `Scale and Resources Impact` u takové odpovědi nepíše — aplikace ho odvodí z efektu. `{input1}` je pole první postavy z efektu, `{input2}` druhé (v pořadí, v jakém je autor napsal). Kolik kdo vloží do společného účtu, resp. kolik si z něj odnáší, je **rozhodnutí orga zadané do inputu**, ne tiché dopočítání.
 
-| Efekt                            | Odvozený dopad                                                                                            |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `HOUSEHOLD_CREATE(Marie, Mirek)` | `R_Marie_Wealth_private-{input1}, R_Mirek_Wealth_private-{input2}, R_MarieMirek_Wealth+{input1}+{input2}` |
+| Efekt                              | Odvozený dopad                                                                                            |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `HOUSEHOLD_CREATE(Marie, Mirek)`   | `R_Marie_Wealth_private-{input1}, R_Mirek_Wealth_private-{input2}, R_MarieMirek_Wealth+{input1}+{input2}` |
 | `HOUSEHOLD_DISSOLVE(Marie, Mirek)` | `R_MarieMirek_Wealth-{input1}-{input2}, R_Marie_Wealth_private+{input1}, R_Mirek_Wealth_private+{input2}` |
 
 - **Sňatek.** Osobní účty obou zůstávají. Nová domácnost začíná s **nulovým společným účtem**; kolik na něj přijde z osobních účtů manželů, zadává org do inputů.
@@ -305,6 +307,8 @@ Autor hry podmínky píše jako **výrazy v jedné buňce**, například `A_Mari
 | Náhoda  | `RANDOM(50)`                 | Pravděpodobnost v procentech, hod se ukládá (§7.4)                                                                                |
 | Výchozí | `DEFAULT` nebo prázdná buňka | Vždy pravdivé, použije se, když neprojde nic jiného. **Prázdná podmínka a `DEFAULT` znamenají totéž** — fallback varianta (§8.2). |
 
+Tenhle jazyk platí **jen pro sloupec `Conditions` v `N_Content`**. Podmínka otázky je jiná věc — viz níže.
+
 #### Kde podmínky žijí
 
 | Vrstva | Kde                                                  | K čemu                                         |
@@ -312,8 +316,22 @@ Autor hry podmínky píše jako **výrazy v jedné buňce**, například `A_Mari
 | 1      | Sloupec `Scale and Resources Impact` v `N_Questions` | Odpověď posune škály                           |
 | 2      | Sloupec `Effects` v `N_Questions` (§4.4)             | Odpověď vyvolá vznik nebo zánik domácnosti     |
 | 3      | Sloupce `Priority` a `Conditions` v `N_Content`      | **Která varianta bloku se použije** — viz §8.2 |
+| 4      | Sloupec `Condition` v `N_Questions` (od kapitoly 2)  | **Jestli se otázka položí** — viz níže         |
 
-**Podmínky otázek** (`Condition` v `N_Questions`, od kapitoly 2) se vyhodnocují **společně s bloky**, stejným způsobem jako výběr varianty (§8.2), nad hotovým stavem po hodnotové fázi (§7.3).
+#### Podmínka otázky [ROZHODNUTO]
+
+**Ve sloupci `Condition` v `N_Questions` není výraz, ale jediné `Variation ID`** (§8.2). Výrazy se vyhodnocují pouze v `N_Content`; tam se rozhodne, která varianta bloku vyhrála, a otázka se pak odkáže na vítěze.
+
+| Zápis                     | Význam                                               |
+| ------------------------- | ---------------------------------------------------- |
+| `V_Marie_1_Questions_1_A` | Otázka se položí, jen když je tahle varianta vybraná |
+| prázdná buňka             | Otázka se položí vždy                                |
+
+- **Jen holé ID.** Žádné `AND`, `OR`, `!`, závorky, porovnání, `RANDOM` ani `DEFAULT`.
+- **Varianta musí patřit téže postavě**, jejíž je otázka — typicky bloku, který autor založil právě kvůli rozhodnutí o otázkách (konvence `B_<Postava>_<Kapitola>_Questions_<N>`, §8.2).
+- **Čísla kapitol si odpovídají:** `2_Content` rozhoduje o otázkách v `2_Questions`. Varianty se vybírají při přepočtu předchozí kapitoly, takže jsou známé dřív, než se dotazník otevře.
+- Kapitola 1 podmínky nemá — `1_Content` neexistuje.
+- Chce-li autor podmínku „nestalo se X", napíše ji jako výraz do `Conditions` u varianty bloku a otázku naváže na tu variantu.
 
 ### 4.6 Text není stav [ROZHODNUTO]
 
@@ -536,10 +554,10 @@ Faktory mají různou váhu. **Váha je číslo u dopadu odpovědi** (sloupec `S
 
 Příklad: Marie začíná s `Wealth` 4 a `Regime` 4, škála `Regime` má rozsah 1–10.
 
-| Odpověď                | Dopad                                |
-| ---------------------- | ------------------------------------ |
-| `Q_Marie_1_1` = Karel  | `R_Marie_Wealth+3, S_Marie_Regime-2` |
-| `Q_Marie_1_3` = Ano    | `S_Marie_Regime-2`                   |
+| Odpověď               | Dopad                                |
+| --------------------- | ------------------------------------ |
+| `Q_Marie_1_1` = Karel | `R_Marie_Wealth+3, S_Marie_Regime-2` |
+| `Q_Marie_1_3` = Ano   | `S_Marie_Regime-2`                   |
 
 - `Wealth`: 4 + 3 = 7. Zdroj se neořezává.
 - `Regime`: 4 − 2 = 2, potom 2 − 2 = 0, což se ořízne na 1. Ořez se zapíše do auditu.
@@ -565,7 +583,7 @@ Model je jednoduchý: **hoď digitální kostkou a výsledek ulož jako data.**
 2. Výsledek se **uloží ke konkrétní postavě, kapitole a variantě bloku** jako běžná hodnota — stejně jako odpověď hráče.
 3. **Přepočet hod NEOPAKUJE.** Použije uložené číslo. Přehodit lze jen výslovnou akcí orga („Přehodit"), která se zapíše do auditu včetně staré hodnoty.
 4. Org může hozené číslo ručně přepsat. I to jde do auditu.
-5. `RANDOM` se používá **jen v podmínkách variant bloků** (`N_Content`). V podmínkách otázek (`N_Questions`) nikdy není.
+5. `RANDOM` se používá **jen v podmínkách variant bloků** (`N_Content`). Ve sloupci `Condition` v `N_Questions` je jen `Variation ID` (§4.5), takže tam být nemůže.
 
 Tím je dohledatelnost splněná bez jakéhokoli seedování — v datech prostě stojí, co padlo.
 
@@ -606,6 +624,16 @@ Struktura listu `N_Content`:
 **Bloky se mohou zanořovat.** `Variation Text` smí obsahovat značku jiného bloku (`{BLOK <Block ID>}`, §8.4). Postup nahrazování je v §8.3.
 
 Z toho plyne: **žádné konflikty mezi variantami nevznikají.** Priorita je rozhoduje úplně, engine nemusí nic hlásit orgovi.
+
+**Blok, který rozhoduje o otázce.** Blok nemusí sloužit k naplnění dokumentu. Autor smí založit blok jen proto, aby se jeho vyhodnocením rozhodlo, která otázka se v další kapitole položí (§4.5). Takový blok:
+
+- má varianty s **prázdným `Variation Text`**,
+- **nemá značku v šabloně** ani v `Variation Text` jiného bloku,
+- **není osiřelý** — je „použitý" tím, že se na jeho variantu odkazuje sloupec `Condition` v `N_Questions` (§11, kontrola 6).
+
+Konvence pojmenování je `B_<Postava>_<Kapitola>_Questions_<N>`, ale rozhoduje odkaz z `Condition`, ne název.
+
+**Jeden blok = jedno rozhodnutí.** Blok vrací právě jednu variantu, takže na jeho variantách může viset víc otázek jen tehdy, když se navzájem vylučují. Nezávislé otázky potřebují každá svůj blok.
 
 ### 8.3 Naplnění dokumentu [ROZHODNUTO]
 
@@ -705,7 +733,7 @@ Sada automatických kontrol (list `Validations`), spuštitelná kdykoli:
 3. Nedosažitelné pravidlo (podmínka nemůže nikdy nastat)
 4. _(zrušeno — revidovaný model nemá pravidla s prioritou; číslování kontrol zůstává)_
 5. Textový blok, na který nevede žádná cesta / postava bez dokumentu
-6. Blok v šabloně bez odpovídajícího záznamu v `N_Content`, nebo blok v `N_Content`, na který nevede žádná značka (§8.4)
+6. Blok v šabloně bez odpovídajícího záznamu v `N_Content`, nebo blok v `N_Content`, na který nevede žádná značka (§8.4) **ani odkaz ze sloupce `Condition` v `N_Questions`** (§8.2)
    6b. **Blok bez fallback varianty** (s podmínkou `DEFAULT` nebo prázdnou) — hrozí, že neprojde žádná podmínka a blok nevrátí nic (§8.2)
    6c. **Syntakticky vadný výraz v `Conditions`** — chybějící závorka, neznámý operátor. V ukázkovém listu už jeden takový je: `!(A_Marie_2_3_Postava2 OR A_Marie_2_3_Postava3` bez uzavírací závorky.
    6d. **Odkaz ve výrazu na neexistující odpověď, škálu nebo příznak**
@@ -713,7 +741,7 @@ Sada automatických kontrol (list `Validations`), spuštitelná kdykoli:
    6f. **Fallback varianta (`DEFAULT` / prázdná podmínka) není poslední v pořadí vyhodnocení** — všechny varianty za ní jsou nedosažitelné (§8.2)
    6g. **Cyklus mezi bloky** — blok se přímo nebo přes jiné bloky odkazuje sám na sebe (§8.4). Blok, na který vede značka jen z `Variation Text` jiného bloku, se u kontroly 6 počítá jako dosažitelný.
    6h. **Blok, kde má `Priority` jen část variant** — pořadí není jednoznačné (§8.2). Buď mají číslo všechny varianty bloku, nebo žádná.
-   6i. **`RANDOM` v podmínce otázky** — smí jen v podmínkách variant bloků (§7.4)
+   6i. **Vadný sloupec `Condition` v `N_Questions`** (§4.5): cokoli jiného než jediné `Variation ID` (výraz, ID odpovědi, porovnání škály, `RANDOM`, `DEFAULT`), `Variation ID`, které v `N_Content` téže kapitoly neexistuje, nebo které patří jiné postavě či skupině
 7. **Škály a zdroje** (`Scales`, `Resources`, §4.2): `Min` větší než `Max`, defaultní hodnota mimo rozsah `Min`–`Max`, postava neuvedená v registru `Characters`, duplicitní řádek postava × škála / zdroj, `Household` v `Characters`, které neodpovídá ID domácnosti dvou postav se stejnou hodnotou, řádek v `Resources` s ID domácnosti, která není ve sloupci `Household`, výchozí domácnost bez řádku v `Resources`
 8. **ID otázek a ankety** (§4.2, §6.6): `poll` bez vyplněného ID, `poll-answer` odkazující na neexistující anketu, duplicitní ID otázky (ručně zadané i automaticky doplněné), řádek odpovědi u `bool` otázky s textem jiným než `Ano` / `Ne`
 9. **Šablony** (§10.2): soubor, jehož název neodpovídá žádné dvojici postava / skupina × kapitola, a postava nebo skupina, které chybí šablona v některé kapitole (seznam skupin se bere z listu `Groups`)
