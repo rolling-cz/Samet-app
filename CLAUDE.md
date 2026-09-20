@@ -17,14 +17,13 @@ Zadání vznikalo postupně a několik míst zůstalo z dřívějšího návrhu.
 konkrétní revidovaná sekce, ne souhrnná tabulka §16 a ne §15.** Fixtures
 v `documents/` to potvrzují.
 
-| Zastaralé místo           | Co říká                                                                    | Co platí                                                                                              |
-| ------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| §16, řádek 12             | značky `{BLOK}`…`{/BLOK}` jsou párové, nevybrané bloky se mažou ze šablony | **§8.2 + §8.4:** značky jsou **nepárové**, varianty textu žijí v listu `N_Content`                    |
-| §16, řádek 11             | „PDF se negeneruje, tisk je v Google Docs"                                 | **§8.1 + §8.3 + §10.4:** aplikace **PDF generuje** z HTML nad schválenými `.md`                       |
-| §7.1                      | podmínky pravidel se zapisují strukturovaně do listu `N_Conditions`        | **§4.5:** podmínky jsou **výrazy v jedné buňce**, parsuje je knihovna; list `N_Conditions` neexistuje |
-| §15                       | „nepiš parser, začni strukturovanými sloupci"                              | **§4.5:** ten návrh je výslovně **zrušen** — autor hlasoval tím, jak tabulku píše                     |
-| §7.1, §7.3, §11 bod 6d    | příznaky (flags) jako samostatný nosič stavu                               | **§4.2 + §4.5:** listy ani jazyk podmínek příznaky neznají; stav nesou **škály a zdroje**             |
-| §4.4 v textu o podmínkách | `S_Marie_Wealth_osobni >= 7`                                               | **§4.2 + §4.4:** zdroj má prefix `R_` a přípona osobního účtu je `_private`                           |
+| Zastaralé místo           | Co říká                                                                    | Co platí                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| §16, řádek 12             | značky `{BLOK}`…`{/BLOK}` jsou párové, nevybrané bloky se mažou ze šablony | **§8.2 + §8.4:** značky jsou **nepárové**, varianty textu žijí v listu `N_Content`        |
+| §16, řádek 11             | „PDF se negeneruje, tisk je v Google Docs"                                 | **§8.1 + §8.3 + §10.4:** aplikace **PDF generuje** z HTML nad schválenými `.md`           |
+| §15                       | „nepiš parser, začni strukturovanými sloupci"                              | **§4.5:** ten návrh je výslovně **zrušen** — autor hlasoval tím, jak tabulku píše         |
+| §11 bod 6d                | příznaky (flags) jako samostatný nosič stavu                               | **§4.2 + §4.5:** listy ani jazyk podmínek příznaky neznají; stav nesou **škály a zdroje** |
+| §4.4 v textu o podmínkách | `S_Marie_Wealth_osobni >= 7`                                               | **§4.2 + §4.4:** zdroj má prefix `R_` a přípona osobního účtu je `_private`               |
 
 §8.2 i §4.5 ten obrat samy pojmenovávají. Když na některé z těch míst narazíš,
 **neřiď se jím.**
@@ -49,10 +48,8 @@ Volající kód načte data z databáze, zavolá `evaluate` a výsledek uloží.
   s popisky, ne hotovou větu** — formulace je věc UI a musí jít změnit bez
   přepočítávání. Trace vzniká **i pro změny, které se vzájemně vyruší** — „nic
   se nezměnilo" je taky odpověď, kterou org může potřebovat vysvětlit.
-- **`konflikty[]`** vrací všechno, co engine nesmí rozhodnout sám: dvě pravidla
-  se stejnou prioritou a protichůdným efektem,
-  nedopočítanou hodnotu (`nedopocitano`), sňatek do obsazené domácnosti,
-  zánik neexistující domácnosti.
+- **`konflikty[]`** vrací všechno, co engine nesmí rozhodnout sám: nedopočítanou hodnotu (`nedopocitano`), sňatek do obsazené domácnosti,
+  zánik neexistující domácnosti, rozdělení zůstatku, které nesedí.
   **Nezaokrouhluj a neodhaduj** — kde není jasné, co se má stát, vrať konflikt.
 - **Neznámý identifikátor ve výrazu je chyba, ne nepravda.** Tiché vyhodnocení
   překlepu na `false` je nejhorší možné chování.
@@ -214,6 +211,10 @@ jedné tabulky.**
   jsou to počáteční hodnoty **pro kapitolu 1**, od kapitoly 2 se vychází ze
   snapshotu po předchozí kapitole.
 - Jednu škálu nebo zdroj smí mít víc postav; každá dvojice je samostatný řádek.
+- **Ořezává se po každém posunu.** Hodnota škály nikdy nesmí být mimo
+  `Min`–`Max`, ani mezi dvěma posuny. Příklad: `Regime` 4, dva posuny `-2` →
+  4 → 2 → 0, ořízne se na 1. Posuny se aplikují **ve sledu, v jakém jsou řádky**
+  v tabulce.
 - **Každý ořez se loguje do auditu a hlásí v trace** — je to signál špatně
   nastavených vah, ne detail. Zdroj se neořezává nikdy, jen se auditují delty
   s důvodem.
@@ -235,15 +236,15 @@ postavu** — napíše logické jméno a engine rozhodne, kam to spadne.
 | `R_Marie_Wealth_private+3` | **vždy osobní účet**, i když je Marie vdaná — příjem, o kterém partner neví              |
 
 - Přípona `_private` je **úniková cesta a má přednost** před směrováním.
-- Otázka smí nést příznak **`Private`**; pak jdou všechny její dopady na osobní
-  účet, jako by u každého byla přípona.
+  **Otázka žádný příznak `Private` nenese** — na osobní účet míří jen přípona
+  u konkrétního dopadu.
 - **Stejné směrování platí v podmínkách:** `R_Marie_Wealth >= 7` znamená „účet,
   do kterého Mariiny peníze tečou". Kdo chce konkrétní účet, dopíše `_private`.
 - **Výjimka — absolutní nastavení musí být vždy explicitní.** Organizátorská
   otázka typu `scale_direct` / `resource_direct` nesmí použít logické jméno; org
   nastavuje konkrétní účet a nikdy se nesmí stát, že hodnota přistane jinde, než
   myslel. Hlídá to validace.
-- **Rodinný stav se čte po strukturální fázi** (§7.3, fáze 3). Kdo se v téhle
+- **Rodinný stav se čte po strukturální fázi** (§7.3, fáze 2). Kdo se v téhle
   kapitole oženil, tomu už příspěvky z téže kapitoly jdou na společný účet; kdo
   se rozvedl, na osobní. Neplyne to z pořadí řádků, ale z fixního pořadí fází.
 - **Příspěvky členů domácnosti se sčítají.** Když Marie i Mirek přinesou +2,
@@ -288,6 +289,7 @@ druhou postavu. Bez toho je to přesně ten black box, který §2 zakazuje.
 
   Pořadí argumentů ID domácnosti neovlivní (`MarieMirek`). Víc efektů v jedné
   buňce se odděluje `;` nebo novým řádkem.
+
 - **Efekt sám vyvolá vstupní pole a doplní dopad na zdroje** — autor
   `Scale and Resources Impact` u té odpovědi nepíše. `{input1}` je pole první
   postavy z efektu, `{input2}` druhé (v pořadí, jak je autor napsal):
@@ -304,11 +306,17 @@ druhou postavu. Bez toho je to přesně ten black box, který §2 zakazuje.
   stejný název = stejná hodnota, různá čísla = různá pole. Žádné tiché půlení,
   žádná strategie slévání v kódu — **rozhoduje člověk**. Trace u odvozených
   dopadů uvádí efekt a zadané hodnoty.
+
+- **Nová domácnost začíná s nulovým společným účtem**; kolik na něj přijde
+  z osobních účtů, plyne z inputů. **Po zániku žádný zůstatek nezůstává** —
+  rozdělí se mezi jeden nebo víc osobních účtů podle inputů (rozvod: mezi
+  bývalé manžele, úmrtí: celý na jeden účet, druhý input 0). Součet inputů se
+  musí rovnat zůstatku společného účtu, jinak konflikt.
 - **Sňatky a rozvody jsou organizátorské otázky**, protože se týkají víc postav
   najednou.
 - **Konflikty** (`konflikty[]`, engine je nerozhodne): `HOUSEHOLD_CREATE` pro
   postavu, která už v domácnosti je; `HOUSEHOLD_DELETE` domácnosti, která
-  neexistuje.
+  neexistuje; `HOUSEHOLD_DELETE`, jehož inputy nedávají dohromady zůstatek.
 - **Členství ve skupině a vedení skupiny se nesledují** — ani v efektech, ani
   v `Groups`. Vyjadřují je varianty bloků a jejich podmínky (§4.6).
 
@@ -316,11 +324,11 @@ druhou postavu. Bez toho je to přesně ten black box, který §2 zakazuje.
 
 Většina hry se bez pravidel obejde. Než sáhneš po vyšší vrstvě, zkus nižší:
 
-| Vrstva                     | Kde je                                               | Co umí                                                    |
-| -------------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
-| 1. Dopad na škály a zdroje | sloupec `Scale and Resources Impact` v `N_Questions` | odpověď posune škály a zdroje                             |
-| 2. Efekty                  | sloupec `Effects` v `N_Questions`                    | odpověď vyvolá vznik nebo zánik domácnosti                |
-| 3. Varianty bloků          | sloupce `Priority` a `Conditions` v `N_Content`      | **která varianta textu se použije**                       |
+| Vrstva                     | Kde je                                               | Co umí                                     |
+| -------------------------- | ---------------------------------------------------- | ------------------------------------------ |
+| 1. Dopad na škály a zdroje | sloupec `Scale and Resources Impact` v `N_Questions` | odpověď posune škály a zdroje              |
+| 2. Efekty                  | sloupec `Effects` v `N_Questions`                    | odpověď vyvolá vznik nebo zánik domácnosti |
+| 3. Varianty bloků          | sloupce `Priority` a `Conditions` v `N_Content`      | **která varianta textu se použije**        |
 
 **Revidované zadání zná jen tyhle tři vrstvy** (§4.5). Samostatný list pravidel
 (`N_Rules`) v seznamu listů (§4.2) ani ve fixtures **není** — nezakládej ho.
@@ -366,14 +374,14 @@ plus seznam nalezených referencí — formulace zůstává autorova a validace 
 citovat, co napsal.
 
 **Každý výskyt `RANDOM` má vlastní hod** (§7.6). Klíč hodu je
-`(postava, kapitola, varianta nebo pravidlo, pořadí výskytu ve výrazu)`.
-`RANDOM(50) AND RANDOM(50)` musí dát 25 %, ne 50 %.
+`(postava, kapitola, varianta, pořadí výskytu ve výrazu)`.
+`RANDOM(50) AND RANDOM(50)` musí dát 25 %, ne 50 %. **`RANDOM` smí jen v podmínkách
+variant bloků**, v podmínkách otázek nikdy — import to odmítne.
 
-**Kdy se podmínky čtou** (§7.6):
-
-- **podmínky pravidel** nad **stavem na začátku kapitoly** a nad odpověďmi,
-- **podmínky variant bloků** nad **hotovým stavem po fázi 6** — musí vidět
-  hodnotu, kterou org nastavil v téže kapitole, jinak by popisovaly loňský svět.
+**Kdy se podmínky čtou:** **podmínky otázek** (`Condition` v `N_Questions`)
+a **podmínky variant bloků** se vyhodnocují **společně**, nad **hotovým stavem
+po hodnotové fázi** — musí vidět hodnotu, kterou org nastavil v téže kapitole,
+jinak by popisovaly loňský svět.
 
 ## Bloky a jejich varianty (§8.2)
 
@@ -491,7 +499,8 @@ rozhoduje pořadí řádků v definici ankety** (vyhrává dřívější). Remí
 **není konflikt pro orga**. Přepočet nelze spustit, dokud nehlasovaly všechny
 postavy s `poll-answer`.
 
-V podmínkách se na výsledek odkazuje **ID vítězné odpovědi**.
+V podmínkách se na výsledek odkazuje **ID vítězné odpovědi**. **Efekty odpovědi
+ankety se aplikují jednou za vítěznou odpověď**, ne za každého hlasujícího.
 
 ## Organizátorské otázky (§6.7)
 
@@ -514,17 +523,16 @@ V podmínkách se na výsledek odkazuje **ID vítězné odpovědi**.
 
 ```
 1. sběr odpovědí
-2. vyloučení (negace) — má přednost před přiřazením
-3. STRUKTURÁLNÍ fáze — vznik a zánik domácností (nejdřív všechny
+2. STRUKTURÁLNÍ fáze — vznik a zánik domácností (nejdřív všechny
    `HOUSEHOLD_DELETE`, pak `HOUSEHOLD_CREATE`)
-4. HODNOTOVÁ fáze — nejprve absolutní nastavení z org otázek,
-   pak posuny škál a zdrojů; tady se rozhoduje cílový účet podle fáze 3
-5. detekce zbylých konfliktů
+3. HODNOTOVÁ fáze — nejprve absolutní nastavení z org otázek,
+   pak posuny škál a zdrojů; tady se rozhoduje cílový účet podle fáze 2
+4. detekce zbylých konfliktů
 ```
 
-**Fáze 3 musí proběhnout celá před fází 4.** Sdílený zdroj potřebuje vědět, kdo
+**Fáze 2 musí proběhnout celá před fází 3.** Sdílený zdroj potřebuje vědět, kdo
 do domácnosti patří, dřív než se do něj začnou sčítat příspěvky. Kdyby se sňatek
-vyhodnotil až mezi změnami hodnot, výsledek by závisel na pořadí pravidel — a to
+vyhodnotil až mezi změnami hodnot, výsledek by závisel na pořadí řádků — a to
 je přesně ten nedeterminismus, kterému se vyhýbáme.
 
 Rozdělení efektů do fází je v datech (`STRUCTURAL_EFFECT_KINDS`,
@@ -590,7 +598,7 @@ toho nabídni „mysleli jste …?".
 postava mimo registr, duplicitní řádek postava × škála/zdroj, duplicitní ID
 otázky, `poll` bez ID, `poll-answer` na neexistující anketu, blok bez fallback
 varianty, fallback varianta jinde než poslední, částečně vyplněná `Priority`,
-cyklus mezi bloky, `Household` v `Characters`, které neodpovídá dvojici
+cyklus mezi bloky, `RANDOM` v podmínce otázky, `Household` v `Characters`, které neodpovídá dvojici
 postav, řádek v `Resources` s domácností mimo `Household`, výchozí domácnost bez řádku
 v `Resources`, šablona bez adresáta a adresát bez šablony, neplatný
 efekt (neznámá funkce, špatný počet argumentů, ID mimo registr).
@@ -630,10 +638,8 @@ projeví jako špatná čísla v dokumentech.
   Přepočet hod **neopakuje**. Přehodit nebo přepsat lze jen ruční akcí orga,
   která jde do auditu včetně staré hodnoty. Engine nikdy negeneruje náhodu sám —
   dostane ji na vstupu. Žádné seedování není potřeba.
-- **Vyloučení (negace) má vždy přednost před přiřazením.**
-- **Dvě pravidla se stejnou prioritou a protichůdným výsledkem engine neřeší** —
-  vyhodí konflikt do UI a nechá rozhodnout orga. (Mezi **variantami bloku** ani
-  **v anketě** konflikt vzniknout nemůže, tam je výsledek určený úplně.)
+- **Mezi variantami bloku ani v anketě konflikt vzniknout nemůže**, tam je
+  výsledek určený úplně.
 - **Váhy patří do tabulky, ne do kódu** (§7.2).
 - **Kaskáda:** změna odpovědi ve vydané kapitole (nebo nouzová oprava
   konfigurace) označí dotčené kapitoly jako `dotčené`. Aplikace **sama nic
@@ -775,7 +781,7 @@ Do prvního běhu musí být, **bez jakéhokoli napojení na Google**:
 1. Import konfigurace z `.xlsx` + validace
 2. Nahrání šablon jako Markdown
 3. Rozvržení aplikace a zadávání odpovědí
-4. Engine: podmínky, efekty, priority, negace, váhy, ankety
+4. Engine: podmínky, efekty, priority variant, váhy, ankety
 5. Trace „proč" u každé změny
 6. JSON mezivýstup → editace → `.md` a `.pdf` dokumenty + zip a „Kopírovat do schránky"
 
