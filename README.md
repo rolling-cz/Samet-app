@@ -135,8 +135,21 @@ drizzle/             vygenerované migrace — patří do gitu
 
 ## Nasazení
 
-Vercel propojený s GitHub repem, `git push` = nasazeno. Databáze Neon (Postgres).
-V produkci je potřeba nastavit `DATABASE_URL` a `APP_PASSWORD`.
+Vercel propojený s GitHub repem, `git push` na `main` = nasazeno. Databáze Neon
+(Postgres). Preview deploye jsou vypnuté přes *Ignored Build Step* — na ostrá data
+smí jen `main`.
+
+Ve Vercelu jsou nastavené dvě proměnné pro Production: `DATABASE_URL` (Neon
+**pooled** string, host s `-pooler`) a `APP_PASSWORD` (sdílené heslo, §3.1).
+`DATABASE_URL` musí existovat i při buildu — `src/db/client.ts` se připojuje už
+na úrovni modulu; databáze přitom dosažitelná být nemusí.
+
+`.github/workflows/ci.yml` pouští na každý push i PR `lint`, `typecheck` a testy.
+Po merge do `main` navíc přehraje **migrace proti produkci** (`npm run db:setup`)
+z GitHub secretu `NEON_DIRECT_URL` — to je Neon **direct** string bez `-pooler`,
+protože DDL přes PgBouncer nepatří. Po změně schématu tedy stačí
+`npm run db:generate`, commitnout migraci a pushnout; ručně se proti produkci nic
+nespouští.
 
 Verze 1 **nemá žádné napojení na Google** a komunikuje se světem výhradně přes
 nahrané a stažené soubory: `.xlsx` a `.md` dovnitř, `.zip` s `.md` dokumenty ven.

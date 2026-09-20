@@ -4,6 +4,13 @@ import { loadAdminData, UploadArchive, UploadPanel } from '@/features/sprava'
 import { sprava } from '@/locales/cs/sprava'
 import styles from './page.module.css'
 
+/**
+ * Config import validates the whole workbook and writes it in one transaction,
+ * on top of a possible cold start of a suspended database. The server action
+ * posts to this route, so the segment limit covers it too.
+ */
+export const maxDuration = 60
+
 interface SpravaPageProps {
   params: Promise<{ runId: string }>
 }

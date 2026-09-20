@@ -21,12 +21,27 @@ const connectionString = (): string => {
 /** Internal tool used by a few orgs at once; a small pool is plenty. */
 const MAX_CONNECTIONS = 5
 
+/** A frozen serverless instance must not keep a socket open on the provider. */
+const IDLE_TIMEOUT_SECONDS = 20
+
+/** Shorter than the function timeout, so a suspended database fails loudly. */
+const CONNECT_TIMEOUT_SECONDS = 10
+
 declare global {
   var __larpSql: ReturnType<typeof postgres> | undefined
 }
 
 /** Next.js reloads modules in dev, so the connection is kept on globalThis. */
-const sql = globalThis.__larpSql ?? postgres(connectionString(), { max: MAX_CONNECTIONS })
+const sql =
+  globalThis.__larpSql ??
+  postgres(connectionString(), {
+    max: MAX_CONNECTIONS,
+    idle_timeout: IDLE_TIMEOUT_SECONDS,
+    connect_timeout: CONNECT_TIMEOUT_SECONDS,
+    // Neon's pooled endpoint is PgBouncer in transaction mode, which rejects
+    // named prepared statements. Fails at query time, never at build time.
+    prepare: false,
+  })
 if (process.env.NODE_ENV !== 'production') globalThis.__larpSql = sql
 
 /**

@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  kontrola:
+    name: Lint, typecheck, testy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      # Fixtures in documents/ are read through repo-relative paths, so they
+      # must stay committed and vitest must run from the repo root.
+      - run: npm test
+
+  migrace:
+    name: Migrace produkční databáze
+    needs: kontrola
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Gates the secret holding production credentials: it is never exposed to
+    # workflows from forks. Named `dev` because that is the environment that
+    # exists in the repo.
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # db:setup = db:migrate + db:sql, in that order: the append-only trigger
+      # in db/sql/ needs the audit_log table the migration creates. Both steps
+      # are idempotent. Direct endpoint, never the pooled one.
+      - run: npm run db:setup
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
