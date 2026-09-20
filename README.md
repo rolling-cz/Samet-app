@@ -135,6 +135,8 @@ drizzle/             vygenerované migrace — patří do gitu
 
 ## Nasazení
 
+Běží na **https://samet-app.vercel.app**.
+
 Vercel propojený s GitHub repem, `git push` na `main` = nasazeno. Databáze Neon
 (Postgres). Preview deploye jsou vypnuté přes *Ignored Build Step* — na ostrá data
 smí jen `main`.
