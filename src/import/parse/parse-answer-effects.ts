@@ -34,7 +34,7 @@ export const parseAnswerEffects = (
     const match = EFFECT_CALL.exec(raw)
     if (!match) {
       issues.error(
-        'vadny_efekt',
+        'invalid_effect',
         location,
         `Efekt „${raw}" u odpovědi \`${answerId}\` se nedá přečíst — čeká se tvar \`NAZEV(Postava1, Postava2)\`, například \`HOUSEHOLD_CREATE(Marie, Mirek)\`.`,
         { value: raw },
@@ -45,7 +45,7 @@ export const parseAnswerEffects = (
     const name = match[1] ?? ''
     if (!isKnownEffect(name)) {
       issues.error(
-        'vadny_efekt',
+        'invalid_effect',
         location,
         `Neznámý efekt \`${name}\` u odpovědi \`${answerId}\` — k dispozici jsou ${ANSWER_EFFECTS.join(', ')}.`,
         { value: name },
@@ -56,7 +56,7 @@ export const parseAnswerEffects = (
     const args = splitArguments(match[2] ?? '')
     if (args.length !== HOUSEHOLD_MEMBERS) {
       issues.error(
-        'vadny_efekt',
+        'invalid_effect',
         location,
         `Efekt \`${raw}\` u odpovědi \`${answerId}\` má ${args.length} argumentů — \`${name}\` jich čeká ${HOUSEHOLD_MEMBERS}, ID obou postav domácnosti.`,
         { value: raw },

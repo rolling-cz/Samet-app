@@ -23,7 +23,7 @@ export const sprava = Object.freeze({
   archiveTitle: 'Archiv nahraných souborů',
   archiveEmpty: 'Zatím se nic nenahrálo.',
   archiveIntro: 'Každý nahraný soubor zůstává tak, jak přišel — po hře jde dohledat, z čeho se počítalo (§6.5).',
-  kindLabels: Object.freeze({ konfigurace: 'konfigurace', sablona: 'šablona' }),
+  kindLabels: Object.freeze({ config: 'konfigurace', template: 'šablona' }),
   emergencyReason: (reason: string) => `Nouzová oprava: ${reason}`,
   issueSummary: (warnings: number, errorCount: number) =>
     `${warnings} varování${errorCount > 0 ? `, ${errorCount} chyb` : ''}`,

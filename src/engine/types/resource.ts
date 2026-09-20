@@ -7,8 +7,8 @@ import type { CharacterId, HouseholdId, ResourceKey } from './ids'
  * (§4.2).
  */
 export type ResourceOwner =
-  | { kind: 'postava'; characterId: CharacterId }
-  | { kind: 'domacnost'; householdId: HouseholdId }
+  | { kind: 'character'; characterId: CharacterId }
+  | { kind: 'household'; householdId: HouseholdId }
 
 /**
  * No `Min` / `Max`: a resource is unbounded and never clamped (§4.1).

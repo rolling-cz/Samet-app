@@ -52,7 +52,7 @@ export const questions = pgTable(
     ordinal: integer('ordinal'),
     type: questionType('type').notNull(),
     /** Who fills it in (§6.7); `org` is not printed for players. */
-    source: questionSource('source').notNull().default('hrac'),
+    source: questionSource('source').notNull().default('player'),
     /**
      * The poll this vote belongs to (§6.6). Text and options are taken from it,
      * so nothing is copied per voting character and the options have one source.

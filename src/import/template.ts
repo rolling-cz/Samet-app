@@ -15,7 +15,7 @@ import type { ParsedTemplate, UploadedTemplate } from './types/parsed-template'
 export const KNOWN_VARIABLES = Object.freeze(['JMENO', 'PRIJMENI', 'VEK', 'SKUPINA'] as const)
 
 export interface TemplateMarker {
-  kind: 'blok' | 'promenna'
+  kind: 'block' | 'variable'
   /** Block ID for `blok`, variable name for `promenna`. */
   name: string
   /** 1-based line in the Markdown file, so the org can find it. */
@@ -92,7 +92,7 @@ export const parseTemplate = (markdown: string): TemplateParse => {
           })
           continue
         }
-        markers.push({ kind: 'blok', name: id, line, raw })
+        markers.push({ kind: 'block', name: id, line, raw })
         blockIds.add(id)
         continue
       }
@@ -106,7 +106,7 @@ export const parseTemplate = (markdown: string): TemplateParse => {
         })
         continue
       }
-      markers.push({ kind: 'promenna', name: inner, line, raw })
+      markers.push({ kind: 'variable', name: inner, line, raw })
       variables.add(inner)
     }
 

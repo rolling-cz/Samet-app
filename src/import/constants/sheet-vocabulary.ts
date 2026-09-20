@@ -20,7 +20,7 @@ export const DIRECT_QUESTION_TYPES = Object.freeze(['scale_direct', 'resource_di
  * Group membership and leadership are deliberately not here — they are not
  * state (§4.6).
  */
-export const ANSWER_EFFECTS = Object.freeze(['HOUSEHOLD_CREATE', 'HOUSEHOLD_DELETE'] as const)
+export const ANSWER_EFFECTS = Object.freeze(['HOUSEHOLD_CREATE', 'HOUSEHOLD_DISSOLVE'] as const)
 
 export type AnswerEffectName = (typeof ANSWER_EFFECTS)[number]
 

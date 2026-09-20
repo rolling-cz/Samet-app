@@ -6,7 +6,7 @@
   border-top: 1px solid var(--mui-palette-divider);
 }
 
-.item[data-kind='sablona'] {
+.item[data-kind='template'] {
   padding-block: calc(var(--mui-spacing) * 0.75);
 }
 

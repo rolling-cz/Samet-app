@@ -31,11 +31,11 @@ export const gateQuestions = (catalog: Catalog, scope: EnvironmentScope, chapter
     if (question.condition !== undefined) {
       const condition = compileCondition(question.condition, { catalog, ownerId: question.id, allowRandom: false })
       const outcome = evaluateCondition(condition, environmentFor(scope))
-      if (outcome.result === 'neznamo') fail('random_v_otazce', question.id, 'a question condition cannot be undecided')
-      gate.asked = outcome.result === 'plati'
-      traces.push({ phase: 'otazky', kind: 'otazka', questionId: question.id, ...(gate.characterId !== undefined ? { characterId: gate.characterId } : {}), asked: gate.asked, readings: outcome.readings })
+      if (outcome.result === 'unknown') fail('random_in_question', question.id, 'a question condition cannot be undecided')
+      gate.asked = outcome.result === 'holds'
+      traces.push({ phase: 'questions', kind: 'question', questionId: question.id, ...(gate.characterId !== undefined ? { characterId: gate.characterId } : {}), asked: gate.asked, readings: outcome.readings })
     } else {
-      traces.push({ phase: 'otazky', kind: 'otazka', questionId: question.id, ...(gate.characterId !== undefined ? { characterId: gate.characterId } : {}), asked: true, readings: [] })
+      traces.push({ phase: 'questions', kind: 'question', questionId: question.id, ...(gate.characterId !== undefined ? { characterId: gate.characterId } : {}), asked: true, readings: [] })
     }
 
     gates.push(gate)

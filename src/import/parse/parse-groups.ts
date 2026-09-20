@@ -28,7 +28,7 @@ export const parseGroups = (
     const externalId = row.get('ID')
     if (externalId === '') {
       issues.error(
-        'chybejici_hodnota',
+        'missing_value',
         row.at('ID'),
         'Řádek nemá `ID` — skupina bez ID se nedá na nic navázat.',
       )
@@ -38,7 +38,7 @@ export const parseGroups = (
     const previous = seen.get(externalId)
     if (previous !== undefined) {
       issues.error(
-        'duplicitni_id',
+        'duplicate_id',
         row.at('ID'),
         `Skupina \`${externalId}\` je v listu dvakrát (poprvé na řádku ${previous}).`,
         { value: externalId },

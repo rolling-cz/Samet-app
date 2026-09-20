@@ -2,12 +2,12 @@
   color: var(--mui-palette-text-secondary);
 }
 
-.status[data-status='prirazena'] {
+.status[data-status='assigned'] {
   color: var(--mui-palette-success-main);
 }
 
-.status[data-status='chybi'],
-.status[data-status='nezadana'] {
+.status[data-status='missing'],
+.status[data-status='not_entered'] {
   color: var(--mui-palette-error-main);
 }
 

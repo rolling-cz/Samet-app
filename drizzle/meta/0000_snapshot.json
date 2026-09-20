@@ -1,5 +1,5 @@
 {
-  "id": "95e22653-c8bf-4631-91ec-10818e2cfe11",
+  "id": "876af2e3-0bee-4eb0-a656-793b40cdab47",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -33,7 +33,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'rozpracovana'"
+          "default": "'in_progress'"
         },
         "released_at": {
           "name": "released_at",
@@ -184,7 +184,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'zalozen'"
+          "default": "'created'"
         },
         "archived_at": {
           "name": "archived_at",
@@ -1644,7 +1644,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'hrac'"
+          "default": "'player'"
         },
         "poll_question_id": {
           "name": "poll_question_id",
@@ -2186,11 +2186,11 @@
       "checkConstraints": {
         "effects_household_needs_two": {
           "name": "effects_household_needs_two",
-          "value": "\"effects\".\"kind\" not in ('domacnost_vznik', 'domacnost_zanik')\n          or (\"effects\".\"character_id\" is not null and \"effects\".\"related_character_id\" is not null)"
+          "value": "\"effects\".\"kind\" not in ('household_create', 'household_dissolve')\n          or (\"effects\".\"character_id\" is not null and \"effects\".\"related_character_id\" is not null)"
         },
         "effects_target_only_on_resources": {
           "name": "effects_target_only_on_resources",
-          "value": "(\"effects\".\"kind\" in ('zmena_zdroje', 'nastaveni_zdroje')) = (\"effects\".\"resource_target\" is not null)"
+          "value": "(\"effects\".\"kind\" in ('resource_shift', 'resource_set')) = (\"effects\".\"resource_target\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -2230,7 +2230,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'prepocet'"
+          "default": "'computation'"
         },
         "status": {
           "name": "status",
@@ -2238,7 +2238,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'navrh'"
+          "default": "'draft'"
         },
         "parent_computation_id": {
           "name": "parent_computation_id",
@@ -2433,7 +2433,7 @@
         },
         "computations_manual_has_parent": {
           "name": "computations_manual_has_parent",
-          "value": "\"computations\".\"kind\" <> 'rucni_uprava' or \"computations\".\"parent_computation_id\" is not null"
+          "value": "\"computations\".\"kind\" <> 'manual_edit' or \"computations\".\"parent_computation_id\" is not null"
         }
       },
       "isRLSEnabled": false
@@ -3816,7 +3816,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"templates\".\"kind\" = 'dotaznik'",
+          "where": "\"templates\".\"kind\" = 'questionnaire'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3915,7 +3915,7 @@
       "checkConstraints": {
         "templates_target_matches_kind": {
           "name": "templates_target_matches_kind",
-          "value": "case \"templates\".\"kind\"\n            when 'postava' then \"templates\".\"character_id\" is not null and \"templates\".\"group_id\" is null\n            when 'skupina' then \"templates\".\"group_id\" is not null and \"templates\".\"character_id\" is null\n            else \"templates\".\"character_id\" is null and \"templates\".\"group_id\" is null\n          end"
+          "value": "case \"templates\".\"kind\"\n            when 'character' then \"templates\".\"character_id\" is not null and \"templates\".\"group_id\" is null\n            when 'group' then \"templates\".\"group_id\" is not null and \"templates\".\"character_id\" is null\n            else \"templates\".\"character_id\" is null and \"templates\".\"group_id\" is null\n          end"
         }
       },
       "isRLSEnabled": false
@@ -4133,53 +4133,53 @@
       "name": "cascade_decision",
       "schema": "public",
       "values": [
-        "prepocitat",
-        "ponechat"
+        "recompute",
+        "keep"
       ]
     },
     "public.chapter_status": {
       "name": "chapter_status",
       "schema": "public",
       "values": [
-        "rozpracovana",
-        "spocitana",
-        "vydana"
+        "in_progress",
+        "computed",
+        "released"
       ]
     },
     "public.computation_kind": {
       "name": "computation_kind",
       "schema": "public",
       "values": [
-        "prepocet",
-        "rucni_uprava"
+        "computation",
+        "manual_edit"
       ]
     },
     "public.computation_status": {
       "name": "computation_status",
       "schema": "public",
       "values": [
-        "navrh",
-        "potvrzena"
+        "draft",
+        "confirmed"
       ]
     },
     "public.effect_kind": {
       "name": "effect_kind",
       "schema": "public",
       "values": [
-        "zmena_skaly",
-        "nastaveni_skaly",
-        "zmena_zdroje",
-        "nastaveni_zdroje",
-        "blok",
-        "domacnost_vznik",
-        "domacnost_zanik"
+        "scale_shift",
+        "scale_set",
+        "resource_shift",
+        "resource_set",
+        "block",
+        "household_create",
+        "household_dissolve"
       ]
     },
     "public.question_source": {
       "name": "question_source",
       "schema": "public",
       "values": [
-        "hrac",
+        "player",
         "org"
       ]
     },
@@ -4208,44 +4208,44 @@
       "name": "resource_target",
       "schema": "public",
       "values": [
-        "smerovany",
-        "osobni",
-        "domacnost"
+        "routed",
+        "personal",
+        "household"
       ]
     },
     "public.run_status": {
       "name": "run_status",
       "schema": "public",
       "values": [
-        "zalozen",
-        "aktivni",
-        "archivovan"
+        "created",
+        "active",
+        "archived"
       ]
     },
     "public.state_source": {
       "name": "state_source",
       "schema": "public",
       "values": [
-        "pocatecni",
-        "prepocet",
-        "rucni"
+        "initial",
+        "computation",
+        "manual"
       ]
     },
     "public.template_kind": {
       "name": "template_kind",
       "schema": "public",
       "values": [
-        "postava",
-        "skupina",
-        "dotaznik"
+        "character",
+        "group",
+        "questionnaire"
       ]
     },
     "public.upload_kind": {
       "name": "upload_kind",
       "schema": "public",
       "values": [
-        "konfigurace",
-        "sablona"
+        "config",
+        "template"
       ]
     }
   },

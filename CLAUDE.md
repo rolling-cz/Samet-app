@@ -284,7 +284,7 @@ druhou postavu. Bez toho je to přesně ten black box, který §2 zakazuje.
 
   ```
   HOUSEHOLD_CREATE(Marie, Mirek)    sňatek
-  HOUSEHOLD_DELETE(Marie, Mirek)    rozvod nebo úmrtí
+  HOUSEHOLD_DISSOLVE(Marie, Mirek)    rozvod nebo úmrtí
   ```
 
   Pořadí argumentů ID domácnosti neovlivní (`MarieMirek`). Víc efektů v jedné
@@ -297,7 +297,7 @@ druhou postavu. Bez toho je to přesně ten black box, který §2 zakazuje.
   ```
   HOUSEHOLD_CREATE → R_Marie_Wealth_private-{input1}, R_Mirek_Wealth_private-{input2},
                      R_MarieMirek_Wealth+{input1}+{input2}
-  HOUSEHOLD_DELETE → R_MarieMirek_Wealth-{input1}-{input2},
+  HOUSEHOLD_DISSOLVE → R_MarieMirek_Wealth-{input1}-{input2},
                      R_Marie_Wealth_private+{input1}, R_Mirek_Wealth_private+{input2}
   ```
 
@@ -315,8 +315,8 @@ druhou postavu. Bez toho je to přesně ten black box, který §2 zakazuje.
 - **Sňatky a rozvody jsou organizátorské otázky**, protože se týkají víc postav
   najednou.
 - **Konflikty** (`konflikty[]`, engine je nerozhodne): `HOUSEHOLD_CREATE` pro
-  postavu, která už v domácnosti je; `HOUSEHOLD_DELETE` domácnosti, která
-  neexistuje; `HOUSEHOLD_DELETE`, jehož inputy nedávají dohromady zůstatek.
+  postavu, která už v domácnosti je; `HOUSEHOLD_DISSOLVE` domácnosti, která
+  neexistuje; `HOUSEHOLD_DISSOLVE`, jehož inputy nedávají dohromady zůstatek.
 - **Členství ve skupině a vedení skupiny se nesledují** — ani v efektech, ani
   v `Groups`. Vyjadřují je varianty bloků a jejich podmínky (§4.6).
 
@@ -511,7 +511,7 @@ ankety se aplikují jednou za vítěznou odpověď**, ne za každého hlasujíc�
   podle pořadí, jen s decentní značkou „zadává org". **Ne oddělená sekce a ne
   druhý ukazatel postupu** — je jich málo a zvláštní sekce by rozbila plynulý
   průchod dotazníkem.
-- **Sňatky a rozvody** (`HOUSEHOLD_CREATE` / `HOUSEHOLD_DELETE`) patří mezi
+- **Sňatky a rozvody** (`HOUSEHOLD_CREATE` / `HOUSEHOLD_DISSOLVE`) patří mezi
   organizátorské otázky, protože se týkají víc postav.
 - Sběr odpovědí probíhá **ve dvou vlnách** (papíry od hráčů, pak porada orgů).
   Aplikace kvůli tomu nepotřebuje nic zvláštního.
@@ -524,7 +524,7 @@ ankety se aplikují jednou za vítěznou odpověď**, ne za každého hlasujíc�
 ```
 1. sběr odpovědí
 2. STRUKTURÁLNÍ fáze — vznik a zánik domácností (nejdřív všechny
-   `HOUSEHOLD_DELETE`, pak `HOUSEHOLD_CREATE`)
+   `HOUSEHOLD_DISSOLVE`, pak `HOUSEHOLD_CREATE`)
 3. HODNOTOVÁ fáze — nejprve absolutní nastavení z org otázek,
    pak posuny škál a zdrojů; tady se rozhoduje cílový účet podle fáze 2
 4. detekce zbylých konfliktů
@@ -708,9 +708,10 @@ přepíná záložky a mačká Ctrl+V (§10.5).
 - Tabulky, sloupce a identifikátory v kódu jsou **anglicky** (`character_scale_values`).
   Stejně názvy efektů v `Effects` (`HOUSEHOLD_CREATE`) — velkými písmeny jako
   `RANDOM` a `DEFAULT`.
-- Hodnoty doménových stavů jsou **česky bez diakritiky** (`rozpracovana`,
-  `spocitana`, `vydana`, `smerovana`, `domacnost`, `nedopocitano`) — aby se
-  v SQL literálech nemíchala diakritika.
+- **Čeština v kódu jen ve stringech, které vidí uživatel.** Názvy proměnných,
+  typů, funkcí i hodnoty diskriminantů, kódů a databázových enumů
+  (`'scale_shift'`, `'personal'`, `'in_progress'`, `'released'`) jsou anglicky.
+  České popisky stavů žijí v `src/locales/cs/statuses.ts`.
 - Dokumentace (`.md`) česky. **Komentáře v kódu anglicky** — viz globální
   `~/.claude/CLAUDE.md`: co nejstručněji, jen k nezjevným věcem, a vysvětlují
   **proč**, ne co kód dělá.

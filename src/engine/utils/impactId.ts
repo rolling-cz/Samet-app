@@ -13,7 +13,7 @@ import {
 } from '../constants/expressionLanguage'
 
 export interface ImpactIdParts {
-  kind: 'skala' | 'zdroj'
+  kind: 'scale' | 'resource'
   owner: string
   key: string
   /** `_private` was written; only meaningful on a resource (§4.4). */
@@ -30,8 +30,8 @@ export const splitImpactId = (id: string): ImpactIdParts | undefined => {
 
   const owner = rest.slice(0, separator)
   const written = rest.slice(separator + 1)
-  const kind = prefix === SCALE_PREFIX ? 'skala' : 'zdroj'
-  const forcedPrivate = kind === 'zdroj' && written.endsWith(PRIVATE_SUFFIX)
+  const kind = prefix === SCALE_PREFIX ? 'scale' : 'resource'
+  const forcedPrivate = kind === 'resource' && written.endsWith(PRIVATE_SUFFIX)
   const key = forcedPrivate ? written.slice(0, -PRIVATE_SUFFIX.length) : written
   if (key === '') return undefined
 

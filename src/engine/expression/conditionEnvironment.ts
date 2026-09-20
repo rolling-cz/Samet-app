@@ -39,10 +39,10 @@ export interface RollScope {
 export const environmentFor = (scope: EnvironmentScope, rolls?: RollScope): ConditionEnvironment => ({
   isChosen: (optionId, questionId) => {
     const question =
-      scope.catalog.questions.get(questionId) ?? fail('neznamy_odkaz', questionId, 'unknown question')
+      scope.catalog.questions.get(questionId) ?? fail('unknown_reference', questionId, 'unknown question')
     if (question.chapter > scope.answeredUpTo) {
       return fail(
-        'chybi_odpoved',
+        'missing_answer',
         questionId,
         `a condition reads ${optionId}, but chapter ${question.chapter} has not been played yet`,
       )
@@ -55,17 +55,17 @@ export const environmentFor = (scope: EnvironmentScope, rolls?: RollScope): Cond
     return scope.answers.chosen.has(optionId)
   },
   pollWinner: (pollId) =>
-    scope.pollWinners.get(pollId) ?? fail('chybi_odpoved', pollId, 'the poll has no votes to count'),
+    scope.pollWinners.get(pollId) ?? fail('missing_answer', pollId, 'the poll has no votes to count'),
   scaleValue: (characterId, scaleKey) =>
     characterStateOf(scope.state, characterId).scales[scaleKey] ??
-    fail('nekonzistentni_stav', `${characterId}/${scaleKey}`, 'the character has no value for this scale'),
+    fail('inconsistent_state', `${characterId}/${scaleKey}`, 'the character has no value for this scale'),
   resourceValue: (owner, resourceKey) => {
     const routed = routeResource(scope.state, owner)
 
     return { value: readResource(scope.state, routed.account, resourceKey), account: routed.account }
   },
   roll: (occurrence) => {
-    if (!rolls) return fail('random_v_otazce', 'RANDOM', 'a roll was requested outside a block variant')
+    if (!rolls) return fail('random_in_question', 'RANDOM', 'a roll was requested outside a block variant')
 
     const key = rollKey(rolls.owner, rolls.variationId, occurrence)
     const value = rolls.rolls.get(key)

@@ -2,8 +2,8 @@
 import type { CharacterId, HouseholdId } from './ids'
 
 export type ResourceAccount =
-  | { kind: 'osobni'; characterId: CharacterId }
-  | { kind: 'domacnost'; householdId: HouseholdId; memberIds: CharacterId[] }
+  | { kind: 'personal'; characterId: CharacterId }
+  | { kind: 'household'; householdId: HouseholdId; memberIds: CharacterId[] }
 
 /**
  * Why the impact landed where it did. Routing is the biggest risk to the "no
@@ -12,12 +12,12 @@ export type ResourceAccount =
  */
 export type RoutingReason =
   /** `R_Marie_Wealth` and Marie is married — the joint account. */
-  | 'spolecny_manzelstvi'
+  | 'joint_married'
   /** `R_Marie_Wealth` and Marie is single. */
-  | 'osobni_svobodna'
+  | 'personal_single'
   /** `R_Marie_Wealth_private` — the suffix wins over routing. */
-  | 'vynuceny_osobni'
+  | 'forced_private'
   /** The resource is `private`, so it never has a joint account. */
-  | 'osobni_zdroj'
+  | 'private_resource'
   /** `R_MarieMirek_Wealth` — the household is named outright. */
-  | 'primo_domacnost'
+  | 'household_named'

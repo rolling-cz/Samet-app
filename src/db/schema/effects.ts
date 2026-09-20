@@ -53,29 +53,29 @@ export const effects = pgTable(
      */
     characterId: uuid('character_id'),
 
-    /** `zmena_skaly` / `nastaveni_skaly`; always a concrete character's scale. */
+    /** `scale_shift` / `scale_set`; always a concrete character's scale. */
     scaleId: uuid('scale_id'),
     scaleDelta: integer('scale_delta'),
     scaleSetValue: integer('scale_set_value'),
 
-    /** `zmena_zdroje` / `nastaveni_zdroje`. */
+    /** `resource_shift` / `resource_set`. */
     resourceId: uuid('resource_id'),
     resourceDelta: integer('resource_delta'),
     resourceSetValue: integer('resource_set_value'),
     /**
-     * Which account the impact lands on (§4.4). `smerovany` is the plain
+     * Which account the impact lands on (§4.4). `routed` is the plain
      * `R_Marie_Wealth` form, decided after the structural phase; the trace must
      * always say which account won and why.
      */
     resourceTarget: resourceTarget('resource_target'),
-    /** Household written out in the sheet, e.g. `MarieMirek`; with `domacnost`. */
+    /** Household written out in the sheet, e.g. `MarieMirek`; with `household`. */
     householdExternalId: text('household_external_id'),
 
-    /** `blok`: template block ID, `{BLOK <ID>}` (§8.4). */
+    /** `block`: template block ID, `{BLOK <ID>}` (§8.4). */
     blockExternalId: text('block_external_id'),
 
     /**
-     * The second member of `HOUSEHOLD_CREATE(A, B)` / `HOUSEHOLD_DELETE(A, B)`;
+     * The second member of `HOUSEHOLD_CREATE(A, B)` / `HOUSEHOLD_DISSOLVE(A, B)`;
      * `characterId` holds the first (§4.4). Both arguments are registry IDs the
      * author writes out, so nothing is inferred from the answer text.
      */
@@ -91,13 +91,13 @@ export const effects = pgTable(
     // with one member missing.
     check(
       'effects_household_needs_two',
-      sql`${t.kind} not in ('domacnost_vznik', 'domacnost_zanik')
+      sql`${t.kind} not in ('household_create', 'household_dissolve')
           or (${t.characterId} is not null and ${t.relatedCharacterId} is not null)`,
     ),
     // Routing is a property of a resource impact and of nothing else.
     check(
       'effects_target_only_on_resources',
-      sql`(${t.kind} in ('zmena_zdroje', 'nastaveni_zdroje')) = (${t.resourceTarget} is not null)`,
+      sql`(${t.kind} in ('resource_shift', 'resource_set')) = (${t.resourceTarget} is not null)`,
     ),
     foreignKey({
       name: 'effects_option_fk',

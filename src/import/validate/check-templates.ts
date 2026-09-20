@@ -51,7 +51,7 @@ export const checkTemplates = (
 
     for (const problem of template.problems) {
       issues.error(
-        'vadna_znacka_sablony',
+        'invalid_template_marker',
         { ...location, row: problem.line },
         `Šablona \`${template.filename}\`, řádek ${problem.line}: ${problem.detail}.`,
         { value: problem.raw },
@@ -62,7 +62,7 @@ export const checkTemplates = (
       markedBlocks.add(blockId)
       if (allBlocks.has(blockId)) continue
       issues.error(
-        'znacka_bez_bloku',
+        'marker_without_block',
         location,
         `Šablona \`${template.filename}\` obsahuje značku \`{BLOK ${blockId}}\`, ale blok \`${blockId}\` není v žádném listu \`N_Content\` — značka by zůstala v hotovém dokumentu.`,
         { value: blockId, suggestion: suggestClosest(blockId, allBlocks.keys()) },
@@ -80,7 +80,7 @@ export const checkTemplates = (
       if (isKnown || isScale || isResource) continue
 
       issues.error(
-        'vadna_znacka_sablony',
+        'invalid_template_marker',
         location,
         `Šablona \`${template.filename}\` používá proměnnou \`{${variable}}\`, kterou aplikace neumí naplnit — zůstala by v hotovém dokumentu.`,
         { value: variable, suggestion: suggestClosest(variable, knownVariables) },
@@ -92,7 +92,7 @@ export const checkTemplates = (
     if (markedBlocks.has(blockId)) continue
     const sheet = chapterSheetName(chapter, 'Content')
     issues.error(
-      'blok_bez_znacky',
+      'block_without_marker',
       { sheet },
       `Blok \`${blockId}\` je v listu \`${sheet}\`, ale žádná nahraná šablona ani text jiné varianty na něj nemá značku \`{BLOK ${blockId}}\` — jeho text se nikam nedostane.`,
       { value: blockId },
@@ -116,7 +116,7 @@ const checkCoverage = (
 
   for (const template of coverage.unmatched) {
     issues.error(
-      'neplatny_nazev_sablony',
+      'invalid_template_filename',
       { sheet: template.filename },
       `Šablona \`${template.filename}\` nepatří žádné postavě ani skupině — název musí být \`<ID>_<kapitola>.md\`, například \`Marie_2.md\`.`,
       { value: template.filename },
@@ -124,11 +124,11 @@ const checkCoverage = (
   }
 
   for (const assignment of coverage.assignments) {
-    if (assignment.status === 'prirazena') continue
+    if (assignment.status === 'assigned') continue
     issues.error(
-      'postava_bez_sablony',
-      { sheet: assignment.ownerKind === 'postava' ? 'Characters' : 'Groups' },
-      `${assignment.ownerKind === 'postava' ? 'Postava' : 'Skupina'} \`${assignment.ownerExternalId}\` nemá šablonu pro kapitolu ${assignment.chapter} — chybí soubor \`${assignment.ownerExternalId}_${assignment.chapter}.md\`.`,
+      'owner_without_template',
+      { sheet: assignment.ownerKind === 'character' ? 'Characters' : 'Groups' },
+      `${assignment.ownerKind === 'character' ? 'Postava' : 'Skupina'} \`${assignment.ownerExternalId}\` nemá šablonu pro kapitolu ${assignment.chapter} — chybí soubor \`${assignment.ownerExternalId}_${assignment.chapter}.md\`.`,
       { value: assignment.ownerExternalId },
     )
   }

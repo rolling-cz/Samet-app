@@ -92,12 +92,12 @@ const plannedEffects = (
   const planned: PlannedEffect[] = []
 
   for (const impact of option.impacts) {
-    const plan = impact.kind === 'skala' ? scalePlan(impact, refs) : resourcePlan(question, impact, refs)
+    const plan = impact.kind === 'scale' ? scalePlan(impact, refs) : resourcePlan(question, impact, refs)
     if (plan) planned.push(plan)
   }
 
   for (const blockId of option.blocks) {
-    planned.push({ payload: { kind: 'blok', blockExternalId: blockId }, inputs: [] })
+    planned.push({ payload: { kind: 'block', blockExternalId: blockId }, inputs: [] })
   }
 
   for (const effect of option.effects) {
@@ -125,12 +125,12 @@ const scalePlan = (impact: ScaleImpact, refs: EntityIds): PlannedEffect | undefi
 
   return {
     payload: {
-      kind: impact.mode === 'absolutni' ? 'nastaveni_skaly' : 'zmena_skaly',
+      kind: impact.mode === 'absolute' ? 'scale_set' : 'scale_shift',
       characterId: refs.characterIds.get(impact.owner) ?? null,
       scaleId,
-      scaleDelta: impact.mode === 'posun' ? (amount ?? null) : null,
+      scaleDelta: impact.mode === 'shift' ? (amount ?? null) : null,
       // `=VALUE` takes the number from the answer, so nothing is stored here.
-      scaleSetValue: impact.mode === 'absolutni' ? (amount ?? null) : null,
+      scaleSetValue: impact.mode === 'absolute' ? (amount ?? null) : null,
     },
     inputs: signedInputs(impact),
   }
@@ -158,12 +158,12 @@ const resourcePlan = (
 
   return {
     payload: {
-      kind: impact.mode === 'absolutni' ? 'nastaveni_zdroje' : 'zmena_zdroje',
+      kind: impact.mode === 'absolute' ? 'resource_set' : 'resource_shift',
       characterId: ownerCharacterId ?? null,
       resourceId,
-      resourceDelta: impact.mode === 'posun' ? (amount ?? null) : null,
-      resourceSetValue: impact.mode === 'absolutni' ? (amount ?? null) : null,
-      resourceTarget: isHouseholdOwner ? 'domacnost' : forcedPrivate ? 'osobni' : 'smerovany',
+      resourceDelta: impact.mode === 'shift' ? (amount ?? null) : null,
+      resourceSetValue: impact.mode === 'absolute' ? (amount ?? null) : null,
+      resourceTarget: isHouseholdOwner ? 'household' : forcedPrivate ? 'personal' : 'routed',
       householdExternalId: isHouseholdOwner ? impact.owner : null,
     },
     inputs: signedInputs(impact),

@@ -27,7 +27,7 @@ import type { EffectSource } from './source'
  * The fixed evaluation order (§7.3). `varianty` and `otazky` come after all of
  * them: both are read over the finished state (§8.2).
  */
-export type TracePhase = 'sber' | 'strukturalni' | 'hodnotove' | 'konflikty' | 'varianty' | 'otazky'
+export type TracePhase = 'collection' | 'structural' | 'values' | 'conflicts' | 'variants' | 'questions'
 
 /** One option's result in a poll, in the order the definition lists them (§6.6). */
 export interface PollTally {
@@ -39,8 +39,8 @@ export interface PollTally {
 }
 
 export interface PollTrace {
-  phase: 'sber'
-  kind: 'anketa'
+  phase: 'collection'
+  kind: 'poll'
   pollId: QuestionId
   winnerOptionId: AnswerOptionId
   /** The winner had no more votes than another option, so row order decided. */
@@ -49,8 +49,8 @@ export interface PollTrace {
 }
 
 export interface HouseholdTrace {
-  phase: 'strukturalni'
-  kind: 'domacnost_vznik' | 'domacnost_zanik'
+  phase: 'structural'
+  kind: 'household_create' | 'household_dissolve'
   householdId: HouseholdId
   memberIds: [CharacterId, CharacterId]
   source: EffectSource
@@ -59,8 +59,8 @@ export interface HouseholdTrace {
 }
 
 export interface ScaleSetTrace {
-  phase: 'hodnotove'
-  kind: 'nastaveni_skaly'
+  phase: 'values'
+  kind: 'scale_set'
   characterId: CharacterId
   scaleKey: ScaleKey
   before: number
@@ -69,8 +69,8 @@ export interface ScaleSetTrace {
 }
 
 export interface ResourceSetTrace {
-  phase: 'hodnotove'
-  kind: 'nastaveni_zdroje'
+  phase: 'values'
+  kind: 'resource_set'
   account: ResourceAccount
   resourceKey: ResourceKey
   routing: RoutingReason
@@ -80,8 +80,8 @@ export interface ResourceSetTrace {
 }
 
 export interface ScaleShiftTrace {
-  phase: 'hodnotove'
-  kind: 'zmena_skaly'
+  phase: 'values'
+  kind: 'scale_shift'
   characterId: CharacterId
   scaleKey: ScaleKey
   before: number
@@ -97,8 +97,8 @@ export interface ScaleShiftTrace {
  * tuned weights, not a detail to keep quiet about.
  */
 export interface ClampTrace {
-  phase: 'hodnotove'
-  kind: 'orez'
+  phase: 'values'
+  kind: 'clamp'
   characterId: CharacterId
   scaleKey: ScaleKey
   raw: number
@@ -108,8 +108,8 @@ export interface ClampTrace {
 }
 
 export interface ResourceShiftTrace {
-  phase: 'hodnotove'
-  kind: 'zmena_zdroje'
+  phase: 'values'
+  kind: 'resource_shift'
   account: ResourceAccount
   resourceKey: ResourceKey
   /** Which account this landed on and why (§4.4). */
@@ -121,8 +121,8 @@ export interface ResourceShiftTrace {
 }
 
 export interface ConflictTrace {
-  phase: 'konflikty'
-  kind: 'konflikt'
+  phase: 'conflicts'
+  kind: 'conflict'
   /** Index into `EvaluateResult.conflicts`. */
   conflictIndex: number
 }
@@ -136,8 +136,8 @@ export interface VariationEvaluation {
 }
 
 export interface VariantTrace {
-  phase: 'varianty'
-  kind: 'varianta'
+  phase: 'variants'
+  kind: 'variant'
   blockId: BlockId
   characterId?: CharacterId
   groupId?: GroupId
@@ -148,8 +148,8 @@ export interface VariantTrace {
 }
 
 export interface QuestionGateTrace {
-  phase: 'otazky'
-  kind: 'otazka'
+  phase: 'questions'
+  kind: 'question'
   questionId: QuestionId
   characterId?: CharacterId
   asked: boolean

@@ -22,14 +22,14 @@ export interface ImpactTerm {
 export interface ImpactDefinition {
   /** Canonical ID without the `_private` suffix, e.g. `S_Marie_Regime`. */
   externalId: string
-  kind: 'skala' | 'zdroj'
+  kind: 'scale' | 'resource'
   /** A character, or — for a resource — a household. */
   owner: string
   key: string
   /** The author wrote `_private`: personal account even in a marriage (§4.4). */
   forcedPrivate: boolean
   /** `posun` shifts by the amount, `absolutni` sets it outright (§6.7). */
-  mode: 'posun' | 'absolutni'
+  mode: 'shift' | 'absolute'
   /** `=VALUE`: the number comes from the org's answer, not from the sheet. */
   fromAnswer: boolean
   terms: ImpactTerm[]

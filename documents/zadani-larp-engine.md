@@ -254,7 +254,7 @@ Obojí je **efekt odpovědi** (§6.7), ne ruční operace nad databází. Efekt 
 | Efekt                    | Význam                                 | Příklad                          |
 | ------------------------ | -------------------------------------- | -------------------------------- |
 | `HOUSEHOLD_CREATE(A, B)` | Sňatek. Vznikne domácnost obou postav. | `HOUSEHOLD_CREATE(Marie, Mirek)` |
-| `HOUSEHOLD_DELETE(A, B)` | Rozvod nebo úmrtí. Domácnost zaniká.   | `HOUSEHOLD_DELETE(Marie, Mirek)` |
+| `HOUSEHOLD_DISSOLVE(A, B)` | Rozvod nebo úmrtí. Domácnost zaniká.   | `HOUSEHOLD_DISSOLVE(Marie, Mirek)` |
 
 - ID domácnosti se odvozuje podle §4.2 (`MarieMirek`) a **nezávisí na pořadí argumentů**.
 - Více efektů v jedné buňce se odděluje středníkem nebo novým řádkem.
@@ -265,14 +265,14 @@ Obojí je **efekt odpovědi** (§6.7), ne ruční operace nad databází. Efekt 
 | Efekt                            | Odvozený dopad                                                                                            |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `HOUSEHOLD_CREATE(Marie, Mirek)` | `R_Marie_Wealth_private-{input1}, R_Mirek_Wealth_private-{input2}, R_MarieMirek_Wealth+{input1}+{input2}` |
-| `HOUSEHOLD_DELETE(Marie, Mirek)` | `R_MarieMirek_Wealth-{input1}-{input2}, R_Marie_Wealth_private+{input1}, R_Mirek_Wealth_private+{input2}` |
+| `HOUSEHOLD_DISSOLVE(Marie, Mirek)` | `R_MarieMirek_Wealth-{input1}-{input2}, R_Marie_Wealth_private+{input1}, R_Mirek_Wealth_private+{input2}` |
 
 - **Sňatek.** Osobní účty obou zůstávají. Nová domácnost začíná s **nulovým společným účtem**; kolik na něj přijde z osobních účtů manželů, zadává org do inputů.
 - **Rozvod nebo úmrtí.** Po zániku **žádný zůstatek společného účtu nezůstává** — rozdělí se mezi jeden nebo víc osobních účtů podle inputů. Zatím platí: při rozvodu mezi bývalé manžele, při úmrtí celý na jeden účet (druhý input je 0). Ne tiché dopočítání: **součet inputů se musí rovnat zůstatku společného účtu**, jinak je to konflikt.
 - Odvození se zatím týká jen zdroje `Wealth` (viz {?} výše).
 - **Výchozí domácnost** (sloupec `Household` v `Characters`, §4.2) má počáteční zůstatek společného účtu v listu `Resources`: řádek s ID domácnosti místo postavy.
 - **Chybí-li výchozí domácnosti řádek v `Resources` pro některý zdroj** (zatím jen `Wealth`), **import skončí chybou.** Nic se tiše nedoplňuje nulou.
-- **Konflikty (engine je nevyřeší sám, §7.3):** `HOUSEHOLD_CREATE` pro postavu, která už v domácnosti je; `HOUSEHOLD_DELETE` domácnosti, která neexistuje; `HOUSEHOLD_DELETE`, jehož inputy nedávají dohromady zůstatek společného účtu.
+- **Konflikty (engine je nevyřeší sám, §7.3):** `HOUSEHOLD_CREATE` pro postavu, která už v domácnosti je; `HOUSEHOLD_DISSOLVE` domácnosti, která neexistuje; `HOUSEHOLD_DISSOLVE`, jehož inputy nedávají dohromady zůstatek společného účtu.
 - Syntaxi efektů hlídá validace importu (§11, bod 10).
 
 #### Dopad na transparentnost
@@ -516,7 +516,7 @@ Organizátorská otázka se chová úplně stejně jako hráčská: stejné typy
 
 #### Sňatky a rozvody [ROZHODNUTO]
 
-Sňatky a rozvody patří mezi organizátorské otázky, protože se týkají víc postav najednou. Nesou efekt `HOUSEHOLD_CREATE` / `HOUSEHOLD_DELETE` (§4.4), který v dotazníku sám vyvolá vstupní pole a dopad na zdroje.
+Sňatky a rozvody patří mezi organizátorské otázky, protože se týkají víc postav najednou. Nesou efekt `HOUSEHOLD_CREATE` / `HOUSEHOLD_DISSOLVE` (§4.4), který v dotazníku sám vyvolá vstupní pole a dopad na zdroje.
 
 #### Zobrazení v UI [ROZHODNUTO]
 
@@ -551,7 +551,7 @@ Engine nehádá: co nesmí rozhodnout sám, vrátí jako konflikt do UI a nechá
 #### Pořadí vyhodnocení (fixní)
 
 1. Sběr všech odpovědí
-2. **Strukturální efekty** — vznik a zánik domácností. Nejdřív všechny `HOUSEHOLD_DELETE`, potom `HOUSEHOLD_CREATE` (rozvod a nový sňatek v jedné kapitole tak nevyrobí dvě domácnosti); mezi efekty téhož druhu na pořadí nezáleží.
+2. **Strukturální efekty** — vznik a zánik domácností. Nejdřív všechny `HOUSEHOLD_DISSOLVE`, potom `HOUSEHOLD_CREATE` (rozvod a nový sňatek v jedné kapitole tak nevyrobí dvě domácnosti); mezi efekty téhož druhu na pořadí nezáleží.
 3. **Hodnotové efekty** — nejprve absolutní nastavení hodnot z input otázek (§6.7), pak změny škál a zdrojů. **U směrovaných škál se tady rozhoduje cílový účet podle rodinného stavu z fáze 2** (§4.4). U škál s rozsahem `household` se efekty členů sčítají.
 4. Detekce a nahlášení zbylých konfliktů
 

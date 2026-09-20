@@ -22,7 +22,7 @@
  */
 
 /** Scales and resources are told apart by their prefix, never by their name. */
-export type ImpactKind = 'skala' | 'zdroj'
+export type ImpactKind = 'scale' | 'resource'
 
 /**
  * One summand of an amount. A literal number, or a named `{input}` the org
@@ -52,7 +52,7 @@ export interface ScaleImpact {
    */
   forcedPrivate: boolean
   /** `posun` shifts by the amount; `absolutni` sets it (§6.7). */
-  mode: 'posun' | 'absolutni'
+  mode: 'shift' | 'absolute'
   /** `=VALUE`: the number comes from the answer, not from the sheet. */
   fromAnswer: boolean
   /** Empty when `fromAnswer`. */
@@ -69,12 +69,12 @@ export interface ScaleImpact {
 export interface ScaleImpactProblem {
   raw: string
   reason:
-    | 'chybi_znamenko'
-    | 'chybi_prefix'
-    | 'chybi_skala'
-    | 'necislo'
-    | 'prazdny_input'
-    | 'nezname'
+    | 'missing_sign'
+    | 'missing_prefix'
+    | 'missing_key'
+    | 'not_a_number'
+    | 'empty_input'
+    | 'unrecognised'
   /** Czech explanation, ready to drop into an issue message. */
   detail: string
 }
@@ -130,13 +130,13 @@ export const parseScaleImpact = (cell: string | undefined | null): ScaleImpactPa
 
     const operator = item[2] ?? ''
     const operand = (item[3] ?? '').trim()
-    const kind: ImpactKind = target[1] === 'S' ? 'skala' : 'zdroj'
+    const kind: ImpactKind = target[1] === 'S' ? 'scale' : 'resource'
     const owner = target[2] ?? ''
     const written = target[3] ?? ''
 
     // Only a resource has a personal counterpart; on a scale the suffix would
     // silently become part of the key and point at a scale nobody defined.
-    const forcedPrivate = kind === 'zdroj' && written.endsWith(PRIVATE_SUFFIX)
+    const forcedPrivate = kind === 'resource' && written.endsWith(PRIVATE_SUFFIX)
     const key = forcedPrivate ? written.slice(0, -PRIVATE_SUFFIX.length) : written
     const externalId = `${target[1]}_${owner}_${key}`
 
@@ -147,7 +147,7 @@ export const parseScaleImpact = (cell: string | undefined | null): ScaleImpactPa
         owner,
         key,
         forcedPrivate,
-        mode: 'absolutni',
+        mode: 'absolute',
         fromAnswer: true,
         terms: [],
         raw,
@@ -167,7 +167,7 @@ export const parseScaleImpact = (cell: string | undefined | null): ScaleImpactPa
       owner,
       key,
       forcedPrivate,
-      mode: operator === '=' ? 'absolutni' : 'posun',
+      mode: operator === '=' ? 'absolute' : 'shift',
       fromAnswer: false,
       terms: amount.terms,
       raw,
@@ -200,7 +200,7 @@ const parseAmount = (
       return {
         problem: {
           raw,
-          reason: 'prazdny_input',
+          reason: 'empty_input',
           detail: 'prázdné `{}` — placeholder musí mít jméno, například `{input}` nebo `{input1}`',
         },
       }
@@ -214,7 +214,7 @@ const parseAmount = (
     return {
       problem: {
         raw,
-        reason: 'necislo',
+        reason: 'not_a_number',
         detail: `čeká se celé číslo, \`{input}\` nebo \`VALUE\`, je tam „${text.trim()}"`,
       },
     }
@@ -228,26 +228,26 @@ const describeFailure = (raw: string): ScaleImpactProblem => {
   if (!/^[SR]_/.test(raw)) {
     return {
       raw,
-      reason: 'chybi_prefix',
+      reason: 'missing_prefix',
       detail: 'ID musí začínat na `S_` (škála) nebo `R_` (zdroj), například `R_Marie_Wealth+3`',
     }
   }
   if (!/[=+-]/.test(raw)) {
     return {
       raw,
-      reason: 'chybi_znamenko',
+      reason: 'missing_sign',
       detail: 'chybí znaménko — čeká se `+`, `-` nebo `=`, například `S_Marie_Regime-2`',
     }
   }
   if (/^[SR]_[^_\s]+\s*[=+-]/.test(raw)) {
     return {
       raw,
-      reason: 'chybi_skala',
+      reason: 'missing_key',
       detail: 'ID má tvar `S_<Postava>_<Skala>` nebo `R_<Vlastnik>_<Zdroj>`, chybí druhá část',
     }
   }
 
-  return { raw, reason: 'nezname', detail: 'nedá se přečíst jako dopad na škálu ani na zdroj' }
+  return { raw, reason: 'unrecognised', detail: 'nedá se přečíst jako dopad na škálu ani na zdroj' }
 }
 
 /** The literal amount, when the impact carries no `{input}` placeholders. */
@@ -281,7 +281,7 @@ export const splitImpactId = (
   if (!match) return undefined
 
   return {
-    kind: match[1] === 'S' ? 'skala' : 'zdroj',
+    kind: match[1] === 'S' ? 'scale' : 'resource',
     owner: match[2] ?? '',
     key: match[3] ?? '',
   }

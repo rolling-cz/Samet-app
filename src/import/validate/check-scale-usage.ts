@@ -23,7 +23,7 @@ const readIds = (config: ParsedConfig): Set<string> => {
     for (const block of blocks) {
       for (const variation of block.variations) {
         for (const reference of variation.condition.references) {
-          if (reference.kind !== 'skala' && reference.kind !== 'zdroj') continue
+          if (reference.kind !== 'scale' && reference.kind !== 'resource') continue
           if (splitImpactId(reference.name)) read.add(reference.name)
         }
       }
@@ -49,7 +49,7 @@ export const checkUntouchedScales = (config: ParsedConfig, issues: IssueCollecto
     if (touched.has(row.externalId) || read.has(row.externalId)) continue
 
     issues.warn(
-      'skala_bez_dopadu',
+      'scale_without_impact',
       row.location,
       `S \`${row.externalId}\` nic nehýbe a žádná podmínka ji nečte — buď je zbytečná, nebo je někde překlep v jejím ID.`,
       { value: row.externalId },

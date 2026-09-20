@@ -27,32 +27,32 @@ export const checkConditionReferences = (
 ): void => {
   for (const reference of condition.references) {
     switch (reference.kind) {
-      case 'odpoved':
+      case 'answer':
         // A poll's winning answer is spelled like any other answer (§6.6), so
         // one lookup covers both.
         if (!scope.answerIds.has(reference.name)) {
           issues.error(
-            'neznama_odpoved',
+            'unknown_answer',
             location,
             `${subject} odkazuje na odpověď \`${reference.name}\`, která neexistuje v kapitole ${scope.chapter} ani v žádné dřívější.`,
             { value: reference.name, suggestion: suggestClosest(reference.name, scope.answerIds) },
           )
         }
         break
-      case 'skala':
+      case 'scale':
         if (!scope.scaleIds.has(reference.name)) {
           issues.error(
-            'neznama_skala',
+            'unknown_scale',
             location,
             `${subject} odkazuje na škálu \`${reference.name}\`, která není v listu \`Scales\`.`,
             { value: reference.name, suggestion: suggestClosest(reference.name, scope.scaleIds) },
           )
         }
         break
-      case 'zdroj':
+      case 'resource':
         if (!scope.resourceIds.has(reference.name)) {
           issues.error(
-            'neznamy_zdroj',
+            'unknown_resource',
             location,
             `${subject} odkazuje na zdroj \`${reference.name}\`, který není v listu \`Resources\`.`,
             { value: reference.name, suggestion: suggestClosest(reference.name, scope.resourceIds) },
@@ -61,7 +61,7 @@ export const checkConditionReferences = (
         break
       default:
         issues.error(
-          'vadny_vyraz',
+          'invalid_expression',
           location,
           `${subject} odkazuje na \`${reference.name}\`, což není ani odpověď (\`A_\`), ani škála (\`S_\`), ani zdroj (\`R_\`).`,
           { value: reference.name },

@@ -13,11 +13,11 @@
 }
 
 /* Shape as well as weight, not colour alone (§6.4). */
-.chip[data-status='spocitana'] {
+.chip[data-status='computed'] {
   border-color: currentColor;
 }
 
-.chip[data-status='vydana'] {
+.chip[data-status='released'] {
   font-weight: 600;
   border-width: 2px;
   border-color: currentColor;

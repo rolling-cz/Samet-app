@@ -33,7 +33,6 @@ export interface AnswerInput {
   inputs?: Record<AnswerOptionId, Record<string, number>>
   /** Free text behind an `_OTHER_` option; carries no impact of its own. */
   freeText?: string
-  filledByOrg: boolean
 }
 
 /**
@@ -41,7 +40,7 @@ export interface AnswerInput {
  * (§8.2), and a group's document rolls just as a character's does.
  */
 export interface RollOwner {
-  ownerKind: 'postava' | 'skupina'
+  ownerKind: 'character' | 'group'
   ownerId: CharacterId | GroupId
 }
 

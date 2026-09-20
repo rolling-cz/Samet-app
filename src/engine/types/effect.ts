@@ -3,7 +3,7 @@ import type { StructuralEffectKind } from '../constants/effectPhases'
 import type { CharacterId } from './ids'
 
 /**
- * `HOUSEHOLD_CREATE(Marie, Mirek)` / `HOUSEHOLD_DELETE(Marie, Mirek)`.
+ * `HOUSEHOLD_CREATE(Marie, Mirek)` / `HOUSEHOLD_DISSOLVE(Marie, Mirek)`.
  *
  * Both members are named outright and the household's ID follows from them, so
  * an effect can name a household before it exists. The argument order decides

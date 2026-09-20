@@ -14,26 +14,26 @@ export interface RoutedAccount {
 
 export const routeResource = (state: RunState, reference: ResourceReference): RoutedAccount => {
   switch (reference.kind) {
-    case 'osobni':
-      return { account: { kind: 'osobni', characterId: reference.characterId }, reason: reference.reason }
-    case 'domacnost': {
+    case 'personal':
+      return { account: { kind: 'personal', characterId: reference.characterId }, reason: reference.reason }
+    case 'household': {
       const memberIds = state.households[reference.householdId]?.memberIds ?? []
 
       return {
-        account: { kind: 'domacnost', householdId: reference.householdId, memberIds: [...memberIds] },
-        reason: 'primo_domacnost',
+        account: { kind: 'household', householdId: reference.householdId, memberIds: [...memberIds] },
+        reason: 'household_named',
       }
     }
-    case 'smerovany': {
+    case 'routed': {
       const householdId = characterStateOf(state, reference.characterId).householdId
       if (householdId === undefined) {
-        return { account: { kind: 'osobni', characterId: reference.characterId }, reason: 'osobni_svobodna' }
+        return { account: { kind: 'personal', characterId: reference.characterId }, reason: 'personal_single' }
       }
       const memberIds = state.households[householdId]?.memberIds ?? []
 
       return {
-        account: { kind: 'domacnost', householdId, memberIds: [...memberIds] },
-        reason: 'spolecny_manzelstvi',
+        account: { kind: 'household', householdId, memberIds: [...memberIds] },
+        reason: 'joint_married',
       }
     }
   }

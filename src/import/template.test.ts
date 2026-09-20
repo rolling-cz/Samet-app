@@ -63,7 +63,7 @@ describe('parseTemplate', () => {
 
   it('treats an unknown braced word as a variable rather than failing', () => {
     const { markers } = parseTemplate('{SKUPINA}')
-    expect(markers[0]!).toMatchObject({ kind: 'promenna', name: 'SKUPINA' })
+    expect(markers[0]!).toMatchObject({ kind: 'variable', name: 'SKUPINA' })
   })
 
   it('survives diacritics in block IDs', () => {

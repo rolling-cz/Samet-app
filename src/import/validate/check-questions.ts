@@ -39,7 +39,7 @@ export const checkQuestions = (
         // keep one, so a `RANDOM` here could never be replayed.
         if (question.condition.usesRandom) {
           issues.error(
-            'vadny_vyraz',
+            'invalid_expression',
             question.location,
             `Podmínka otázky \`${question.externalId}\` používá \`RANDOM\` — náhoda smí být jen v podmínkách variant bloků (\`N_Content\`), ne u otázek.`,
             { value: question.condition.raw },
@@ -56,30 +56,30 @@ export const checkQuestions = (
 
       for (const option of question.options) {
         for (const impact of option.impacts) {
-          if (impact.kind === 'skala' && !scaleIds.has(impact.externalId)) {
+          if (impact.kind === 'scale' && !scaleIds.has(impact.externalId)) {
             issues.error(
-              'neznama_skala',
+              'unknown_scale',
               option.location,
               `Škála \`${impact.externalId}\` neexistuje — v listu \`Scales\` není řádek postavy \`${impact.owner}\` se škálou \`${impact.key}\`.`,
               { value: impact.externalId, suggestion: suggestClosest(impact.externalId, scaleIds) },
             )
           }
           if (
-            impact.kind === 'zdroj' &&
+            impact.kind === 'resource' &&
             !resourceIds.has(impact.externalId) &&
             !jointIds.has(impact.externalId)
           ) {
             const swapped = householdOutOfOrder(impact.owner, characterIds)
             if (swapped) {
               issues.error(
-                'poradi_domacnosti',
+                'household_order',
                 option.location,
                 `Zdroj \`${impact.externalId}\`: ID domácnosti se skládá z ID obou postav seřazených abecedně — \`${swapped}\`, ne \`${impact.owner}\` (§4.2).`,
                 { value: impact.owner, suggestion: swapped },
               )
             } else {
               issues.error(
-                'neznamy_zdroj',
+                'unknown_resource',
                 option.location,
                 `Zdroj \`${impact.externalId}\` neexistuje — v listu \`Resources\` není řádek vlastníka \`${impact.owner}\` se zdrojem \`${impact.key}\`.`,
                 {
@@ -94,7 +94,7 @@ export const checkQuestions = (
         for (const blockId of option.blocks) {
           if (blockIds.has(blockId)) continue
           issues.error(
-            'neznamy_blok',
+            'unknown_block',
             option.location,
             `Odpověď \`${option.externalId}\` zapíná blok \`${blockId}\`, který není v listu \`${chapter}_Content\`.`,
             { value: blockId, suggestion: suggestClosest(blockId, knownBlockIds) },
@@ -139,7 +139,7 @@ const checkEffects = (
     for (const argument of effect.args) {
       if (characterIds.has(argument)) continue
       issues.error(
-        'neznama_postava',
+        'unknown_character',
         effect.location,
         `Efekt \`${effect.raw}\` u odpovědi \`${option.externalId}\` odkazuje na postavu \`${argument}\`, která není v listu \`Characters\`.`,
         { value: argument, suggestion: suggestClosest(argument, knownCharacters) },
@@ -149,7 +149,7 @@ const checkEffects = (
     const [first, second] = effect.args
     if (first === undefined || second !== first) continue
     issues.error(
-      'vadny_efekt',
+      'invalid_effect',
       effect.location,
       `Efekt \`${effect.raw}\` u odpovědi \`${option.externalId}\` jmenuje dvakrát tutéž postavu — domácnost tvoří dvě různé postavy.`,
       { value: first },
@@ -180,7 +180,7 @@ const checkOwner = (
   if (question.characterId !== undefined && characterIds.has(question.characterId)) return
 
   issues.error(
-    'neznama_postava',
+    'unknown_character',
     question.location,
     `Otázka \`${question.externalId}\` je vedená na postavu \`${question.characterRef}\`, která není v listu \`Characters\`.`,
     {
@@ -201,7 +201,7 @@ const checkPollReference = (
   if (polls.has(question.pollRef)) return
 
   issues.error(
-    'neznama_anketa',
+    'unknown_poll',
     question.location,
     `Otázka \`${question.externalId}\` hlasuje v anketě \`${question.pollRef}\`, která v souboru není — anketa musí být řádek typu \`poll\` s vyplněným ID.`,
     { value: question.pollRef, suggestion: suggestClosest(question.pollRef, polls.keys()) },

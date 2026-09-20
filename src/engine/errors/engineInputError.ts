@@ -5,17 +5,17 @@
  */
 
 export type EngineProblemCode =
-  | 'duplicitni_id'
-  | 'neznamy_odkaz'
-  | 'nesouhlasi_kapitola'
-  | 'nekonzistentni_stav'
-  | 'chybi_odpoved'
-  | 'neplatna_odpoved'
-  | 'neplatny_hod'
-  | 'neplatny_vyraz'
-  | 'neznamy_identifikator'
-  | 'random_v_otazce'
-  | 'blok_bez_vysledku'
+  | 'duplicate_id'
+  | 'unknown_reference'
+  | 'chapter_mismatch'
+  | 'inconsistent_state'
+  | 'missing_answer'
+  | 'invalid_answer'
+  | 'invalid_roll'
+  | 'invalid_expression'
+  | 'unknown_identifier'
+  | 'random_in_question'
+  | 'block_without_result'
 
 export interface EngineProblem {
   code: EngineProblemCode

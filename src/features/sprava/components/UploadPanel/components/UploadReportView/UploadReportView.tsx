@@ -85,7 +85,7 @@ export const UploadReportView = ({ report }: { report: UploadReport }) => {
           title={importReport.errorsTitle(report.errorCount)}
           note={importReport.errorsNote}
           issues={errors}
-          severity="chyba"
+          severity="error"
         />
       )}
       {warnings.length > 0 && (
@@ -93,7 +93,7 @@ export const UploadReportView = ({ report }: { report: UploadReport }) => {
           title={importReport.warningsTitle(report.warningCount)}
           note={importReport.warningsNote}
           issues={warnings}
-          severity="varovani"
+          severity="warning"
         />
       )}
 

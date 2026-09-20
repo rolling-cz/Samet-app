@@ -64,7 +64,7 @@ DEFAULT
 Pořadí fází je fixní a nesmí záviset na pořadí řádků v tabulce:
 
 1. Sběr odpovědí
-2. **Strukturální efekty** — vznik a zánik domácností. Nejdřív všechny `HOUSEHOLD_DELETE`, potom `HOUSEHOLD_CREATE`.
+2. **Strukturální efekty** — vznik a zánik domácností. Nejdřív všechny `HOUSEHOLD_DISSOLVE`, potom `HOUSEHOLD_CREATE`.
 3. **Hodnotové efekty** — nejdřív absolutní nastavení z organizátorských otázek, pak posuny škál a zdrojů (včetně dopadů odvozených z efektů domácností)
 4. Detekce zbylých konfliktů
 
@@ -99,7 +99,7 @@ Sloupec `Effects` zná jen dva efekty. Sňatky a rozvody jsou **organizátorské
 | Efekt                    | Význam                                 |
 | ------------------------ | -------------------------------------- |
 | `HOUSEHOLD_CREATE(A, B)` | Sňatek. Vznikne domácnost obou postav. |
-| `HOUSEHOLD_DELETE(A, B)` | Rozvod nebo úmrtí. Domácnost zaniká.   |
+| `HOUSEHOLD_DISSOLVE(A, B)` | Rozvod nebo úmrtí. Domácnost zaniká.   |
 
 - Argumenty jsou ID postav z registru. ID domácnosti je abecedně (`MarieMirek`) a **nezávisí na pořadí argumentů**.
 - **Efekt sám vyvolá vstupní pole a dopad na zdroje** — autor `Scale and Resources Impact` u takové odpovědi nepíše. `{input1}` je pole první postavy z efektu, `{input2}` druhé:
@@ -109,7 +109,7 @@ Sloupec `Effects` zná jen dva efekty. Sňatky a rozvody jsou **organizátorské
     R_Marie_Wealth_private-{input1}, R_Mirek_Wealth_private-{input2},
     R_MarieMirek_Wealth+{input1}+{input2}
 
-  HOUSEHOLD_DELETE(Marie, Mirek) →
+  HOUSEHOLD_DISSOLVE(Marie, Mirek) →
     R_MarieMirek_Wealth-{input1}-{input2},
     R_Marie_Wealth_private+{input1}, R_Mirek_Wealth_private+{input2}
   ```
@@ -172,8 +172,8 @@ Co engine **nesmí rozhodnout sám**, vrátí v `konflikty[]` a rozhodne org:
 
 - nedopočítaná hodnota (`nedopocitano`),
 - `HOUSEHOLD_CREATE` pro postavu, která už v domácnosti je,
-- `HOUSEHOLD_DELETE` domácnosti, která neexistuje,
-- `HOUSEHOLD_DELETE`, jehož inputy nedávají dohromady zůstatek společného účtu.
+- `HOUSEHOLD_DISSOLVE` domácnosti, která neexistuje,
+- `HOUSEHOLD_DISSOLVE`, jehož inputy nedávají dohromady zůstatek společného účtu.
 
 **Nejsou to konflikty:** shoda hlasů v anketě (řeší pořadí řádků) a výběr varianty bloku (řeší priorita).
 
@@ -190,7 +190,7 @@ Scénáře, které musí být pokryté:
 3. Postava bez domácnosti: dopad na `R_..._Wealth` jde na osobní účet
 4. `HOUSEHOLD_CREATE` vytvoří domácnost (ID abecedně i při opačném pořadí argumentů); příspěvky členů z téže kapitoly už jdou na společný účet, `_private` pořád na osobní
 5. Příspěvky obou manželů na společný zdroj se sčítají, trace říká od koho
-6. Dopady odvozené z `HOUSEHOLD_CREATE` (nový společný účet začíná na 0) a `HOUSEHOLD_DELETE` (po zániku žádný zůstatek) se zadanými inputy sedí; osobní účet nezaniká
+6. Dopady odvozené z `HOUSEHOLD_CREATE` (nový společný účet začíná na 0) a `HOUSEHOLD_DISSOLVE` (po zániku žádný zůstatek) se zadanými inputy sedí; osobní účet nezaniká
 7. Rozvod a nový sňatek téže postavy v jedné kapitole (`DELETE` před `CREATE`) neskončí konfliktem
 8. Odpověď z kapitoly 1 podmiňuje variantu i otázku v kapitole 2; podmínka vidí hodnotu nastavenou orgem v téže kapitole
 9. Výběr varianty podle priority (i když je pořadí řádků jiné), `DEFAULT` zabere, když neprojde nic, prázdný `Variation Text`
@@ -198,7 +198,7 @@ Scénáře, které musí být pokryté:
 11. Anketa: vyhrává nejvíc hlasů, při shodě dřívější řádek definice; podmínka na ID vítězné odpovědi; efekt vítězné odpovědi se aplikuje jednou
 12. Uložený hod se při přepočtu nemění; `RANDOM(50) AND RANDOM(50)` spotřebuje dva hody; engine vrátí hody, které potřebuje a nemá
 13. Stejný vstup dvakrát dá bit po bitu stejný výstup
-14. Konflikty se vrátí a nezmizí: `HOUSEHOLD_CREATE` pro postavu už v domácnosti, `HOUSEHOLD_DELETE` neexistující domácnosti, `HOUSEHOLD_DELETE` se součtem inputů jiným než zůstatek
+14. Konflikty se vrátí a nezmizí: `HOUSEHOLD_CREATE` pro postavu už v domácnosti, `HOUSEHOLD_DISSOLVE` neexistující domácnosti, `HOUSEHOLD_DISSOLVE` se součtem inputů jiným než zůstatek
 15. Neznámý identifikátor ve výrazu shodí engine nahlas, nevyhodnotí se na `false`
 16. Změny, které se vzájemně vyruší (+2 a −2), mají trace
 

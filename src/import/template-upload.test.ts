@@ -83,7 +83,7 @@ describe('templateCoverage', () => {
     const coverage = templateCoverage(config(), templates)
 
     const marie = coverage.assignments.find((a) => a.ownerExternalId === 'Marie')
-    expect(marie).toMatchObject({ status: 'prirazena', filename: 'Marie_2.md', chapter: 2 })
+    expect(marie).toMatchObject({ status: 'assigned', filename: 'Marie_2.md', chapter: 2 })
     // Mirek and the group are still missing theirs.
     expect(coverage.missingCount).toBe(2)
   })
@@ -95,7 +95,7 @@ describe('templateCoverage', () => {
       'Mirek',
       'SrdceParty',
     ])
-    expect(coverage.assignments.at(-1)?.ownerKind).toBe('skupina')
+    expect(coverage.assignments.at(-1)?.ownerKind).toBe('group')
   })
 
   it('lists uploaded files whose name belongs to nobody', async () => {

@@ -15,7 +15,7 @@ export type Conflict =
        * A value the org left open: an `{input}` field with no number, or an
        * absolute setting with no answer. Nothing is rounded or guessed (§4.4).
        */
-      kind: 'nedopocitano'
+      kind: 'unresolved_value'
       source: EffectSource
       /** The impact that could not be worked out, as the author wrote it. */
       raw: string
@@ -24,7 +24,7 @@ export type Conflict =
     }
   | {
       /** `HOUSEHOLD_CREATE` for a character who already lives in one (§4.4). */
-      kind: 'uz_v_domacnosti'
+      kind: 'already_in_household'
       source: EffectSource
       characterId: CharacterId
       /** The household they are in now. */
@@ -33,18 +33,18 @@ export type Conflict =
       householdId: HouseholdId
     }
   | {
-      /** `HOUSEHOLD_DELETE` of a household that does not exist (§4.4). */
-      kind: 'domacnost_neexistuje'
+      /** `HOUSEHOLD_DISSOLVE` of a household that does not exist (§4.4). */
+      kind: 'household_missing'
       source: EffectSource
       householdId: HouseholdId
     }
   | {
       /**
-       * The inputs of a `HOUSEHOLD_DELETE` do not add up to the joint balance.
+       * The inputs of a `HOUSEHOLD_DISSOLVE` do not add up to the joint balance.
        * After a dissolution no balance may remain (§4.4), and the engine never
        * splits the remainder itself.
        */
-      kind: 'rozdeleni_nesedi'
+      kind: 'payout_mismatch'
       source: EffectSource
       householdId: HouseholdId
       resourceKey: string

@@ -6,8 +6,8 @@ import { formatIssueLocation } from '../../../../../../utils/format-issue-locati
 import styles from './IssueList.module.css'
 
 const SEVERITY_TONES: Readonly<Record<IssueSeverity, PanelTone>> = Object.freeze({
-  chyba: 'error',
-  varovani: 'warning',
+  error: 'error',
+  warning: 'warning',
 })
 
 interface IssueListProps {

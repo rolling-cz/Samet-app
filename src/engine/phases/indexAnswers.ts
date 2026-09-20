@@ -87,7 +87,7 @@ export const indexAnswers = (
   asked: Set<QuestionId>,
 ): AnswerIndex => {
   const problems: EngineProblem[] = []
-  const report: Report = (subject, detail) => problems.push({ code: 'neplatna_odpoved', subject, detail })
+  const report: Report = (subject, detail) => problems.push({ code: 'invalid_answer', subject, detail })
 
   const byQuestion = new Map<QuestionId, AnswerInput>()
   const chosen = new Set<AnswerOptionId>()
@@ -124,7 +124,7 @@ export const indexAnswers = (
   for (const questionId of unanswered) {
     const question = catalog.questions.get(questionId)
     problems.push({
-      code: 'chybi_odpoved',
+      code: 'missing_answer',
       subject: questionId,
       detail: `${question?.characterId ?? '?'} has not answered`,
     })

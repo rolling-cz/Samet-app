@@ -37,5 +37,5 @@ export interface EvaluationContext {
 
 export const addConflict = (context: EvaluationContext, conflict: Conflict): void => {
   context.conflicts.push(conflict)
-  context.trace.push({ phase: 'konflikty', kind: 'konflikt', conflictIndex: context.conflicts.length - 1 })
+  context.trace.push({ phase: 'conflicts', kind: 'conflict', conflictIndex: context.conflicts.length - 1 })
 }

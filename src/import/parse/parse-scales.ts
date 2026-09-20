@@ -26,7 +26,7 @@ export const parseScales = (
   const read = readConfigSheet(workbook, SCALES_SHEET, repairs, SCALE_COLUMNS, SCALE_FILL_DOWN_COLUMNS)
   if (!read) {
     issues.error(
-      'chybejici_list',
+      'missing_sheet',
       { sheet: SCALES_SHEET },
       `V souboru chybí povinný list \`${SCALES_SHEET}\` se škálami postav.`,
     )
@@ -42,16 +42,16 @@ export const parseScales = (
     const characterRef = row.get('Character')
     const externalId = row.get('ID')
     if (externalId === '') {
-      issues.error('chybejici_hodnota', row.at('ID'), 'Řádek nemá `ID` škály.')
+      issues.error('missing_value', row.at('ID'), 'Řádek nemá `ID` škály.')
       continue
     }
 
     // The ID carries both parts (`S_Marie_Regime`); the `Character` column
     // repeats the owner and is what the author is most likely to mistype.
     const parts = splitImpactId(externalId)
-    if (!parts || parts.kind !== 'skala') {
+    if (!parts || parts.kind !== 'scale') {
       issues.error(
-        'chybejici_hodnota',
+        'missing_value',
         row.at('ID'),
         `\`${externalId}\` není ID škály — čeká se tvar \`S_<Postava>_<Skala>\`.`,
         { value: externalId },
@@ -62,7 +62,7 @@ export const parseScales = (
 
     if (characterRef === '') {
       issues.error(
-        'chybejici_hodnota',
+        'missing_value',
         row.at('Character'),
         `Škála \`${externalId}\` nemá postavu — každý řádek je dvojice postava × škála.`,
       )
@@ -81,7 +81,7 @@ export const parseScales = (
     const previous = seen.get(externalId)
     if (previous !== undefined) {
       issues.error(
-        'duplicitni_id',
+        'duplicate_id',
         row.at('ID'),
         `Dvojice postava × škála \`${externalId}\` je v listu \`${SCALES_SHEET}\` dvakrát (poprvé na řádku ${previous}).`,
         { value: externalId },

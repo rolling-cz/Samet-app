@@ -12,7 +12,7 @@ export interface AdminData {
 
 /** Config first within one upload: its templates share the transaction's timestamp. */
 const byNewest = (a: ArchiveRow, b: ArchiveRow): number =>
-  b.createdAt.getTime() - a.createdAt.getTime() || Number(b.kind === 'konfigurace') - Number(a.kind === 'konfigurace')
+  b.createdAt.getTime() - a.createdAt.getTime() || Number(b.kind === 'config') - Number(a.kind === 'config')
 
 const loadUploads = async (scope: RunScope): Promise<ArchiveRow[]> => {
   const rows = await scope.selectColumns(uploadedFiles, {

@@ -37,7 +37,7 @@ export const parseContent = (
     const blockId = row.get('Block ID')
     if (blockId === '') {
       issues.error(
-        'chybejici_hodnota',
+        'missing_value',
         row.at('Block ID'),
         'Řádek nepatří k žádnému bloku — `Block ID` je prázdné i po doplnění sloučených buněk.',
       )
@@ -76,7 +76,7 @@ export const parseContent = (
     const variationId = row.get('Variation ID')
     if (variationId === '') {
       issues.error(
-        'chybejici_hodnota',
+        'missing_value',
         row.at('Variation ID'),
         `Varianta bloku \`${blockId}\` nemá \`Variation ID\`.`,
       )
@@ -86,7 +86,7 @@ export const parseContent = (
     const previous = seenVariations.get(variationId)
     if (previous !== undefined) {
       issues.error(
-        'duplicitni_id',
+        'duplicate_id',
         row.at('Variation ID'),
         `Varianta \`${variationId}\` je v listu \`${name}\` dvakrát (poprvé na řádku ${previous}).`,
         { value: variationId },
@@ -109,12 +109,12 @@ const readVariation = (
   issues: IssueCollector,
 ): ParsedVariation | undefined => {
   const priority = readPriority(row.get('Priority'), variationId, row.at('Priority'), issues)
-  if (priority === 'vadna') return undefined
+  if (priority === 'invalid') return undefined
 
   const condition = parseCondition(row.get('Conditions'))
   if (!condition.ok) {
     issues.error(
-      'vadny_vyraz',
+      'invalid_expression',
       row.at('Conditions'),
       `Podmínka varianty \`${variationId}\` je syntakticky vadná: ${condition.error}.`,
       { value: condition.raw },
@@ -150,19 +150,19 @@ const readPriority = (
   variationId: string,
   location: IssueLocation,
   issues: IssueCollector,
-): number | undefined | 'vadna' => {
+): number | undefined | 'invalid' => {
   if (raw === '') return undefined
 
   const priority = Number(raw)
   if (!Number.isInteger(priority) || priority < MIN_VARIATION_PRIORITY) {
     issues.error(
-      'chybejici_hodnota',
+      'missing_value',
       location,
       `Varianta \`${variationId}\` má neplatnou prioritu „${raw}" — čeká se celé číslo od ${MIN_VARIATION_PRIORITY}, nebo prázdná buňka.`,
       { value: raw },
     )
 
-    return 'vadna'
+    return 'invalid'
   }
 
   return priority

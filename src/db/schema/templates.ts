@@ -40,9 +40,9 @@ export const templates = pgTable(
       .references(() => runs.id, { onDelete: 'restrict' }),
     chapterId: uuid('chapter_id').notNull(),
     kind: templateKind('kind').notNull(),
-    /** Set when `kind = 'postava'`. */
+    /** Set when `kind = 'character'`. */
     characterId: uuid('character_id'),
-    /** Set when `kind = 'skupina'`. */
+    /** Set when `kind = 'group'`. */
     groupId: uuid('group_id'),
     name: text('name').notNull(),
     sourceFilename: text('source_filename').notNull(),
@@ -59,12 +59,12 @@ export const templates = pgTable(
     unique('templates_group_key').on(t.runId, t.chapterId, t.groupId),
     uniqueIndex('templates_singleton')
       .on(t.runId, t.chapterId, t.kind)
-      .where(sql`${t.kind} = 'dotaznik'`),
+      .where(sql`${t.kind} = 'questionnaire'`),
     check(
       'templates_target_matches_kind',
       sql`case ${t.kind}
-            when 'postava' then ${t.characterId} is not null and ${t.groupId} is null
-            when 'skupina' then ${t.groupId} is not null and ${t.characterId} is null
+            when 'character' then ${t.characterId} is not null and ${t.groupId} is null
+            when 'group' then ${t.groupId} is not null and ${t.characterId} is null
             else ${t.characterId} is null and ${t.groupId} is null
           end`,
     ),

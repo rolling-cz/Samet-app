@@ -12,9 +12,9 @@ export const indexRolls = (rolls: RollInput[]): Map<string, number> => {
     const key = rollKey(roll, roll.variationId, roll.occurrence)
     const subject = `${roll.ownerId}/${roll.variationId}/${roll.occurrence}`
     if (!Number.isInteger(roll.value) || roll.value < ROLL_MIN || roll.value > ROLL_MAX) {
-      problems.push({ code: 'neplatny_hod', subject, detail: `${roll.value} is not a whole number in ${ROLL_MIN}–${ROLL_MAX}` })
+      problems.push({ code: 'invalid_roll', subject, detail: `${roll.value} is not a whole number in ${ROLL_MIN}–${ROLL_MAX}` })
     }
-    if (index.has(key)) problems.push({ code: 'neplatny_hod', subject, detail: 'stored twice' })
+    if (index.has(key)) problems.push({ code: 'invalid_roll', subject, detail: 'stored twice' })
     index.set(key, roll.value)
   }
 

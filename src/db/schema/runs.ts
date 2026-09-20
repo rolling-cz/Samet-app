@@ -26,7 +26,7 @@ export const runs = pgTable(
     /** Run letter (`A`, `B`); also drives the UI colour (§3.3). */
     letter: text('letter').notNull(),
     label: text('label'),
-    status: runStatus('status').notNull().default('zalozen'),
+    status: runStatus('status').notNull().default('created'),
     archivedAt: timestamp('archived_at', { withTimezone: true, mode: 'date' }),
     createdAt: createdAt(),
     createdBy: authorName('created_by'),
@@ -53,7 +53,7 @@ export const chapters = pgTable(
       .notNull()
       .references(() => runs.id, { onDelete: 'restrict' }),
     number: integer('number').notNull(),
-    status: chapterStatus('status').notNull().default('rozpracovana'),
+    status: chapterStatus('status').notNull().default('in_progress'),
 
     /** Released: documents are printed and in the players' hands (§3.2). */
     releasedAt: timestamp('released_at', { withTimezone: true, mode: 'date' }),

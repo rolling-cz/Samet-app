@@ -13,12 +13,12 @@ import { splitHouseholdId } from '../utils/splitHouseholdId'
 export const validateState = (state: RunState, catalog: Catalog, chapter: ChapterNumber): void => {
   const problems: EngineProblem[] = []
   const report = (subject: string, detail: string): void => {
-    problems.push({ code: 'nekonzistentni_stav', subject, detail })
+    problems.push({ code: 'inconsistent_state', subject, detail })
   }
 
   if (state.completedChapter !== chapter - 1) {
     problems.push({
-      code: 'nesouhlasi_kapitola',
+      code: 'chapter_mismatch',
       subject: String(chapter),
       detail: `the state is after chapter ${state.completedChapter}, not ${chapter - 1}`,
     })
@@ -37,7 +37,7 @@ export const validateState = (state: RunState, catalog: Catalog, chapter: Chapte
       else if (value < scale.min || value > scale.max) report(scale.externalId, `${value} is outside ${scale.min}–${scale.max}`)
     }
     for (const resource of catalog.config.resources) {
-      if (resource.owner.kind !== 'postava' || resource.owner.characterId !== characterId) continue
+      if (resource.owner.kind !== 'character' || resource.owner.characterId !== characterId) continue
       if (character.resources[resource.key] === undefined) report(resource.externalId, 'no value in the state')
     }
     if (character.householdId !== undefined && !state.households[character.householdId]) {

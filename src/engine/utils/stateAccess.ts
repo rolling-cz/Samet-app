@@ -6,11 +6,11 @@ import type { CharacterState, HouseholdState, RunState } from '../types/state'
 
 export const characterStateOf = (state: RunState, characterId: CharacterId): CharacterState =>
   state.characters[characterId] ??
-  fail('nekonzistentni_stav', characterId, 'character is missing from the state')
+  fail('inconsistent_state', characterId, 'character is missing from the state')
 
 export const householdStateOf = (state: RunState, householdId: HouseholdId): HouseholdState =>
   state.households[householdId] ??
-  fail('nekonzistentni_stav', householdId, 'household is missing from the state')
+  fail('inconsistent_state', householdId, 'household is missing from the state')
 
 /**
  * A joint account that does not exist reads as zero: a household starts with
@@ -18,10 +18,10 @@ export const householdStateOf = (state: RunState, householdId: HouseholdId): Hou
  * lifetime the balance genuinely is 0.
  */
 export const readResource = (state: RunState, account: ResourceAccount, key: ResourceKey): number => {
-  if (account.kind === 'osobni') {
+  if (account.kind === 'personal') {
     return (
       characterStateOf(state, account.characterId).resources[key] ??
-      fail('nekonzistentni_stav', `${account.characterId}/${key}`, 'the character has no such resource')
+      fail('inconsistent_state', `${account.characterId}/${key}`, 'the character has no such resource')
     )
   }
 
@@ -34,7 +34,7 @@ export const writeResource = (
   key: ResourceKey,
   value: number,
 ): void => {
-  if (account.kind === 'osobni') {
+  if (account.kind === 'personal') {
     characterStateOf(state, account.characterId).resources[key] = value
 
     return

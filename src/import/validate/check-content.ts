@@ -31,7 +31,7 @@ export const checkContent = (
     for (const block of blocks) {
       if (block.characterId === undefined && block.groupId === undefined) {
         issues.error(
-          'neznama_postava',
+          'unknown_character',
           block.location,
           `Blok \`${block.externalId}\` je vedený na \`${block.ownerRef}\`, což není postava z listu \`Characters\` ani skupina z listu \`Groups\`.`,
           { value: block.ownerRef, suggestion: suggestClosest(block.ownerRef, knownOwners) },
@@ -64,7 +64,7 @@ const checkOrdering = (block: ParsedBlock, issues: IssueCollector): void => {
     const missing = block.variations.filter((variation) => variation.priority === undefined)
     if (missing.length > 0) {
       issues.error(
-        'chybejici_priorita',
+        'missing_priority',
         block.location,
         `Blok \`${block.externalId}\` má prioritu jen u části variant (chybí u ${missing.map((v) => `\`${v.externalId}\``).join(', ')}) — pořadí by nebylo jednoznačné. Vyplňte ji u všech, nebo u žádné.`,
         { value: block.externalId },
@@ -82,7 +82,7 @@ const checkOrdering = (block: ParsedBlock, issues: IssueCollector): void => {
     for (const [priority, sharing] of byPriority) {
       if (sharing.length < 2) continue
       issues.error(
-        'stejna_priorita',
+        'duplicate_priority',
         block.location,
         `Varianty ${sharing.map((v) => `\`${v}\``).join(', ')} bloku \`${block.externalId}\` mají stejnou prioritu ${priority} — výsledek by závisel na pořadí řádků.`,
         { value: String(priority) },
@@ -95,7 +95,7 @@ const checkOrdering = (block: ParsedBlock, issues: IssueCollector): void => {
 
   if (fallbackAt === -1) {
     issues.error(
-      'blok_bez_default',
+      'block_without_default',
       block.location,
       `Blok \`${block.externalId}\` nemá záložní variantu (prázdná podmínka nebo \`${DEFAULT_CONDITION}\`) — když neprojde žádná podmínka, značka v dokumentu nevrátí nic.`,
       { value: block.externalId },
@@ -107,7 +107,7 @@ const checkOrdering = (block: ParsedBlock, issues: IssueCollector): void => {
   // The fallback is always true, so anything after it can never be reached.
   for (const variation of ordered.slice(fallbackAt + 1)) {
     issues.error(
-      'nedosazitelna_varianta',
+      'unreachable_variant',
       variation.location,
       `Varianta \`${variation.externalId}\` stojí až za záložní variantou \`${ordered[fallbackAt]?.externalId}\`, která platí vždy — nikdy se nepoužije.`,
       { value: variation.externalId },

@@ -36,15 +36,14 @@ export const loadFixtureConfig = (): EngineConfig => {
 export const choose = (questionId: string, ...selectedOptionIds: string[]): AnswerInput => ({
   questionId,
   selectedOptionIds,
-  filledByOrg: false,
 })
 
-/** Org questions (§6.7) are entered by the org. */
-export const byOrg = (answer: AnswerInput): AnswerInput => ({ ...answer, filledByOrg: true })
-
 /** `scale_direct` / `resource_direct`: the one option plus the number (§6.7). */
-export const setValue = (questionId: string, optionId: string, value: number): AnswerInput =>
-  byOrg({ questionId, selectedOptionIds: [optionId], value, filledByOrg: true })
+export const setValue = (questionId: string, optionId: string, value: number): AnswerInput => ({
+  questionId,
+  selectedOptionIds: [optionId],
+  value,
+})
 
 /** A household effect's `{input1}` / `{input2}` (§4.4). */
 export const withInputs = (answer: AnswerInput, optionId: string, input1: number, input2: number): AnswerInput => ({
@@ -61,14 +60,14 @@ export const chapter1Answers = (): AnswerInput[] => [
   choose('Q_Antonin_1_3', 'A_Group_Funkcionari_Nastupce_Mirek'),
   choose('Q_Antonin_1_4', 'A_Antonin_1_4_Funkcionare'),
   choose('Q_Mirek_1_1', 'A_Group_Funkcionari_Nastupce_Antonin'),
-  withInputs(byOrg(choose('Q_Organizatori_1_1', 'A_Organizatori_1_1_Ano')), 'A_Organizatori_1_1_Ano', 4, 6),
+  withInputs(choose('Q_Organizatori_1_1', 'A_Organizatori_1_1_Ano'), 'A_Organizatori_1_1_Ano', 4, 6),
   setValue('Q_Organizatori_1_2', 'A_Organizatori_1_2_Nastaveni', 7),
   setValue('Q_Organizatori_1_3', 'A_Organizatori_1_3_Nastaveni', 40),
 ]
 
 /** The one roll chapter 1 asks for: `V_Marie_1_Historie_1_C` — 80 misses `RANDOM(50)`. */
 export const chapter1Rolls = (): RollInput[] => [
-  { ownerKind: 'postava', ownerId: 'Marie', variationId: 'V_Marie_1_Historie_1_C', occurrence: 0, value: 80 },
+  { ownerKind: 'character', ownerId: 'Marie', variationId: 'V_Marie_1_Historie_1_C', occurrence: 0, value: 80 },
 ]
 
 /**
@@ -81,7 +80,7 @@ export const chapter2Answers = (): AnswerInput[] => [
   choose('Q_Antonin_2_1', 'A_Antonin_2_1_Mirek'),
   choose('Q_Antonin_2_2', 'A_Antonin_2_2_Ano'),
   choose('Q_Antonin_2_3', 'A_Antonin_2_3_Nikdo'),
-  withInputs(byOrg(choose('Q_Organizatori_2_1', 'A_Organizatori_2_1_Ano')), 'A_Organizatori_2_1_Ano', 10, 6),
+  withInputs(choose('Q_Organizatori_2_1', 'A_Organizatori_2_1_Ano'), 'A_Organizatori_2_1_Ano', 10, 6),
 ]
 
 export interface FixtureRunOptions {

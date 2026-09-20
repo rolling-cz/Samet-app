@@ -26,7 +26,7 @@ jsep.addBinaryOp('OR', 1)
  */
 export const DEFAULT_CONDITION = 'DEFAULT'
 
-export type ReferenceKind = 'odpoved' | 'skala' | 'zdroj' | 'neznamy'
+export type ReferenceKind = 'answer' | 'scale' | 'resource' | 'unknown'
 
 export interface ExpressionReference {
   name: string
@@ -51,11 +51,11 @@ export interface ExpressionParse {
 
 /** ID prefixes from §4.2; anything else is reported rather than guessed at. */
 const classify = (name: string): ReferenceKind => {
-  if (name.startsWith('A_')) return 'odpoved'
-  if (name.startsWith('S_')) return 'skala'
-  if (name.startsWith('R_')) return 'zdroj'
+  if (name.startsWith('A_')) return 'answer'
+  if (name.startsWith('S_')) return 'scale'
+  if (name.startsWith('R_')) return 'resource'
 
-  return 'neznamy'
+  return 'unknown'
 }
 
 /**

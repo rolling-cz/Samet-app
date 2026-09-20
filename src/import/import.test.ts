@@ -82,14 +82,14 @@ describe('scales and resources are two different things (§4.1)', () => {
     const result = run({
       scales: [{ Character: 'Marie', ID: 'S_Marie_Regime', Min: '8', Max: '3', Default: '5' }],
     })
-    expect(byCode(result, 'hodnota_mimo_rozsah')[0]?.message).toContain('menší než horní')
+    expect(byCode(result, 'value_out_of_range')[0]?.message).toContain('menší než horní')
   })
 
   it('rejects a default outside the range', () => {
     const result = run({
       scales: [{ Character: 'Marie', ID: 'S_Marie_Regime', Min: '1', Max: '10', Default: '14' }],
     })
-    expect(byCode(result, 'hodnota_mimo_rozsah')[0]?.message).toContain('14')
+    expect(byCode(result, 'value_out_of_range')[0]?.message).toContain('14')
   })
 
   it('rejects the same pair twice', () => {
@@ -99,7 +99,7 @@ describe('scales and resources are two different things (§4.1)', () => {
         { Character: 'Marie', ID: 'S_Marie_Regime', Min: '1', Max: '10', Default: '6' },
       ],
     })
-    expect(byCode(result, 'duplicitni_id')[0]?.value).toBe('S_Marie_Regime')
+    expect(byCode(result, 'duplicate_id')[0]?.value).toBe('S_Marie_Regime')
   })
 
   it('reads a resource scope and gives resources no bounds to break', () => {
@@ -131,7 +131,7 @@ describe('routing of resource impacts (§4.4)', () => {
   it('leaves a plain resource impact to be routed by marital status', () => {
     const impact = run(impactOf('R_Marie_Wealth+3')).config.questions.get(2)?.[0]?.options[0]
       ?.impacts[0]
-    expect(impact).toMatchObject({ kind: 'zdroj', forcedPrivate: false })
+    expect(impact).toMatchObject({ kind: 'resource', forcedPrivate: false })
   })
 
   it('honours the _private suffix', () => {
@@ -149,12 +149,12 @@ describe('routing of resource impacts (§4.4)', () => {
     const result = run(impactOf('R_Marie_Wealth-{input}, R_MarieMirek_Wealth+{input}'))
     const impacts = result.config.questions.get(2)?.[0]?.options[0]?.impacts ?? []
     expect(impacts.map((i) => i.owner)).toEqual(['Marie', 'MarieMirek'])
-    expect(byCode(result, 'neznamy_zdroj')).toEqual([])
+    expect(byCode(result, 'unknown_resource')).toEqual([])
   })
 
   it('says a household ID written backwards is just out of order', () => {
     const result = run(impactOf('R_MirekMarie_Wealth+2'))
-    expect(byCode(result, 'poradi_domacnosti')[0]).toMatchObject({
+    expect(byCode(result, 'household_order')[0]).toMatchObject({
       value: 'MirekMarie',
       suggestion: 'MarieMirek',
     })
@@ -259,7 +259,7 @@ describe('question and answer IDs (§4.2, §6.1)', () => {
       ],
       content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
     })
-    expect(byCode(result, 'odpoved_bez_otazky')[0]?.value).toBe('A_Sirotek_X')
+    expect(byCode(result, 'answer_without_question')[0]?.value).toBe('A_Sirotek_X')
   })
 
   it('reports a question with no answer at all', () => {
@@ -267,7 +267,7 @@ describe('question and answer IDs (§4.2, §6.1)', () => {
       questions: [{ Character: 'Marie', Type: 'single', Text: 'Komu odkážeš dílnu?' }],
       content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
     })
-    expect(byCode(result, 'otazka_bez_odpovedi')).toHaveLength(1)
+    expect(byCode(result, 'question_without_answers')).toHaveLength(1)
   })
 })
 
@@ -305,7 +305,7 @@ describe('polls (§6.6)', () => {
 
   it('reports a vote pointing at a poll that is not there', () => {
     const result = run(pollSheet('Q_Group_Neexistuje'))
-    expect(byCode(result, 'neznama_anketa')[0]?.value).toBe('Q_Group_Neexistuje')
+    expect(byCode(result, 'unknown_poll')[0]?.value).toBe('Q_Group_Neexistuje')
   })
 
   it('a poll must carry its own ID', () => {
@@ -355,7 +355,7 @@ describe('a question may be conditional from chapter 2 on (§4.2)', () => {
       ],
       content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
     })
-    expect(byCode(result, 'neznamy_zdroj')[0]?.suggestion).toBe('R_Marie_Wealth')
+    expect(byCode(result, 'unknown_resource')[0]?.suggestion).toBe('R_Marie_Wealth')
   })
 })
 
@@ -382,7 +382,7 @@ describe('variant ordering (§8.2)', () => {
       { 'Variation ID': 'V_B', 'Variation Text': 'B' },
     ])
     expect(result.config.blocks.get(2)?.[0]?.variations[1]?.isFallback).toBe(true)
-    expect(byCode(result, 'blok_bez_default')).toEqual([])
+    expect(byCode(result, 'block_without_default')).toEqual([])
   })
 
   it('accepts a fallback written first but numbered last', () => {
@@ -398,7 +398,7 @@ describe('variant ordering (§8.2)', () => {
       { 'Variation ID': 'V_A', 'Variation Text': 'A', Priority: '1', Conditions: 'A_Marie_2_1_Ano' },
       { 'Variation ID': 'V_B', 'Variation Text': 'B', Conditions: 'DEFAULT' },
     ])
-    expect(byCode(result, 'chybejici_priorita')[0]?.message).toContain('`V_B`')
+    expect(byCode(result, 'missing_priority')[0]?.message).toContain('`V_B`')
   })
 
   it('rejects two variants of one block sharing a priority', () => {
@@ -407,7 +407,7 @@ describe('variant ordering (§8.2)', () => {
       { 'Variation ID': 'V_B', 'Variation Text': 'B', Priority: '2', Conditions: 'A_Marie_2_1_Ne' },
       { 'Variation ID': 'V_C', 'Variation Text': 'C', Priority: '2', Conditions: 'DEFAULT' },
     ])
-    const issue = byCode(result, 'stejna_priorita')[0]
+    const issue = byCode(result, 'duplicate_priority')[0]
     expect(issue?.message).toContain('`V_B`')
     expect(issue?.message).toContain('`V_C`')
   })
@@ -417,7 +417,7 @@ describe('variant ordering (§8.2)', () => {
       { 'Variation ID': 'V_A', 'Variation Text': 'A', Priority: '1', Conditions: 'A_Marie_2_1_Ano' },
       { 'Variation ID': 'V_B', 'Variation Text': 'B', Priority: '2', Conditions: 'A_Marie_2_1_Ne' },
     ])
-    expect(byCode(result, 'blok_bez_default')).toHaveLength(1)
+    expect(byCode(result, 'block_without_default')).toHaveLength(1)
   })
 
   it('rejects a variant standing after the fallback', () => {
@@ -425,7 +425,7 @@ describe('variant ordering (§8.2)', () => {
       { 'Variation ID': 'V_A', 'Variation Text': 'A', Priority: '1', Conditions: 'DEFAULT' },
       { 'Variation ID': 'V_B', 'Variation Text': 'B', Priority: '2', Conditions: 'A_Marie_2_1_Ano' },
     ])
-    expect(byCode(result, 'nedosazitelna_varianta')[0]?.value).toBe('V_B')
+    expect(byCode(result, 'unreachable_variant')[0]?.value).toBe('V_B')
   })
 })
 
@@ -457,7 +457,7 @@ describe('nested blocks (§8.4)', () => {
         { Character: 'Marie', 'Block ID': 'B_Marie_2_Y', 'Variation ID': 'V_C', 'Variation Text': 'Vnořený' },
       ],
     })
-    expect(byCode(result, 'blok_bez_znacky')).toEqual([])
+    expect(byCode(result, 'block_without_marker')).toEqual([])
   })
 
   it('reports a cycle instead of letting the substitution loop forever', () => {
@@ -477,7 +477,7 @@ describe('nested blocks (§8.4)', () => {
         },
       ],
     })
-    const issue = byCode(result, 'cyklus_bloku')[0]
+    const issue = byCode(result, 'block_cycle')[0]
     expect(issue?.message).toContain('B_Marie_2_X')
     expect(issue?.message).toContain('B_Marie_2_Y')
   })
@@ -493,7 +493,7 @@ describe('nested blocks (§8.4)', () => {
         },
       ],
     })
-    expect(byCode(result, 'cyklus_bloku')).toHaveLength(1)
+    expect(byCode(result, 'block_cycle')).toHaveLength(1)
   })
 })
 
@@ -524,12 +524,12 @@ describe('households the game starts with (§4.2)', () => {
   })
 
   it('refuses a household ID that is not its two members sorted alphabetically', () => {
-    const issue = byCode(married('MirekMarie', 'MirekMarie'), 'vadna_domacnost')[0]
+    const issue = byCode(married('MirekMarie', 'MirekMarie'), 'invalid_household')[0]
     expect(issue).toMatchObject({ value: 'MirekMarie', suggestion: 'MarieMirek' })
   })
 
   it('refuses a household only one character carries', () => {
-    const issue = byCode(married('MarieMirek', ''), 'vadna_domacnost')[0]
+    const issue = byCode(married('MarieMirek', ''), 'invalid_household')[0]
     expect(issue?.message).toContain('1 postav')
   })
 
@@ -540,7 +540,7 @@ describe('households the game starts with (§4.2)', () => {
         { Character: 'Mirek', ID: 'R_Mirek_Wealth', Scope: 'household', Default: '6' },
         { Character: 'MarieMirek', ID: 'R_MarieMirek_Wealth', Scope: 'household', Default: '0' },
       ]),
-      'vadna_domacnost',
+      'invalid_household',
     )[0]
     expect(issue?.value).toBe('MarieMirek')
   })
@@ -551,7 +551,7 @@ describe('households the game starts with (§4.2)', () => {
         { Character: 'Marie', ID: 'R_Marie_Wealth', Scope: 'household', Default: '4' },
         { Character: 'Mirek', ID: 'R_Mirek_Wealth', Scope: 'household', Default: '6' },
       ]),
-      'vadna_domacnost',
+      'invalid_household',
     )[0]
     expect(issue?.value).toBe('R_MarieMirek_Wealth')
   })
@@ -594,36 +594,36 @@ describe('household effects in the `Effects` column (§4.4)', () => {
   })
 
   it('takes a semicolon between two effects', () => {
-    const result = withEffect('HOUSEHOLD_DELETE(Marie, Mirek); HOUSEHOLD_CREATE(Marie, Mirek)')
+    const result = withEffect('HOUSEHOLD_DISSOLVE(Marie, Mirek); HOUSEHOLD_CREATE(Marie, Mirek)')
     expect(result.errors).toEqual([])
     expect(optionOf(result)?.effects.map((effect) => effect.name)).toEqual([
-      'HOUSEHOLD_DELETE',
+      'HOUSEHOLD_DISSOLVE',
       'HOUSEHOLD_CREATE',
     ])
   })
 
   it('reports an effect name nobody implements', () => {
-    expect(byCode(withEffect('VEDENI(SrdceParty, Mirek)'), 'vadny_efekt')[0]?.value).toBe('VEDENI')
+    expect(byCode(withEffect('VEDENI(SrdceParty, Mirek)'), 'invalid_effect')[0]?.value).toBe('VEDENI')
   })
 
   it('reports a call with one member — a household is a pair', () => {
-    const issue = byCode(withEffect('HOUSEHOLD_CREATE(Marie)'), 'vadny_efekt')[0]
+    const issue = byCode(withEffect('HOUSEHOLD_CREATE(Marie)'), 'invalid_effect')[0]
     expect(issue?.message).toContain('čeká 2')
   })
 
   it('reports the same character named twice', () => {
-    expect(byCode(withEffect('HOUSEHOLD_CREATE(Marie, Marie)'), 'vadny_efekt')[0]?.value).toBe(
+    expect(byCode(withEffect('HOUSEHOLD_CREATE(Marie, Marie)'), 'invalid_effect')[0]?.value).toBe(
       'Marie',
     )
   })
 
   it('reports a member the registry does not know, with a suggestion', () => {
-    const issue = byCode(withEffect('HOUSEHOLD_CREATE(Marie, Mrek)'), 'neznama_postava')[0]
+    const issue = byCode(withEffect('HOUSEHOLD_CREATE(Marie, Mrek)'), 'unknown_character')[0]
     expect(issue).toMatchObject({ value: 'Mrek', suggestion: 'Mirek' })
   })
 
   it('reports a call it cannot read at all', () => {
-    expect(byCode(withEffect('HOUSEHOLD_CREATE Marie Mirek'), 'vadny_efekt')).toHaveLength(1)
+    expect(byCode(withEffect('HOUSEHOLD_CREATE Marie Mirek'), 'invalid_effect')).toHaveLength(1)
   })
 })
 
@@ -642,7 +642,7 @@ describe('blocks may belong to a group (§8.2)', () => {
     const result = run({
       content: [{ Character: 'Nikdo', 'Block ID': 'B_2_X', 'Variation ID': 'V_A' }],
     })
-    expect(byCode(result, 'neznama_postava')[0]?.value).toBe('Nikdo')
+    expect(byCode(result, 'unknown_character')[0]?.value).toBe('Nikdo')
   })
 })
 
@@ -667,18 +667,18 @@ describe('conditions reference scales and resources (§4.5)', () => {
   })
 
   it('reports a typo in a scale ID with a suggestion', () => {
-    const issue = byCode(condition('S_Marie_Regme >= 7'), 'neznama_skala')[0]
+    const issue = byCode(condition('S_Marie_Regme >= 7'), 'unknown_scale')[0]
     expect(issue).toMatchObject({ value: 'S_Marie_Regme', suggestion: 'S_Marie_Regime' })
   })
 
   it('reports an unclosed bracket at the cell it sits in', () => {
-    const issue = byCode(condition('!(A_Marie_2_1_Ano OR A_Marie_2_1_Ne'), 'vadny_vyraz')[0]
+    const issue = byCode(condition('!(A_Marie_2_1_Ano OR A_Marie_2_1_Ne'), 'invalid_expression')[0]
     expect(issue?.location).toMatchObject({ sheet: '2_Content', column: 'Conditions' })
     expect(issue?.message).toContain('uzavírací závorka')
   })
 
   it('reports an answer a condition invents', () => {
-    expect(byCode(condition('A_Marie_2_1_Mozna'), 'neznama_odpoved')[0]?.value).toBe(
+    expect(byCode(condition('A_Marie_2_1_Mozna'), 'unknown_answer')[0]?.value).toBe(
       'A_Marie_2_1_Mozna',
     )
   })
@@ -701,8 +701,8 @@ describe('tolerance the author has earned (§10.1)', () => {
       ],
       content: [{ Character: 'Věra', 'Block ID': 'B_Vera_2_X', 'Variation ID': 'V_A' }],
     })
-    const warning = byCode(result, 'neznama_postava')[0]
-    expect(warning).toMatchObject({ severity: 'varovani', suggestion: 'Vera' })
+    const warning = byCode(result, 'unknown_character')[0]
+    expect(warning).toMatchObject({ severity: 'warning', suggestion: 'Vera' })
     expect(result.config.questions.get(2)?.[0]?.characterId).toBe('Vera')
   })
 
@@ -717,7 +717,7 @@ describe('a broken workbook never takes the app down (§10.1)', () => {
   it('reports a missing required sheet rather than throwing', () => {
     const result = importWorkbook(new Map())
     expect(result.usable).toBe(false)
-    expect(result.issues.map((i) => i.code)).toContain('chybejici_list')
+    expect(result.issues.map((i) => i.code)).toContain('missing_sheet')
   })
 
   it('reports a missing required column with its name', () => {
@@ -727,7 +727,7 @@ describe('a broken workbook never takes the app down (§10.1)', () => {
       ['Marie', 'Marie'],
     ])
     const result = importWorkbook(workbook)
-    expect(byCode(result, 'chybejici_sloupec')[0]?.value).toBe('Surname')
+    expect(byCode(result, 'missing_column')[0]?.value).toBe('Surname')
   })
 
   it('collects every mistake in one pass instead of stopping at the first', () => {
@@ -745,18 +745,18 @@ describe('a broken workbook never takes the app down (§10.1)', () => {
       ],
     })
     const codes = new Set(result.errors.map((e) => e.code))
-    expect(codes).toContain('hodnota_mimo_rozsah')
-    expect(codes).toContain('neznama_postava')
-    expect(codes).toContain('neznama_odpoved')
-    expect(codes).toContain('stejna_priorita')
+    expect(codes).toContain('value_out_of_range')
+    expect(codes).toContain('unknown_character')
+    expect(codes).toContain('unknown_answer')
+    expect(codes).toContain('duplicate_priority')
   })
 })
 
 describe('templates are assigned by file name (§10.2)', () => {
   it('accepts <ID>_<kapitola>.md for a character and a group', () => {
     const result = withTemplates()
-    expect(byCode(result, 'postava_bez_sablony')).toEqual([])
-    expect(byCode(result, 'neplatny_nazev_sablony')).toEqual([])
+    expect(byCode(result, 'owner_without_template')).toEqual([])
+    expect(byCode(result, 'invalid_template_filename')).toEqual([])
   })
 
   it('reports a file whose name belongs to nobody', () => {
@@ -764,14 +764,14 @@ describe('templates are assigned by file name (§10.2)', () => {
       ...defaultTemplates(),
       { filename: 'poznamky.md', markdown: 'nic' },
     ])
-    expect(byCode(result, 'neplatny_nazev_sablony')[0]?.value).toBe('poznamky.md')
+    expect(byCode(result, 'invalid_template_filename')[0]?.value).toBe('poznamky.md')
   })
 
   it('reports a character left without a template for a chapter', () => {
     const result = importWorkbook(buildWorkbook(), [
       { filename: 'Marie_2.md', markdown: '{BLOK B_Marie_2_X}' },
     ])
-    expect(byCode(result, 'postava_bez_sablony').map((i) => i.value)).toContain('Mirek')
+    expect(byCode(result, 'owner_without_template').map((i) => i.value)).toContain('Mirek')
   })
 
   it('reports a marker no block backs, which would survive into the document', () => {
@@ -780,6 +780,6 @@ describe('templates are assigned by file name (§10.2)', () => {
       { filename: 'Mirek_2.md', markdown: '# Mirek' },
       { filename: 'SrdceParty_2.md', markdown: '# Srdce party' },
     ])
-    expect(byCode(result, 'znacka_bez_bloku')[0]?.value).toBe('B_Neexistuje')
+    expect(byCode(result, 'marker_without_block')[0]?.value).toBe('B_Neexistuje')
   })
 })

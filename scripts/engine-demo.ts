@@ -12,24 +12,24 @@ const CHARACTER = 'Marie'
 
 const concerns = (entry: TraceEntry): boolean => {
   switch (entry.kind) {
-    case 'anketa':
+    case 'poll':
       return entry.tally.some((row) => row.voterIds.includes(CHARACTER))
-    case 'domacnost_vznik':
-    case 'domacnost_zanik':
+    case 'household_create':
+    case 'household_dissolve':
       return entry.memberIds.includes(CHARACTER)
-    case 'nastaveni_skaly':
-    case 'zmena_skaly':
-    case 'orez':
+    case 'scale_set':
+    case 'scale_shift':
+    case 'clamp':
       return entry.characterId === CHARACTER
-    case 'nastaveni_zdroje':
-    case 'zmena_zdroje':
-      return entry.account.kind === 'osobni'
+    case 'resource_set':
+    case 'resource_shift':
+      return entry.account.kind === 'personal'
         ? entry.account.characterId === CHARACTER
         : entry.account.memberIds.includes(CHARACTER)
-    case 'varianta':
-    case 'otazka':
+    case 'variant':
+    case 'question':
       return entry.characterId === CHARACTER
-    case 'konflikt':
+    case 'conflict':
       return true
   }
 }

@@ -33,7 +33,7 @@ export const Coverage = ({ coverage }: { coverage: TemplateCoverage }) => (
               </code>
             </TableCell>
             <TableCell className={styles.status} data-status={row.status}>
-              {row.status === 'prirazena' ? row.filename : importReport.templateMissing}
+              {row.status === 'assigned' ? row.filename : importReport.templateMissing}
             </TableCell>
           </TableRow>
         ))}

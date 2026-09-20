@@ -21,10 +21,10 @@ import type { VariationEvaluation } from '../types/trace'
 import { compareIds } from '../utils/compareIds'
 
 const rollOwnerOf = (block: BlockDefinition): RollOwner => {
-  if (block.characterId !== undefined) return { ownerKind: 'postava', ownerId: block.characterId }
-  if (block.groupId !== undefined) return { ownerKind: 'skupina', ownerId: block.groupId }
+  if (block.characterId !== undefined) return { ownerKind: 'character', ownerId: block.characterId }
+  if (block.groupId !== undefined) return { ownerKind: 'group', ownerId: block.groupId }
 
-  return fail('neznamy_odkaz', block.id, 'block has no owner')
+  return fail('unknown_reference', block.id, 'block has no owner')
 }
 
 /** Priority when any variant has one, row order otherwise (§8.2). */
@@ -65,7 +65,7 @@ const percentsOf = (condition: CompiledCondition, into: Map<number, number>): vo
 const selectVariant = (context: EvaluationContext, scope: EnvironmentScope, block: BlockDefinition): VariantSelection => {
   const owner = rollOwnerOf(block)
   const evaluations: VariationEvaluation[] = []
-  const selection: VariantSelection = { blockId: block.id, status: 'vybrana', variationId: null, text: null }
+  const selection: VariantSelection = { blockId: block.id, status: 'selected', variationId: null, text: null }
   if (block.characterId !== undefined) selection.characterId = block.characterId
   if (block.groupId !== undefined) selection.groupId = block.groupId
 
@@ -87,14 +87,14 @@ const selectVariant = (context: EvaluationContext, scope: EnvironmentScope, bloc
     const evaluation: VariationEvaluation = { variationId: variation.id, ordinal: variation.ordinal, result: outcome.result, readings: outcome.readings }
     if (variation.priority !== undefined) evaluation.priority = variation.priority
     evaluations.push(evaluation)
-    if (outcome.result === 'neplati') continue
+    if (outcome.result === 'fails') continue
 
     // Unknown stops the walk: until the roll is stored, nobody knows whether
     // this variant applies, and the ones behind it must not be read (§7.4).
-    const decided = outcome.result === 'plati'
+    const decided = outcome.result === 'holds'
     context.trace.push({
-      phase: 'varianty',
-      kind: 'varianta',
+      phase: 'variants',
+      kind: 'variant',
       blockId: block.id,
       ...(block.characterId !== undefined ? { characterId: block.characterId } : {}),
       ...(block.groupId !== undefined ? { groupId: block.groupId } : {}),
@@ -105,13 +105,13 @@ const selectVariant = (context: EvaluationContext, scope: EnvironmentScope, bloc
       selection.variationId = variation.id
       selection.text = variation.text
     } else {
-      selection.status = 'nerozhodnuto'
+      selection.status = 'undecided'
     }
 
     return selection
   }
 
-  return fail('blok_bez_vysledku', block.id, 'no variant holds and there is no DEFAULT')
+  return fail('block_without_result', block.id, 'no variant holds and there is no DEFAULT')
 }
 
 export const selectVariants = (context: EvaluationContext, scope: EnvironmentScope): VariantSelection[] => {

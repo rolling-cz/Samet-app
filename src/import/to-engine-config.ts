@@ -29,11 +29,11 @@ const isChapter = (chapter: number): chapter is QuestionDefinition['chapter'] =>
 const toImpact = (impact: ScaleImpact): ImpactDefinition => {
   const definition: ImpactDefinition = {
     externalId: impact.externalId,
-    kind: impact.kind,
+    kind: impact.kind === 'scale' ? 'scale' : 'resource',
     owner: impact.owner,
     key: impact.key,
     forcedPrivate: impact.forcedPrivate,
-    mode: impact.mode,
+    mode: impact.mode === 'shift' ? 'shift' : 'absolute',
     fromAnswer: impact.fromAnswer,
     terms: impact.terms.map((term) => ({ ...term })),
     raw: impact.raw,
@@ -48,7 +48,7 @@ const toEffect = (effect: ParsedAnswerEffect): HouseholdEffect | undefined => {
   if (first === undefined || second === undefined) return undefined
 
   return {
-    kind: effect.name === 'HOUSEHOLD_CREATE' ? 'domacnost_vznik' : 'domacnost_zanik',
+    kind: effect.name === 'HOUSEHOLD_CREATE' ? 'household_create' : 'household_dissolve',
     members: [first, second],
     raw: effect.raw,
   }
@@ -62,7 +62,6 @@ const toQuestion = (question: ParsedQuestion): QuestionDefinition | undefined =>
     chapter: question.chapter,
     text: question.text,
     type: question.type,
-    source: question.source,
     options: question.options.map((option) => ({
       id: option.externalId,
       label: option.label,
@@ -135,9 +134,9 @@ export const toEngineConfig = (config: ParsedConfig): EngineConfig => {
   for (const row of config.resources) {
     const owner: ResourceDefinition['owner'] | undefined =
       row.characterId !== undefined
-        ? { kind: 'postava', characterId: row.characterId }
+        ? { kind: 'character', characterId: row.characterId }
         : row.householdRef !== undefined
-          ? { kind: 'domacnost', householdId: row.householdRef }
+          ? { kind: 'household', householdId: row.householdRef }
           : undefined
     if (!owner) continue
     resources.push({

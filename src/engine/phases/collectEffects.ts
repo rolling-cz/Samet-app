@@ -51,7 +51,6 @@ const collectOption = (
     questionId: question.id,
     optionId: option.id,
     optionLabel: option.label,
-    filledByOrg: answer?.filledByOrg ?? true,
   }
   if (question.characterId !== undefined) base.characterId = question.characterId
 
@@ -83,7 +82,7 @@ export const collectEffects = (context: EvaluationContext): CollectedEffects => 
     if (question.type === 'poll') {
       const winnerId = context.polls.winners.get(question.id)
       const winner = question.options.find((option) => option.id === winnerId)
-      if (winner) collectOption(question, winner, undefined, 'anketa', collected)
+      if (winner) collectOption(question, winner, undefined, 'poll', collected)
       continue
     }
     // A vote carries nothing of its own; the poll's winner does (§6.6).
@@ -93,7 +92,7 @@ export const collectEffects = (context: EvaluationContext): CollectedEffects => 
     if (!answer) continue
     for (const option of question.options) {
       if (context.answers.chosen.has(option.id) && answer.selectedOptionIds.includes(option.id)) {
-        collectOption(question, option, answer, 'odpoved', collected)
+        collectOption(question, option, answer, 'answer', collected)
       }
     }
   }

@@ -26,12 +26,12 @@ export const resolveOwner = (
   wasWritten = true,
 ): string | undefined => {
   const resolved = resolveCharacter(value, aliases)
-  if (resolved.status === 'neznama') return undefined
+  if (resolved.status === 'unknown') return undefined
 
-  if (resolved.status === 'podle_jmena' && wasWritten) {
+  if (resolved.status === 'by_name' && wasWritten) {
     repairs.resolvedCharacterNames++
     issues.warn(
-      'neznama_postava',
+      'unknown_character',
       location,
       `${subject} je vedená na „${value}", což není ID z listu \`Characters\` — import to přiřadil postavě \`${resolved.id}\` podle jména. V tabulce patří ID.`,
       { value, suggestion: resolved.id },

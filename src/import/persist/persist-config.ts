@@ -53,7 +53,7 @@ export interface PersistResult {
 
 /** Refuses a config with errors: a broken config must never reach the database (§10.2). */
 export const persistConfig = async (input: PersistInput): Promise<PersistResult> => {
-  if (input.issues.some((issue) => issue.severity === 'chyba')) throw new Error(errors.configHasErrors)
+  if (input.issues.some((issue) => issue.severity === 'error')) throw new Error(errors.configHasErrors)
 
   const reason = input.reason?.trim() ?? ''
 
@@ -97,7 +97,7 @@ const writeImportAudit = async (
   const filename = input.configFile.filename
 
   await scope.insert(auditLog, {
-    action: emergencyReason ? 'konfigurace.nouzova_oprava' : 'konfigurace.import',
+    action: emergencyReason ? 'config.emergency_fix' : 'config.import',
     entityKind: 'uploaded_files',
     entityId: result.configUploadId,
     summary: emergencyReason

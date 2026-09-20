@@ -60,14 +60,14 @@ export const parseResources = (
     const characterRef = row.get('Character')
     const externalId = row.get('ID')
     if (externalId === '') {
-      issues.error('chybejici_hodnota', row.at('ID'), 'Řádek nemá `ID` zdroje.')
+      issues.error('missing_value', row.at('ID'), 'Řádek nemá `ID` zdroje.')
       continue
     }
 
     const parts = splitImpactId(externalId)
-    if (!parts || parts.kind !== 'zdroj') {
+    if (!parts || parts.kind !== 'resource') {
       issues.error(
-        'chybejici_hodnota',
+        'missing_value',
         row.at('ID'),
         `\`${externalId}\` není ID zdroje — čeká se tvar \`R_<Vlastnik>_<Zdroj>\`.`,
         { value: externalId },
@@ -78,7 +78,7 @@ export const parseResources = (
 
     if (characterRef === '') {
       issues.error(
-        'chybejici_hodnota',
+        'missing_value',
         row.at('Character'),
         `Zdroj \`${externalId}\` nemá vlastníka — každý řádek je dvojice postava (nebo domácnost) × zdroj.`,
       )
@@ -102,7 +102,7 @@ export const parseResources = (
     const previous = seen.get(externalId)
     if (previous !== undefined) {
       issues.error(
-        'duplicitni_id',
+        'duplicate_id',
         row.at('ID'),
         `Dvojice postava × zdroj \`${externalId}\` je v listu \`${RESOURCES_SHEET}\` dvakrát (poprvé na řádku ${previous}).`,
         { value: externalId },
@@ -137,7 +137,7 @@ const readScope = (
   const known = RESOURCE_SCOPES.find((scope) => scope === raw)
   if (raw !== '' && !known) {
     issues.error(
-      'chybejici_hodnota',
+      'missing_value',
       location,
       `Zdroj \`${key}\` má neznámý rozsah „${raw}" — čeká se ${RESOURCE_SCOPES.map((s) => `\`${s}\``).join(' nebo ')}.`,
       { value: raw },
@@ -149,7 +149,7 @@ const readScope = (
 
   if (agreed !== undefined && known !== undefined && agreed !== known) {
     issues.error(
-      'chybejici_hodnota',
+      'missing_value',
       location,
       `Zdroj \`${key}\` má na různých řádcích různý rozsah (\`${agreed}\` a \`${known}\`) — rozsah patří zdroji, ne dvojici, takže musí být všude stejný.`,
       { value: raw },

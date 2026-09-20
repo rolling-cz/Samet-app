@@ -66,7 +66,7 @@ export const parseQuestions = (
   )
   if (!read) {
     issues.error(
-      'chybejici_list',
+      'missing_sheet',
       { sheet: name },
       `Kapitola ${chapter} má v souboru listy, ale chybí jí \`${name}\` s otázkami.`,
     )
@@ -94,7 +94,7 @@ export const parseQuestions = (
       const previous = seenQuestions.get(current.externalId)
       if (previous !== undefined) {
         issues.error(
-          'duplicitni_id',
+          'duplicate_id',
           row.at('ID'),
           `Otázka \`${current.externalId}\` je v listu \`${name}\` dvakrát (poprvé na řádku ${previous}).`,
           { value: current.externalId },
@@ -109,7 +109,7 @@ export const parseQuestions = (
       const orphan = row.get(ANSWER_ID_COLUMN) || row.get(ANSWER_LABEL_COLUMN)
       if (orphan !== '') {
         issues.error(
-          'odpoved_bez_otazky',
+          'answer_without_question',
           row.at(ANSWER_ID_COLUMN),
           `Řádek odpovědi \`${orphan}\` nepatří k žádné otázce — nad ním žádná otázka nezačíná.`,
           { value: orphan },
@@ -124,7 +124,7 @@ export const parseQuestions = (
     const previousAnswer = seenAnswers.get(option.externalId)
     if (previousAnswer !== undefined) {
       issues.error(
-        'duplicitni_id',
+        'duplicate_id',
         row.at(ANSWER_ID_COLUMN),
         `Odpověď \`${option.externalId}\` je v listu \`${name}\` dvakrát (poprvé na řádku ${previousAnswer}).`,
         { value: option.externalId },
@@ -159,7 +159,7 @@ const beginQuestion = (
   const type = QUESTION_TYPES.find((known) => known === typeRaw)
   if (!type) {
     issues.error(
-      'chybejici_hodnota',
+      'missing_value',
       row.at('Type'),
       `Otázka na řádku ${row.rowNumber} má neznámý typ „${typeRaw}" — čeká se ${QUESTION_TYPES.map((t) => `\`${t}\``).join(', ')}.`,
       { value: typeRaw },
@@ -170,7 +170,7 @@ const beginQuestion = (
   const sourceRaw = row.get(QUESTION_SOURCE_COLUMN)
   if (sourceRaw !== '' && sourceRaw !== ORG_SOURCE_WORD && !isPlayerWord(sourceRaw)) {
     issues.error(
-      'chybejici_hodnota',
+      'missing_value',
       row.at(QUESTION_SOURCE_COLUMN),
       `Otázka na řádku ${row.rowNumber} má neznámý zdroj „${sourceRaw}" — čeká se \`hráč\` nebo \`org\`.`,
       { value: sourceRaw },
@@ -212,7 +212,7 @@ const beginQuestion = (
     // own text in the app (§6.6).
     text: resolvedType === 'poll-answer' ? '' : row.get('Text'),
     type: resolvedType,
-    source: sourceRaw === ORG_SOURCE_WORD ? 'org' : 'hrac',
+    source: sourceRaw === ORG_SOURCE_WORD ? 'org' : 'player',
     isPrivate: isYes(row.get(QUESTION_PRIVATE_COLUMN)),
     pollRef: resolvedType === 'poll-answer' ? row.get('Text') : undefined,
     condition: parseQuestionCondition(row, issues),
@@ -223,7 +223,7 @@ const beginQuestion = (
   if (writtenId === '') {
     if (isPoll) {
       issues.error(
-        'chybejici_hodnota',
+        'missing_value',
         row.at('ID'),
         'Anketa (`poll`) musí mít vyplněné `ID` — u ankety se nikdy negeneruje.',
       )
@@ -240,21 +240,21 @@ const beginQuestion = (
 
   if (!isPoll && characterRef === '') {
     issues.error(
-      'chybejici_hodnota',
+      'missing_value',
       row.at('Character'),
       `Otázka \`${question.externalId}\` nemá postavu.`,
     )
   }
   if (resolvedType === 'poll-answer' && question.pollRef === '') {
     issues.error(
-      'chybejici_hodnota',
+      'missing_value',
       row.at('Text'),
       `Otázka \`${question.externalId}\` je typu \`poll-answer\`, ale ve sloupci \`Text\` nemá ID ankety.`,
     )
   }
   if (resolvedType !== 'poll-answer' && question.text === '') {
     issues.warn(
-      'chybejici_hodnota',
+      'missing_value',
       row.at('Text'),
       `Otázka \`${question.externalId}\` nemá text — v dotazníku bude prázdná.`,
     )
@@ -289,7 +289,7 @@ const readAnswer = (
           ? `u otázky typu \`bool\` smí být jen \`Ano\` nebo \`Ne\`, ne „${label}"`
           : `bez \`${ANSWER_ID_COLUMN}\` se ID odvozuje jen u typu \`bool\` z textu \`Ano\` / \`Ne\``
       issues.error(
-        question.type === 'bool' ? 'chybejici_hodnota' : 'chybejici_hodnota',
+        question.type === 'bool' ? 'missing_value' : 'missing_value',
         row.at(ANSWER_LABEL_COLUMN),
         `Odpověď „${label}" u otázky \`${question.externalId}\`: ${detail}.`,
         { value: label },
@@ -307,7 +307,7 @@ const readAnswer = (
   const { impacts, problems } = parseScaleImpact(impactCell)
   for (const problem of problems) {
     issues.error(
-      'vadny_dopad_na_skalu',
+      'invalid_impact',
       row.at(IMPACT_COLUMN),
       `Dopad „${problem.raw}" u odpovědi \`${externalId}\` se nedá přečíst: ${problem.detail}.`,
       { value: problem.raw },
@@ -353,7 +353,7 @@ const parseQuestionCondition = (row: SheetRow, issues: IssueCollector) => {
   const condition = parseCondition(raw)
   if (!condition.ok) {
     issues.error(
-      'vadny_vyraz',
+      'invalid_expression',
       row.at(QUESTION_CONDITION_COLUMN),
       `Podmínka otázky je syntakticky vadná: ${condition.error}.`,
       { value: condition.raw },
@@ -421,7 +421,7 @@ const readDirectTarget = (question: ParsedQuestion, option: ParsedAnswerOption):
   if (question.target !== undefined) return
   if (question.type !== 'scale_direct' && question.type !== 'resource_direct') return
 
-  const absolute = option.impacts.find((impact) => impact.mode === 'absolutni')
+  const absolute = option.impacts.find((impact) => impact.mode === 'absolute')
   if (!absolute) return
 
   question.target = { kind: absolute.kind, owner: absolute.owner, key: absolute.key }
@@ -433,27 +433,27 @@ const checkQuestionShape = (question: ParsedQuestion, issues: IssueCollector): v
 
   if (question.options.length === 0) {
     issues.error(
-      'otazka_bez_odpovedi',
+      'question_without_answers',
       question.location,
       `Otázka \`${question.externalId}\` nemá žádnou odpověď.`,
       { value: question.externalId },
     )
   }
 
-  const expectedKind = question.type === 'scale_direct' ? 'skala' : 'zdroj'
+  const expectedKind = question.type === 'scale_direct' ? 'scale' : 'resource'
   if (question.type === 'scale_direct' || question.type === 'resource_direct') {
     if (question.target === undefined) {
       issues.error(
-        'vadny_dopad_na_skalu',
+        'invalid_impact',
         question.location,
-        `Otázka \`${question.externalId}\` je typu \`${question.type}\`, ale žádná její odpověď neurčuje cíl zápisem \`${expectedKind === 'skala' ? 'S_<Postava>_<Skala>' : 'R_<Vlastnik>_<Zdroj>'}=VALUE\`.`,
+        `Otázka \`${question.externalId}\` je typu \`${question.type}\`, ale žádná její odpověď neurčuje cíl zápisem \`${expectedKind === 'scale' ? 'S_<Postava>_<Skala>' : 'R_<Vlastnik>_<Zdroj>'}=VALUE\`.`,
         { value: question.externalId },
       )
     } else if (question.target.kind !== expectedKind) {
       issues.error(
-        'vadny_dopad_na_skalu',
+        'invalid_impact',
         question.location,
-        `Otázka \`${question.externalId}\` je typu \`${question.type}\`, ale míří na ${question.target.kind === 'skala' ? 'škálu' : 'zdroj'} \`${question.target.owner}_${question.target.key}\`.`,
+        `Otázka \`${question.externalId}\` je typu \`${question.type}\`, ale míří na ${question.target.kind === 'scale' ? 'škálu' : 'resource'} \`${question.target.owner}_${question.target.key}\`.`,
         { value: question.externalId },
       )
     }
@@ -463,10 +463,10 @@ const checkQuestionShape = (question: ParsedQuestion, issues: IssueCollector): v
   // balance and must never have it land somewhere else than they meant (§4.4).
   for (const option of question.options) {
     for (const impact of option.impacts) {
-      if (impact.mode !== 'absolutni' || impact.kind !== 'zdroj') continue
+      if (impact.mode !== 'absolute' || impact.kind !== 'resource') continue
       if (impact.forcedPrivate) continue
       issues.error(
-        'vadny_dopad_na_skalu',
+        'invalid_impact',
         option.location,
         `Odpověď \`${option.externalId}\` nastavuje zdroj \`${impact.externalId}\` absolutně, ale nejmenuje konkrétní účet — u absolutního nastavení je směrování zakázané (§4.4). Napište \`_private\`, nebo ID domácnosti.`,
         { value: impact.raw },

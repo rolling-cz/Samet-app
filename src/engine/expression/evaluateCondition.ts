@@ -57,13 +57,13 @@ const compare = (operator: ComparisonOperator, left: number, right: number): boo
 }
 
 const toResult = (truth: Truth): ConditionResult => {
-  if (truth === null) return 'neznamo'
+  if (truth === null) return 'unknown'
 
-  return truth ? 'plati' : 'neplati'
+  return truth ? 'holds' : 'fails'
 }
 
 const describeAccount = (account: ResourceAccount): string =>
-  account.kind === 'osobni' ? `osobni:${account.characterId}` : `domacnost:${account.householdId}`
+  account.kind === 'personal' ? `personal:${account.characterId}` : `household:${account.householdId}`
 
 export const evaluateCondition = (
   condition: CompiledCondition,
@@ -73,8 +73,8 @@ export const evaluateCondition = (
   const missingRollOccurrences: number[] = []
 
   const numberOf = (operand: CompiledNumber): number => {
-    if (operand.kind === 'cislo') return operand.value
-    if (operand.kind === 'skala') {
+    if (operand.kind === 'number') return operand.value
+    if (operand.kind === 'scale') {
       const value = environment.scaleValue(operand.characterId, operand.scaleKey)
       readings.push({ reference: operand.reference, value })
 
@@ -91,13 +91,13 @@ export const evaluateCondition = (
     switch (node.kind) {
       case 'always':
         return true
-      case 'odpoved': {
+      case 'answer': {
         const chosen = environment.isChosen(node.optionId, node.questionId)
         readings.push({ reference: node.reference, value: chosen })
 
         return chosen
       }
-      case 'anketa': {
+      case 'poll': {
         const won = environment.pollWinner(node.pollId) === node.optionId
         readings.push({ reference: node.reference, value: won })
 

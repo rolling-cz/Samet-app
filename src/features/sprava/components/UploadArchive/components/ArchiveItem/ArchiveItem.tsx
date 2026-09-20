@@ -23,7 +23,7 @@ interface ArchiveItemProps {
 export const ArchiveItem = ({ runId, upload, isExpanded, onToggle }: ArchiveItemProps) => {
   const handleToggle = useCallback(() => onToggle(upload.id), [onToggle, upload.id])
 
-  const isConfig = upload.kind === 'konfigurace'
+  const isConfig = upload.kind === 'config'
   const issues = extractIssues(upload.importReport)
   const { errors, warnings } = splitIssuesBySeverity(issues)
 

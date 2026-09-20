@@ -16,7 +16,7 @@ export const checkScales = (config: ParsedConfig, issues: IssueCollector): void 
   for (const row of config.scales) {
     if (row.characterId === undefined) {
       issues.error(
-        'neznama_postava',
+        'unknown_character',
         row.location,
         `Škála \`${row.key}\` je vedená na postavu \`${row.characterRef}\`, která není v listu \`Characters\`.`,
         { value: row.characterRef, suggestion: suggestClosest(row.characterRef, characterIds) },
@@ -25,7 +25,7 @@ export const checkScales = (config: ParsedConfig, issues: IssueCollector): void 
 
     if (row.min >= row.max) {
       issues.error(
-        'hodnota_mimo_rozsah',
+        'value_out_of_range',
         row.location,
         `Škála \`${row.externalId}\` má \`Min\` ${row.min} a \`Max\` ${row.max} — dolní hranice musí být menší než horní.`,
         { value: `${row.min}-${row.max}` },
@@ -35,7 +35,7 @@ export const checkScales = (config: ParsedConfig, issues: IssueCollector): void 
 
     if (row.defaultValue < row.min || row.defaultValue > row.max) {
       issues.error(
-        'hodnota_mimo_rozsah',
+        'value_out_of_range',
         row.location,
         `Výchozí hodnota ${row.defaultValue} škály \`${row.externalId}\` je mimo rozsah ${row.min}–${row.max}.`,
         { value: String(row.defaultValue) },
@@ -56,7 +56,7 @@ export const checkScales = (config: ParsedConfig, issues: IssueCollector): void 
       }
 
       issues.error(
-        'vadna_domacnost',
+        'invalid_household',
         row.location,
         `Zdroj \`${row.externalId}\` je vedený na domácnost \`${row.householdRef}\`, která není ve sloupci \`Household\` listu \`Characters\` — společný účet má jen domácnost, se kterou hra začíná (§4.2).`,
         {
@@ -69,7 +69,7 @@ export const checkScales = (config: ParsedConfig, issues: IssueCollector): void 
 
     if (row.characterId !== undefined) continue
     issues.error(
-      'neznama_postava',
+      'unknown_character',
       row.location,
       `Zdroj \`${row.key}\` je vedený na postavu \`${row.characterRef}\`, která není v listu \`Characters\`.`,
       { value: row.characterRef, suggestion: suggestClosest(row.characterRef, characterIds) },
@@ -103,7 +103,7 @@ const checkOpeningBalances = (
     for (const key of sharedKeys) {
       if (present?.has(key)) continue
       issues.error(
-        'vadna_domacnost',
+        'invalid_household',
         household.location,
         `Výchozí domácnost \`${household.externalId}\` nemá v listu \`Resources\` řádek \`R_${household.externalId}_${key}\` — počáteční zůstatek společného účtu se nedoplňuje nulou (§4.2).`,
         { value: `R_${household.externalId}_${key}` },

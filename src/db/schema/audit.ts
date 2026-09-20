@@ -32,9 +32,9 @@ export const auditLog = pgTable(
     chapterId: uuid('chapter_id'),
 
     /**
-     * What happened, in domain words: `odpoved.zmena`, `skala.orez`,
-     * `kostka.prehozeni`, `kapitola.vydani`, `kapitola.editace_po_vydani`,
-     * `kaskada.rozhodnuti`, `konfigurace.import`, `prepocet.potvrzeni`.
+     * What happened, in domain words: `answer.change`, `scale.clamp`,
+     * `roll.reroll`, `chapter.release`, `chapter.edit_after_release`,
+     * `cascade.decide`, `config.import`, `computation.confirm`.
      * Free text on purpose: an enum would change with every new action.
      */
     action: text('action').notNull(),

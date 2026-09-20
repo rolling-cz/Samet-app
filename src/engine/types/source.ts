@@ -14,14 +14,12 @@ export interface DerivedFromEffect {
  * effects are applied once for the poll, not once per voter (§6.6).
  */
 export interface EffectSource {
-  kind: 'odpoved' | 'anketa'
+  kind: 'answer' | 'poll'
   /** The poll's own ID when `kind` is `anketa`. */
   questionId: QuestionId
   optionId: AnswerOptionId
   optionLabel: string
   /** Who answered; absent for a poll, which belongs to nobody (§6.6). */
   characterId?: CharacterId
-  /** The org filled this one in rather than a player (§6.7). */
-  filledByOrg: boolean
   derivedFrom?: DerivedFromEffect
 }

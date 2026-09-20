@@ -12,8 +12,8 @@
  * other way round would.
  */
 export const STRUCTURAL_EFFECT_KINDS = Object.freeze([
-  'domacnost_zanik',
-  'domacnost_vznik',
+  'household_dissolve',
+  'household_create',
 ] as const)
 
 /**
@@ -22,10 +22,10 @@ export const STRUCTURAL_EFFECT_KINDS = Object.freeze([
  * the org typed in and not last chapter's (§6.7).
  */
 export const VALUE_EFFECT_KINDS = Object.freeze([
-  'nastaveni_skaly',
-  'nastaveni_zdroje',
-  'zmena_skaly',
-  'zmena_zdroje',
+  'scale_set',
+  'resource_set',
+  'scale_shift',
+  'resource_shift',
 ] as const)
 
 export type StructuralEffectKind = (typeof STRUCTURAL_EFFECT_KINDS)[number]

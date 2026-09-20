@@ -52,9 +52,9 @@ describe('fixture-platny.xlsx', () => {
   })
 
   it('warns exactly once about the name written instead of a registry ID', () => {
-    const warnings = result.warnings.filter((issue) => issue.code === 'neznama_postava')
+    const warnings = result.warnings.filter((issue) => issue.code === 'unknown_character')
     expect(warnings).toHaveLength(1)
-    expect(warnings[0]).toMatchObject({ severity: 'varovani', suggestion: 'Antonin' })
+    expect(warnings[0]).toMatchObject({ severity: 'warning', suggestion: 'Antonin' })
   })
 
   it('counts the quiet repairs the author is entitled to', () => {
@@ -92,7 +92,7 @@ describe('fixture-platny.xlsx', () => {
   })
 
   it('parses every condition in the sheet without a syntax error', () => {
-    expect(result.issues.filter((i) => i.code === 'vadny_vyraz')).toEqual([])
+    expect(result.issues.filter((i) => i.code === 'invalid_expression')).toEqual([])
   })
 })
 
@@ -120,28 +120,28 @@ describe('fixture-vadny.xlsx', () => {
   it('finds each kind of mistake the fixture was built to carry', () => {
     const codes = new Set(result.errors.map((issue) => issue.code))
     for (const code of [
-      'duplicitni_id',
-      'hodnota_mimo_rozsah',
-      'neznama_postava',
-      'neznama_skala',
-      'neznamy_zdroj',
-      'neznama_odpoved',
-      'neznama_anketa',
-      'poradi_domacnosti',
-      'odpoved_bez_otazky',
-      'otazka_bez_odpovedi',
-      'vadny_dopad_na_skalu',
-      'vadny_vyraz',
-      'blok_bez_default',
-      'stejna_priorita',
-      'chybejici_priorita',
-      'nedosazitelna_varianta',
-      'cyklus_bloku',
-      'znacka_bez_bloku',
-      'blok_bez_znacky',
-      'vadna_znacka_sablony',
-      'neplatny_nazev_sablony',
-      'postava_bez_sablony',
+      'duplicate_id',
+      'value_out_of_range',
+      'unknown_character',
+      'unknown_scale',
+      'unknown_resource',
+      'unknown_answer',
+      'unknown_poll',
+      'household_order',
+      'answer_without_question',
+      'question_without_answers',
+      'invalid_impact',
+      'invalid_expression',
+      'block_without_default',
+      'duplicate_priority',
+      'missing_priority',
+      'unreachable_variant',
+      'block_cycle',
+      'marker_without_block',
+      'block_without_marker',
+      'invalid_template_marker',
+      'invalid_template_filename',
+      'owner_without_template',
     ]) {
       expect(codes).toContain(code)
     }
@@ -153,12 +153,12 @@ describe('fixture-vadny.xlsx', () => {
   })
 
   it('says a household ID is simply the wrong way round', () => {
-    const issue = result.errors.find((e) => e.code === 'poradi_domacnosti')
+    const issue = result.errors.find((e) => e.code === 'household_order')
     expect(issue).toMatchObject({ value: 'MirekMarie', suggestion: 'MarieMirek' })
   })
 
   it('catches the answer row left behind a blank row', () => {
-    const issue = result.errors.find((e) => e.code === 'odpoved_bez_otazky')
+    const issue = result.errors.find((e) => e.code === 'answer_without_question')
     expect(issue?.value).toBe('A_Sirotek_1_1_X')
   })
 })

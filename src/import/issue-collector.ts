@@ -12,11 +12,11 @@ export class IssueCollector {
   }
 
   error(code: IssueCode, location: IssueLocation, message: string, extra?: Partial<Issue>): void {
-    this.add({ severity: 'chyba', code, location, message, ...extra })
+    this.add({ severity: 'error', code, location, message, ...extra })
   }
 
   warn(code: IssueCode, location: IssueLocation, message: string, extra?: Partial<Issue>): void {
-    this.add({ severity: 'varovani', code, location, message, ...extra })
+    this.add({ severity: 'warning', code, location, message, ...extra })
   }
 
   get all(): readonly Issue[] {
@@ -24,14 +24,14 @@ export class IssueCollector {
   }
 
   get errors(): readonly Issue[] {
-    return this.items.filter((i) => i.severity === 'chyba')
+    return this.items.filter((i) => i.severity === 'error')
   }
 
   get warnings(): readonly Issue[] {
-    return this.items.filter((i) => i.severity === 'varovani')
+    return this.items.filter((i) => i.severity === 'warning')
   }
 
   get hasErrors(): boolean {
-    return this.items.some((i) => i.severity === 'chyba')
+    return this.items.some((i) => i.severity === 'error')
   }
 }

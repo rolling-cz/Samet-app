@@ -4,7 +4,7 @@ export const splitIssuesBySeverity = (issues: readonly Issue[]): { errors: Issue
   const errors: Issue[] = []
   const warnings: Issue[] = []
   for (const issue of issues) {
-    if (issue.severity === 'chyba') errors.push(issue)
+    if (issue.severity === 'error') errors.push(issue)
     else warnings.push(issue)
   }
 

@@ -23,7 +23,7 @@
   border-color: currentColor;
 }
 
-.status[data-status='archivovan'] {
+.status[data-status='archived'] {
   border-style: dashed;
 }
 

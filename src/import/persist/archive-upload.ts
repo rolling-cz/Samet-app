@@ -19,7 +19,7 @@ export const archiveUpload = async (scope: RunScope, input: ArchiveInput): Promi
 
   const [config] = await scope
     .insert(uploadedFiles, {
-      kind: 'konfigurace',
+      kind: 'config',
       filename: input.configFile.filename,
       content: input.configFile.content,
       importReport: input.importReport,
@@ -32,7 +32,7 @@ export const archiveUpload = async (scope: RunScope, input: ArchiveInput): Promi
 
   for (const file of input.templateFiles) {
     await scope.insert(uploadedFiles, {
-      kind: 'sablona',
+      kind: 'template',
       filename: file.filename,
       content: file.content,
       note,

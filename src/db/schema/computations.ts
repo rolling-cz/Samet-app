@@ -22,7 +22,7 @@ import { uploadedFiles } from './uploads'
  *
  * Recomputing is repeatable and non-destructive — every run is a new row, never
  * an update, so a dry-run can be fired a hundred times before confirmation.
- * `kind = 'rucni_uprava'` is a version produced by editing the intermediate
+ * `kind = 'manual_edit'` is a version produced by editing the intermediate
  * JSON; `parentComputationId` points at what it started from.
  *
  * `resultJson` is the complete state exactly as the engine returned it (and as
@@ -42,8 +42,8 @@ export const computations = pgTable(
       .references(() => runs.id, { onDelete: 'restrict' }),
     chapterId: uuid('chapter_id').notNull(),
     version: integer('version').notNull(),
-    kind: computationKind('kind').notNull().default('prepocet'),
-    status: computationStatus('status').notNull().default('navrh'),
+    kind: computationKind('kind').notNull().default('computation'),
+    status: computationStatus('status').notNull().default('draft'),
     parentComputationId: uuid('parent_computation_id'),
 
     /** The archived `.xlsx` the config came from, so it can be traced after the game (§6.5). */
@@ -82,7 +82,7 @@ export const computations = pgTable(
     check('computations_version_positive', sql`${t.version} >= 1`),
     check(
       'computations_manual_has_parent',
-      sql`${t.kind} <> 'rucni_uprava' or ${t.parentComputationId} is not null`,
+      sql`${t.kind} <> 'manual_edit' or ${t.parentComputationId} is not null`,
     ),
     foreignKey({
       name: 'computations_chapter_fk',

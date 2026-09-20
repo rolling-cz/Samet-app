@@ -16,7 +16,7 @@ export const checkCharacters = (config: ParsedConfig, issues: IssueCollector): v
   for (const character of config.characters) {
     if (character.firstName !== '') continue
     issues.warn(
-      'chybejici_hodnota',
+      'missing_value',
       character.location,
       `Postava \`${character.externalId}\` nemá jméno — v dokumentech se \`{JMENO}\` rozvine naprázdno.`,
     )
@@ -26,7 +26,7 @@ export const checkCharacters = (config: ParsedConfig, issues: IssueCollector): v
     const [first, second] = household.memberIds
     if (household.memberIds.length !== HOUSEHOLD_MEMBERS || first === undefined || second === undefined) {
       issues.error(
-        'vadna_domacnost',
+        'invalid_household',
         household.location,
         `Domácnost \`${household.externalId}\` je ve sloupci \`Household\` u ${household.memberIds.length} postav (${household.memberIds.join(', ')}) — musí ji mít vyplněnou právě ${HOUSEHOLD_MEMBERS} postavy.`,
         { value: household.externalId },
@@ -38,7 +38,7 @@ export const checkCharacters = (config: ParsedConfig, issues: IssueCollector): v
     if (derived === household.externalId) continue
 
     issues.error(
-      'vadna_domacnost',
+      'invalid_household',
       household.location,
       `Domácnost \`${household.externalId}\` neodpovídá svým členům — ID je složené z ID obou postav seřazených abecedně, tedy \`${derived}\` (§4.2).`,
       { value: household.externalId, suggestion: derived },

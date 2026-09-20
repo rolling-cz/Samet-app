@@ -1,21 +1,21 @@
-CREATE TYPE "public"."cascade_decision" AS ENUM('prepocitat', 'ponechat');--> statement-breakpoint
-CREATE TYPE "public"."chapter_status" AS ENUM('rozpracovana', 'spocitana', 'vydana');--> statement-breakpoint
-CREATE TYPE "public"."computation_kind" AS ENUM('prepocet', 'rucni_uprava');--> statement-breakpoint
-CREATE TYPE "public"."computation_status" AS ENUM('navrh', 'potvrzena');--> statement-breakpoint
-CREATE TYPE "public"."effect_kind" AS ENUM('zmena_skaly', 'nastaveni_skaly', 'zmena_zdroje', 'nastaveni_zdroje', 'blok', 'domacnost_vznik', 'domacnost_zanik');--> statement-breakpoint
-CREATE TYPE "public"."question_source" AS ENUM('hrac', 'org');--> statement-breakpoint
+CREATE TYPE "public"."cascade_decision" AS ENUM('recompute', 'keep');--> statement-breakpoint
+CREATE TYPE "public"."chapter_status" AS ENUM('in_progress', 'computed', 'released');--> statement-breakpoint
+CREATE TYPE "public"."computation_kind" AS ENUM('computation', 'manual_edit');--> statement-breakpoint
+CREATE TYPE "public"."computation_status" AS ENUM('draft', 'confirmed');--> statement-breakpoint
+CREATE TYPE "public"."effect_kind" AS ENUM('scale_shift', 'scale_set', 'resource_shift', 'resource_set', 'block', 'household_create', 'household_dissolve');--> statement-breakpoint
+CREATE TYPE "public"."question_source" AS ENUM('player', 'org');--> statement-breakpoint
 CREATE TYPE "public"."question_type" AS ENUM('bool', 'single', 'multi', 'poll', 'poll-answer', 'scale_direct', 'resource_direct');--> statement-breakpoint
 CREATE TYPE "public"."resource_scope" AS ENUM('private', 'household');--> statement-breakpoint
-CREATE TYPE "public"."resource_target" AS ENUM('smerovany', 'osobni', 'domacnost');--> statement-breakpoint
-CREATE TYPE "public"."run_status" AS ENUM('zalozen', 'aktivni', 'archivovan');--> statement-breakpoint
-CREATE TYPE "public"."state_source" AS ENUM('pocatecni', 'prepocet', 'rucni');--> statement-breakpoint
-CREATE TYPE "public"."template_kind" AS ENUM('postava', 'skupina', 'dotaznik');--> statement-breakpoint
-CREATE TYPE "public"."upload_kind" AS ENUM('konfigurace', 'sablona');--> statement-breakpoint
+CREATE TYPE "public"."resource_target" AS ENUM('routed', 'personal', 'household');--> statement-breakpoint
+CREATE TYPE "public"."run_status" AS ENUM('created', 'active', 'archived');--> statement-breakpoint
+CREATE TYPE "public"."state_source" AS ENUM('initial', 'computation', 'manual');--> statement-breakpoint
+CREATE TYPE "public"."template_kind" AS ENUM('character', 'group', 'questionnaire');--> statement-breakpoint
+CREATE TYPE "public"."upload_kind" AS ENUM('config', 'template');--> statement-breakpoint
 CREATE TABLE "chapters" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"run_id" text NOT NULL,
 	"number" integer NOT NULL,
-	"status" "chapter_status" DEFAULT 'rozpracovana' NOT NULL,
+	"status" "chapter_status" DEFAULT 'in_progress' NOT NULL,
 	"released_at" timestamp with time zone,
 	"released_by" text,
 	"is_touched" boolean DEFAULT false NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE "runs" (
 	"start_date" text NOT NULL,
 	"letter" text NOT NULL,
 	"label" text,
-	"status" "run_status" DEFAULT 'zalozen' NOT NULL,
+	"status" "run_status" DEFAULT 'created' NOT NULL,
 	"archived_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_by" text NOT NULL,
@@ -209,7 +209,7 @@ CREATE TABLE "questions" (
 	"character_id" uuid,
 	"ordinal" integer,
 	"type" "question_type" NOT NULL,
-	"source" "question_source" DEFAULT 'hrac' NOT NULL,
+	"source" "question_source" DEFAULT 'player' NOT NULL,
 	"poll_question_id" uuid,
 	"is_private" boolean DEFAULT false NOT NULL,
 	"text" text DEFAULT '' NOT NULL,
@@ -262,9 +262,9 @@ CREATE TABLE "effects" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "effects_run_id_key" UNIQUE("run_id","id"),
 	CONSTRAINT "effects_run_external_key" UNIQUE("run_id","external_id"),
-	CONSTRAINT "effects_household_needs_two" CHECK ("effects"."kind" not in ('domacnost_vznik', 'domacnost_zanik')
+	CONSTRAINT "effects_household_needs_two" CHECK ("effects"."kind" not in ('household_create', 'household_dissolve')
           or ("effects"."character_id" is not null and "effects"."related_character_id" is not null)),
-	CONSTRAINT "effects_target_only_on_resources" CHECK (("effects"."kind" in ('zmena_zdroje', 'nastaveni_zdroje')) = ("effects"."resource_target" is not null))
+	CONSTRAINT "effects_target_only_on_resources" CHECK (("effects"."kind" in ('resource_shift', 'resource_set')) = ("effects"."resource_target" is not null))
 );
 --> statement-breakpoint
 CREATE TABLE "computations" (
@@ -272,8 +272,8 @@ CREATE TABLE "computations" (
 	"run_id" text NOT NULL,
 	"chapter_id" uuid NOT NULL,
 	"version" integer NOT NULL,
-	"kind" "computation_kind" DEFAULT 'prepocet' NOT NULL,
-	"status" "computation_status" DEFAULT 'navrh' NOT NULL,
+	"kind" "computation_kind" DEFAULT 'computation' NOT NULL,
+	"status" "computation_status" DEFAULT 'draft' NOT NULL,
 	"parent_computation_id" uuid,
 	"config_upload_id" uuid NOT NULL,
 	"engine_version" text NOT NULL,
@@ -290,7 +290,7 @@ CREATE TABLE "computations" (
 	CONSTRAINT "computations_run_id_key" UNIQUE("run_id","id"),
 	CONSTRAINT "computations_chapter_version_key" UNIQUE("run_id","chapter_id","version"),
 	CONSTRAINT "computations_version_positive" CHECK ("computations"."version" >= 1),
-	CONSTRAINT "computations_manual_has_parent" CHECK ("computations"."kind" <> 'rucni_uprava' or "computations"."parent_computation_id" is not null)
+	CONSTRAINT "computations_manual_has_parent" CHECK ("computations"."kind" <> 'manual_edit' or "computations"."parent_computation_id" is not null)
 );
 --> statement-breakpoint
 CREATE TABLE "character_resource_values" (
@@ -429,8 +429,8 @@ CREATE TABLE "templates" (
 	CONSTRAINT "templates_character_key" UNIQUE("run_id","chapter_id","character_id"),
 	CONSTRAINT "templates_group_key" UNIQUE("run_id","chapter_id","group_id"),
 	CONSTRAINT "templates_target_matches_kind" CHECK (case "templates"."kind"
-            when 'postava' then "templates"."character_id" is not null and "templates"."group_id" is null
-            when 'skupina' then "templates"."group_id" is not null and "templates"."character_id" is null
+            when 'character' then "templates"."character_id" is not null and "templates"."group_id" is null
+            when 'group' then "templates"."group_id" is not null and "templates"."character_id" is null
             else "templates"."character_id" is null and "templates"."group_id" is null
           end)
 );
@@ -542,6 +542,6 @@ ALTER TABLE "audit_log" ADD CONSTRAINT "audit_log_effect_fk" FOREIGN KEY ("run_i
 ALTER TABLE "audit_log" ADD CONSTRAINT "audit_log_computation_fk" FOREIGN KEY ("run_id","computation_id") REFERENCES "public"."computations"("run_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "computations_one_released_per_chapter" ON "computations" USING btree ("run_id","chapter_id") WHERE "computations"."is_released";--> statement-breakpoint
 CREATE UNIQUE INDEX "block_variations_block_priority_key" ON "block_variations" USING btree ("run_id","block_id","priority") WHERE "block_variations"."priority" is not null;--> statement-breakpoint
-CREATE UNIQUE INDEX "templates_singleton" ON "templates" USING btree ("run_id","chapter_id","kind") WHERE "templates"."kind" = 'dotaznik';--> statement-breakpoint
+CREATE UNIQUE INDEX "templates_singleton" ON "templates" USING btree ("run_id","chapter_id","kind") WHERE "templates"."kind" = 'questionnaire';--> statement-breakpoint
 CREATE INDEX "audit_log_run_created_idx" ON "audit_log" USING btree ("run_id","created_at");--> statement-breakpoint
 CREATE INDEX "audit_log_entity_idx" ON "audit_log" USING btree ("run_id","entity_kind","entity_id");

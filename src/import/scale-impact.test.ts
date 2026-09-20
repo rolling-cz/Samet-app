@@ -13,11 +13,11 @@ describe('parseScaleImpact', () => {
     expect(problems).toEqual([])
     expect(impacts[0]!).toMatchObject({
       externalId: 'S_Marie_Regime',
-      kind: 'skala',
+      kind: 'scale',
       owner: 'Marie',
       key: 'Regime',
       forcedPrivate: false,
-      mode: 'posun',
+      mode: 'shift',
       fromAnswer: false,
     })
     expect(literalAmount(impacts[0]!)).toBe(3)
@@ -30,7 +30,7 @@ describe('parseScaleImpact', () => {
 
   it('tells a resource from a scale by its prefix', () => {
     const { impacts } = parseScaleImpact('R_Marie_Wealth+3')
-    expect(impacts[0]!).toMatchObject({ kind: 'zdroj', key: 'Wealth', forcedPrivate: false })
+    expect(impacts[0]!).toMatchObject({ kind: 'resource', key: 'Wealth', forcedPrivate: false })
   })
 
   it('reads the _private suffix as routing, not as part of the key', () => {
@@ -80,13 +80,13 @@ describe('parseScaleImpact', () => {
   it('reads =VALUE as an absolute set fed by the answer', () => {
     const { impacts, problems } = parseScaleImpact('S_Marie_Regime=VALUE')
     expect(problems).toEqual([])
-    expect(impacts[0]!).toMatchObject({ mode: 'absolutni', fromAnswer: true, terms: [] })
+    expect(impacts[0]!).toMatchObject({ mode: 'absolute', fromAnswer: true, terms: [] })
     expect(literalAmount(impacts[0]!)).toBeUndefined()
   })
 
   it('reads a literal absolute value', () => {
     const { impacts } = parseScaleImpact('S_Marie_Regime=7')
-    expect(impacts[0]!).toMatchObject({ mode: 'absolutni', fromAnswer: false })
+    expect(impacts[0]!).toMatchObject({ mode: 'absolute', fromAnswer: false })
     expect(literalAmount(impacts[0]!)).toBe(7)
   })
 
@@ -118,7 +118,7 @@ describe('parseScaleImpact', () => {
 
   it('reads an absolute set from a sum of inputs', () => {
     const { impacts } = parseScaleImpact('R_AntoninMarketa_Wealth = {input1}+{input2}')
-    expect(impacts[0]!).toMatchObject({ mode: 'absolutni', fromAnswer: false })
+    expect(impacts[0]!).toMatchObject({ mode: 'absolute', fromAnswer: false })
     expect(inputKeys(impacts[0]!)).toEqual(['input1', 'input2'])
   })
 
@@ -131,28 +131,28 @@ describe('parseScaleImpact', () => {
   it('reports a missing sign instead of silently ignoring it', () => {
     const { impacts, problems } = parseScaleImpact('S_Marie_Regime3')
     expect(impacts).toEqual([])
-    expect(problems[0]!.reason).toBe('chybi_znamenko')
+    expect(problems[0]!.reason).toBe('missing_sign')
   })
 
   it('reports a missing prefix', () => {
     const { problems } = parseScaleImpact('Marie_Wealth+3')
-    expect(problems[0]!.reason).toBe('chybi_prefix')
+    expect(problems[0]!.reason).toBe('missing_prefix')
   })
 
   it('reports a non-numeric magnitude', () => {
     const { problems } = parseScaleImpact('S_Marie_Regime+hodne')
-    expect(problems[0]!.reason).toBe('necislo')
+    expect(problems[0]!.reason).toBe('not_a_number')
   })
 
   it('does not silently swallow trailing junk after a number', () => {
     const { impacts, problems } = parseScaleImpact('S_Marie_Regime+3x')
     expect(impacts).toEqual([])
-    expect(problems[0]!.reason).toBe('necislo')
+    expect(problems[0]!.reason).toBe('not_a_number')
   })
 
   it('reports an unnamed placeholder', () => {
     const { problems } = parseScaleImpact('R_Marie_Wealth+{}')
-    expect(problems[0]!.reason).toBe('prazdny_input')
+    expect(problems[0]!.reason).toBe('empty_input')
   })
 
   it('collects every problem in a cell, not just the first', () => {
@@ -163,7 +163,7 @@ describe('parseScaleImpact', () => {
 
   it('a decimal is not a valid shift — scales are integers', () => {
     const { problems } = parseScaleImpact('S_Marie_Regime+1.5')
-    expect(problems[0]!.reason).toBe('necislo')
+    expect(problems[0]!.reason).toBe('not_a_number')
   })
 
   it('survives diacritics in the owner part', () => {
@@ -175,7 +175,7 @@ describe('parseScaleImpact', () => {
 describe('splitImpactId', () => {
   it('splits a full scale ID', () => {
     expect(splitImpactId('S_Marie_Regime')).toEqual({
-      kind: 'skala',
+      kind: 'scale',
       owner: 'Marie',
       key: 'Regime',
     })
@@ -183,7 +183,7 @@ describe('splitImpactId', () => {
 
   it('splits a full resource ID', () => {
     expect(splitImpactId('R_MarieMirek_Wealth')).toEqual({
-      kind: 'zdroj',
+      kind: 'resource',
       owner: 'MarieMirek',
       key: 'Wealth',
     })

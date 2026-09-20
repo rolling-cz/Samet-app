@@ -1,16 +1,16 @@
 import type { chapterStatus, runStatus } from '@/db/schema'
 
-/** Display labels of the domain states stored without diacritics (§13). */
+/** Display labels of the domain states (§13). */
 export const statuses = Object.freeze({
   run: Object.freeze({
-    zalozen: 'založen',
-    aktivni: 'aktivní',
-    archivovan: 'archivován',
+    created: 'založen',
+    active: 'aktivní',
+    archived: 'archivován',
   } satisfies Record<(typeof runStatus.enumValues)[number], string>),
   chapter: Object.freeze({
-    rozpracovana: 'rozpracovaná',
-    spocitana: 'spočítaná',
-    vydana: 'vydaná',
+    in_progress: 'rozpracovaná',
+    computed: 'spočítaná',
+    released: 'vydaná',
   } satisfies Record<(typeof chapterStatus.enumValues)[number], string>),
 
 })

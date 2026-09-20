@@ -58,7 +58,7 @@ export const resolvePolls = (catalog: Catalog, answers: AnswerLookup, chapter: C
     if (poll.chapter !== chapter) continue
 
     const decidedByRowOrder = tally.some((entry) => entry !== winner && entry.votes === winner?.votes)
-    traces.push({ phase: 'sber', kind: 'anketa', pollId: poll.id, winnerOptionId: winner.optionId, decidedByRowOrder, tally })
+    traces.push({ phase: 'collection', kind: 'poll', pollId: poll.id, winnerOptionId: winner.optionId, decidedByRowOrder, tally })
   }
 
   return { winners, traces }

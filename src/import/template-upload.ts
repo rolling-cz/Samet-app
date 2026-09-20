@@ -57,11 +57,11 @@ export interface TemplateAssignment {
   /** Character or group the template belongs to. */
   ownerExternalId: string
   ownerName: string
-  ownerKind: 'postava' | 'skupina'
+  ownerKind: 'character' | 'group'
   chapter: number
   /** The uploaded file that matched, if any. */
   filename?: string
-  status: 'prirazena' | 'chybi'
+  status: 'assigned' | 'missing'
 }
 
 export interface TemplateCoverage {
@@ -107,23 +107,23 @@ export const templateCoverage = (
         ownerKind,
         chapter,
         filename: match?.filename,
-        status: match ? 'prirazena' : 'chybi',
+        status: match ? 'assigned' : 'missing',
       })
     }
   }
 
   for (const character of config.characters) {
     const name = `${character.firstName} ${character.lastName}`.trim() || character.externalId
-    expect(character.externalId, name, 'postava')
+    expect(character.externalId, name, 'character')
   }
   for (const group of config.groups) {
-    expect(group.externalId, group.name, 'skupina')
+    expect(group.externalId, group.name, 'group')
   }
 
   return {
     assignments,
     unmatched: templates.filter((t) => !used.has(t.filename)),
-    missingCount: assignments.filter((a) => a.status !== 'prirazena').length,
+    missingCount: assignments.filter((a) => a.status !== 'assigned').length,
   }
 }
 

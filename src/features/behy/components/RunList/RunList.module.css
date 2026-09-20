@@ -8,7 +8,7 @@
   overflow-x: auto;
 }
 
-.row[data-status='archivovan'] {
+.row[data-status='archived'] {
   color: var(--mui-palette-text-secondary);
 }
 

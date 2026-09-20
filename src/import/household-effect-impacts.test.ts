@@ -62,9 +62,9 @@ describe('HOUSEHOLD_CREATE', () => {
   })
 })
 
-describe('HOUSEHOLD_DELETE', () => {
+describe('HOUSEHOLD_DISSOLVE', () => {
   it('pays both members out of the joint account', () => {
-    expect(shape('HOUSEHOLD_DELETE', ['Marie', 'Mirek'])).toEqual([
+    expect(shape('HOUSEHOLD_DISSOLVE', ['Marie', 'Mirek'])).toEqual([
       {
         externalId: 'R_Marie_Wealth',
         forcedPrivate: true,

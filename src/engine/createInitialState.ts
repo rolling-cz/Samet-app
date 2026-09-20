@@ -36,7 +36,7 @@ export const createInitialState = (config: EngineConfig): RunState => {
   }
   for (const [householdId, household] of Object.entries(households)) {
     if (household.memberIds.length !== 2) {
-      problems.push({ code: 'neznamy_odkaz', subject: householdId, detail: `${household.memberIds.length} members, a household has two` })
+      problems.push({ code: 'unknown_reference', subject: householdId, detail: `${household.memberIds.length} members, a household has two` })
     }
     for (const [key, scope] of catalog.resourceScopes) {
       if (scope === 'household') household.resources[key] = 0
@@ -44,7 +44,7 @@ export const createInitialState = (config: EngineConfig): RunState => {
   }
 
   for (const resource of config.resources) {
-    if (resource.owner.kind === 'postava') {
+    if (resource.owner.kind === 'character') {
       const character = characters[resource.owner.characterId]
       if (character) character.resources[resource.key] = resource.defaultValue
       continue
@@ -52,7 +52,7 @@ export const createInitialState = (config: EngineConfig): RunState => {
     const household = households[resource.owner.householdId]
     // Only a household the game starts with may have an opening balance (§4.2).
     if (!household) {
-      problems.push({ code: 'neznamy_odkaz', subject: resource.externalId, detail: 'opening balance of a household nobody starts in' })
+      problems.push({ code: 'unknown_reference', subject: resource.externalId, detail: 'opening balance of a household nobody starts in' })
       continue
     }
     household.resources[resource.key] = resource.defaultValue

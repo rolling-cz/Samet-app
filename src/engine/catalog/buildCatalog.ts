@@ -64,7 +64,7 @@ const indexUnique = <T>(items: T[], idOf: (item: T) => string, problems: EngineP
   const index = new Map<string, T>()
   for (const item of items) {
     const id = idOf(item)
-    if (index.has(id)) problems.push({ code: 'duplicitni_id', subject: id, detail: 'appears twice in the config' })
+    if (index.has(id)) problems.push({ code: 'duplicate_id', subject: id, detail: 'appears twice in the config' })
     index.set(id, item)
   }
 
@@ -74,7 +74,7 @@ const indexUnique = <T>(items: T[], idOf: (item: T) => string, problems: EngineP
 export const buildCatalog = (config: EngineConfig): Catalog => {
   const problems: EngineProblem[] = []
   const missing = (subject: string, detail: string): void => {
-    problems.push({ code: 'neznamy_odkaz', subject, detail })
+    problems.push({ code: 'unknown_reference', subject, detail })
   }
 
   const characters = indexUnique(config.characters, (character) => character.id, problems)
@@ -99,17 +99,17 @@ export const buildCatalog = (config: EngineConfig): Catalog => {
     if (!resourceScopes.has(key)) return undefined
 
     if (characters.has(owner)) {
-      if (forcedPrivate) return { kind: 'osobni', characterId: owner, reason: 'vynuceny_osobni' }
-      if (resourceScopes.get(key) === 'private') return { kind: 'osobni', characterId: owner, reason: 'osobni_zdroj' }
+      if (forcedPrivate) return { kind: 'personal', characterId: owner, reason: 'forced_private' }
+      if (resourceScopes.get(key) === 'private') return { kind: 'personal', characterId: owner, reason: 'private_resource' }
 
-      return { kind: 'smerovany', characterId: owner }
+      return { kind: 'routed', characterId: owner }
     }
 
     if (forcedPrivate) return undefined
     const members = splitHouseholdId(owner, characterIds)
     if (!members || resourceScopes.get(key) !== 'household') return undefined
 
-    return { kind: 'domacnost', householdId: owner }
+    return { kind: 'household', householdId: owner }
   }
 
   const checkCharacter = (characterId: CharacterId | undefined, owner: string): void => {
@@ -135,7 +135,7 @@ export const buildCatalog = (config: EngineConfig): Catalog => {
   }
 
   for (const resource of config.resources) {
-    if (resource.owner.kind === 'postava') {
+    if (resource.owner.kind === 'character') {
       checkCharacter(resource.owner.characterId, resource.externalId)
       continue
     }
@@ -145,7 +145,7 @@ export const buildCatalog = (config: EngineConfig): Catalog => {
   }
 
   const checkImpact = (impact: ImpactDefinition, owner: string): void => {
-    if (impact.kind === 'skala') {
+    if (impact.kind === 'scale') {
       if (!scales.has(impact.externalId)) missing(owner, `unknown scale ${impact.externalId}`)
 
       return
@@ -154,7 +154,7 @@ export const buildCatalog = (config: EngineConfig): Catalog => {
       missing(owner, `unknown resource ${impact.raw}`)
     }
     // Absolute setting must name a concrete account (§4.4); routing is forbidden.
-    if (impact.mode === 'absolutni' && characters.has(impact.owner) && !impact.forcedPrivate && resourceScopes.get(impact.key) === 'household') {
+    if (impact.mode === 'absolute' && characters.has(impact.owner) && !impact.forcedPrivate && resourceScopes.get(impact.key) === 'household') {
       missing(owner, `absolute setting of ${impact.raw} uses a routed name; write _private or the household`)
     }
   }
@@ -172,7 +172,7 @@ export const buildCatalog = (config: EngineConfig): Catalog => {
 
     for (const option of question.options) {
       if (options.has(option.id)) {
-        problems.push({ code: 'duplicitni_id', subject: option.id, detail: 'appears twice in the config' })
+        problems.push({ code: 'duplicate_id', subject: option.id, detail: 'appears twice in the config' })
       }
       options.set(option.id, { question, option })
       for (const impact of option.impacts) checkImpact(impact, option.id)
@@ -191,7 +191,7 @@ export const buildCatalog = (config: EngineConfig): Catalog => {
 
     for (const variation of block.variations) {
       if (variations.has(variation.id)) {
-        problems.push({ code: 'duplicitni_id', subject: variation.id, detail: 'appears twice in the config' })
+        problems.push({ code: 'duplicate_id', subject: variation.id, detail: 'appears twice in the config' })
       }
       variations.set(variation.id, { block, variation })
     }

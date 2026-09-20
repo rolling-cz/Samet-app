@@ -49,7 +49,7 @@ export interface ParsedQuestion extends Sourced {
   ordinal?: number
   text: string
   type: ParsedQuestionType
-  source: 'hrac' | 'org'
+  source: 'player' | 'org'
   /** The `Private` flag: impacts bypass routing and stay personal (§4.4). */
   isPrivate: boolean
   /** `poll-answer`: the poll ID the `Text` column holds (§6.6). */
@@ -57,6 +57,6 @@ export interface ParsedQuestion extends Sourced {
   /** `Condition`: the question is asked only when this holds (§4.2, chapters 2+). */
   condition?: ExpressionParse
   /** Target of `scale_direct` / `resource_direct`, taken from the impact column. */
-  target?: { kind: 'skala' | 'zdroj'; owner: string; key: string }
+  target?: { kind: 'scale' | 'resource'; owner: string; key: string }
   options: ParsedAnswerOption[]
 }

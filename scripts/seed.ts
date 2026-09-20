@@ -153,7 +153,7 @@ const main = async () => {
     startDate: '2026-09-12',
     letter: 'A',
     label: 'Ukázkový běh (seed)',
-    status: 'aktivni',
+    status: 'active',
     createdBy: AUTHOR,
   })
 
@@ -165,7 +165,7 @@ const main = async () => {
       CHAPTER_NUMBERS.map((number) => ({
         runId: RUN_ID,
         number,
-        status: 'rozpracovana' as const,
+        status: 'in_progress' as const,
       })),
     )
     .returning()
@@ -215,7 +215,7 @@ const main = async () => {
         characterId: owner,
         scaleId: row.id,
         value: entry.value,
-        source: 'pocatecni',
+        source: 'initial',
       })
     }
   }
@@ -246,7 +246,7 @@ const main = async () => {
         characterId: owner,
         resourceId: row.id,
         value: entry.value,
-        source: 'pocatecni',
+        source: 'initial',
       })
     }
   }
@@ -257,7 +257,7 @@ const main = async () => {
 
   await unscopedDb.insert(auditLog).values({
     runId: RUN_ID,
-    action: 'beh.zalozeni',
+    action: 'run.create',
     entityKind: 'runs',
     entityId: RUN_ID,
     summary: 'Založen ukázkový běh seed skriptem.',
@@ -299,7 +299,7 @@ const seedHousehold = async (
       chapterId,
       characterId: member,
       householdId: household.id,
-      source: 'prepocet' as const,
+      source: 'computation' as const,
     })),
   )
 
@@ -309,7 +309,7 @@ const seedHousehold = async (
     householdId: household.id,
     resourceId: wealth,
     value: 0,
-    source: 'prepocet',
+    source: 'computation',
   })
 }
 
@@ -341,7 +341,7 @@ const seedContent = async (
       description: 'Svatba',
       text: 'V květnu si vzala {PRIJMENI}. {BLOK B_Marie_2_Penize_1}',
       conditionExpr: 'A_Marie_2_1_Mirek',
-      conditionRefs: [{ name: 'A_Marie_2_1_Mirek', kind: 'odpoved' }],
+      conditionRefs: [{ name: 'A_Marie_2_1_Mirek', kind: 'answer' }],
     },
     {
       runId: RUN_ID,
@@ -365,7 +365,7 @@ const seedContent = async (
       description: null,
       text: 'Na společný účet dali dohromady slušnou sumu.',
       conditionExpr: 'R_MarieMirek_Wealth >= 7',
-      conditionRefs: [{ name: 'R_MarieMirek_Wealth', kind: 'zdroj' }],
+      conditionRefs: [{ name: 'R_MarieMirek_Wealth', kind: 'resource' }],
     },
     {
       runId: RUN_ID,
@@ -442,7 +442,7 @@ const seedQuestions = async (
         answerOptionId: yes.id,
         externalId: 'A_Organizatori_2_1_Ano#0',
         ordinal: 0,
-        kind: 'domacnost_vznik',
+        kind: 'household_create',
         characterId: marie,
         relatedCharacterId: mirek,
       },
@@ -451,30 +451,30 @@ const seedQuestions = async (
         answerOptionId: yes.id,
         externalId: 'A_Organizatori_2_1_Ano#1',
         ordinal: 1,
-        kind: 'zmena_zdroje',
+        kind: 'resource_shift',
         characterId: marie,
         resourceId: wealth,
         // The amount comes from `effect_inputs`, not from the sheet (§4.4).
-        resourceTarget: 'osobni',
+        resourceTarget: 'personal',
       },
       {
         runId: RUN_ID,
         answerOptionId: yes.id,
         externalId: 'A_Organizatori_2_1_Ano#2',
         ordinal: 2,
-        kind: 'zmena_zdroje',
+        kind: 'resource_shift',
         characterId: mirek,
         resourceId: wealth,
-        resourceTarget: 'osobni',
+        resourceTarget: 'personal',
       },
       {
         runId: RUN_ID,
         answerOptionId: yes.id,
         externalId: 'A_Organizatori_2_1_Ano#3',
         ordinal: 3,
-        kind: 'zmena_zdroje',
+        kind: 'resource_shift',
         resourceId: wealth,
-        resourceTarget: 'domacnost',
+        resourceTarget: 'household',
         householdExternalId: householdExternalId('Marie', 'Mirek'),
       },
     ])
@@ -504,7 +504,7 @@ const seedQuestions = async (
       characterId: null,
       ordinal: null,
       type: 'poll',
-      source: 'hrac',
+      source: 'player',
       text: 'Kdo povede partu?',
     })
     .returning()
@@ -537,7 +537,7 @@ const seedQuestions = async (
     characterId: marie,
     ordinal: 2,
     type: 'poll-answer',
-    source: 'hrac',
+    source: 'player',
     pollQuestionId: poll.id,
   })
 }

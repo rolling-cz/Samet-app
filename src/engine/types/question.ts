@@ -1,4 +1,9 @@
-/** Questions and their answer options (§6.1, §6.6, §6.7). */
+/**
+ * Questions and their answer options (§6.1, §6.6).
+ *
+ * Who fills a question in — a player or the org — is deliberately not here: it
+ * is a different input source, not a different mechanism (§6.7).
+ */
 import type { HouseholdEffect } from './effect'
 import type { AnswerOptionId, ChapterNumber, CharacterId, QuestionId } from './ids'
 import type { ImpactDefinition } from './impact'
@@ -33,11 +38,6 @@ export interface QuestionDefinition {
   ordinal?: number
   text: string
   type: QuestionType
-  /**
-   * Input source only, not a different mechanism (§6.7) — the engine does not
-   * tell a player's answer from the org's.
-   */
-  source: 'hrac' | 'org'
   /** `poll-answer`: the poll whose text, options and effects it uses (§6.6). */
   pollId?: QuestionId
   /**

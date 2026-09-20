@@ -24,7 +24,7 @@ export const checkBlockCycles = (blocks: ParsedBlock[], issues: IssueCollector):
       if (!reported.has(start)) {
         reported.add(start)
         issues.error(
-          'cyklus_bloku',
+          'block_cycle',
           byId.get(start)?.location ?? { sheet: '' },
           `Bloky se odkazují dokola: ${chain.map((step) => `\`${step}\``).join(' → ')}. Náhrada by se nikdy neukončila.`,
           { value: start },

@@ -47,17 +47,17 @@ export const compileCondition = (source: string | undefined, scope: CompileScope
   try {
     tree = parseExpressionTree(expression)
   } catch (cause) {
-    return fail('neplatny_vyraz', scope.ownerId, `cannot parse "${expression}": ${String(cause)}`)
+    return fail('invalid_expression', scope.ownerId, `cannot parse "${expression}": ${String(cause)}`)
   }
 
   return toCondition(tree, { ...scope, expression, randomCount: { value: 0 } })
 }
 
 const invalid = (scope: NodeScope, detail: string): never =>
-  fail('neplatny_vyraz', scope.ownerId, `"${scope.expression}": ${detail}`)
+  fail('invalid_expression', scope.ownerId, `"${scope.expression}": ${detail}`)
 
 const unknown = (scope: NodeScope, name: string, detail: string): never =>
-  fail('neznamy_identifikator', scope.ownerId, `"${scope.expression}": ${name} ${detail}`)
+  fail('unknown_identifier', scope.ownerId, `"${scope.expression}": ${name} ${detail}`)
 
 const isComparison = (operator: string): operator is ComparisonOperator =>
   (COMPARISON_OPERATORS as readonly string[]).includes(operator)
@@ -107,11 +107,11 @@ const identifierCondition = (name: string, scope: NodeScope): CompiledCondition 
     const entry = scope.catalog.options.get(name) ?? unknown(scope, name, 'is not an answer option')
     // A poll's option holds when it won the poll, not when somebody voted for it (§6.6).
     if (entry.question.type === 'poll') {
-      return { kind: 'anketa', reference: name, pollId: entry.question.id, optionId: name }
+      return { kind: 'poll', reference: name, pollId: entry.question.id, optionId: name }
     }
 
     return {
-      kind: 'odpoved',
+      kind: 'answer',
       reference: name,
       optionId: name,
       questionId: entry.question.id,
@@ -120,10 +120,10 @@ const identifierCondition = (name: string, scope: NodeScope): CompiledCondition 
   }
 
   const parts = splitImpactId(name)
-  if (parts?.kind === 'skala' && scope.catalog.scales.has(name)) {
+  if (parts?.kind === 'scale' && scope.catalog.scales.has(name)) {
     return invalid(scope, `scale ${name} must be compared with a number`)
   }
-  if (parts?.kind === 'zdroj' && scope.catalog.resolveResource(parts.owner, parts.key, parts.forcedPrivate)) {
+  if (parts?.kind === 'resource' && scope.catalog.resolveResource(parts.owner, parts.key, parts.forcedPrivate)) {
     return invalid(scope, `resource ${name} must be compared with a number`)
   }
 
@@ -132,31 +132,31 @@ const identifierCondition = (name: string, scope: NodeScope): CompiledCondition 
 
 const toNumber = (node: jsep.Expression, scope: NodeScope): CompiledNumber => {
   if (node.type === 'Literal' && typeof (node as jsep.Literal).value === 'number') {
-    return { kind: 'cislo', value: (node as jsep.Literal).value as number }
+    return { kind: 'number', value: (node as jsep.Literal).value as number }
   }
   if (node.type !== 'Identifier') return invalid(scope, 'a comparison takes a scale, a resource or a number on each side')
 
   const name = String((node as jsep.Identifier).name)
   const parts = splitImpactId(name) ?? unknown(scope, name, 'is not a scale or resource')
 
-  if (parts.kind === 'skala') {
+  if (parts.kind === 'scale') {
     const scale = scope.catalog.scales.get(name) ?? unknown(scope, name, 'is not a scale of that character')
 
-    return { kind: 'skala', reference: name, characterId: scale.characterId, scaleKey: scale.key }
+    return { kind: 'scale', reference: name, characterId: scale.characterId, scaleKey: scale.key }
   }
 
   const owner =
     scope.catalog.resolveResource(parts.owner, parts.key, parts.forcedPrivate) ??
     unknown(scope, name, 'is not a resource of that character or household')
 
-  return { kind: 'zdroj', reference: name, owner, resourceKey: parts.key }
+  return { kind: 'resource', reference: name, owner, resourceKey: parts.key }
 }
 
 const randomCondition = (call: jsep.CallExpression, scope: NodeScope): CompiledCondition => {
   const callee = call.callee.type === 'Identifier' ? String((call.callee as jsep.Identifier).name) : ''
   if (callee !== RANDOM_FUNCTION) return invalid(scope, `unknown function ${callee}`)
   if (!scope.allowRandom) {
-    return fail('random_v_otazce', scope.ownerId, `"${scope.expression}": ${RANDOM_FUNCTION} is allowed in block variants only`)
+    return fail('random_in_question', scope.ownerId, `"${scope.expression}": ${RANDOM_FUNCTION} is allowed in block variants only`)
   }
 
   const [argument, ...extra] = call.arguments

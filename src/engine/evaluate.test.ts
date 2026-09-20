@@ -15,7 +15,6 @@ import {
 import { buildWorkbook, type Row } from '@/import/testing/build-workbook'
 import { toEngineConfig } from '@/import/to-engine-config'
 import {
-  byOrg,
   chapter1Answers,
   chapter1Rolls,
   chapter2Answers,
@@ -128,7 +127,7 @@ const divorce = (id = 'Q_Org_1_1', members = 'Marie, Mirek'): Row => ({
   Type: 'bool',
   Text: 'Rozvod?',
   [ANSWER_LABEL_COLUMN]: 'Ano',
-  [EFFECTS_COLUMN]: `HOUSEHOLD_DELETE(${members})`,
+  [EFFECTS_COLUMN]: `HOUSEHOLD_DISSOLVE(${members})`,
 })
 
 const single = (character: string, impact: string, id = `Q_${character}_1_1`): Row => ({
@@ -152,7 +151,7 @@ describe('scales', () => {
     const { chapter1 } = runFixture()
 
     expect(chapter1.state.characters.Marie?.scales.Control).toBe(6)
-    expect(ofKind(chapter1.trace, 'zmena_skaly').find((entry) => entry.scaleKey === 'Control')).toMatchObject({
+    expect(ofKind(chapter1.trace, 'scale_shift').find((entry) => entry.scaleKey === 'Control')).toMatchObject({
       characterId: 'Marie',
       before: 5,
       delta: 1,
@@ -179,7 +178,7 @@ describe('scales', () => {
     const result = run1(config, [choose('Q_Marie_1_1', 'A_Marie_1_1_X'), setValue('Q_Org_1_1', 'A_Org_1_1_Nastaveni', 8)])
 
     expect(result.state.characters.Marie?.scales.Regime).toBe(6)
-    expect(result.trace.map((entry) => entry.kind)).toEqual(['nastaveni_skaly', 'zmena_skaly'])
+    expect(result.trace.map((entry) => entry.kind)).toEqual(['scale_set', 'scale_shift'])
   })
 
   it('clamps after every shift and traces each clamp (10)', () => {
@@ -187,11 +186,11 @@ describe('scales', () => {
     const result = run1(config, [choose('Q_Marie_1_1', 'A_Marie_1_1_X')])
 
     expect(result.state.characters.Marie?.scales.Regime).toBe(1)
-    expect(ofKind(result.trace, 'zmena_skaly').map((entry) => [entry.before, entry.raw, entry.after])).toEqual([
+    expect(ofKind(result.trace, 'scale_shift').map((entry) => [entry.before, entry.raw, entry.after])).toEqual([
       [4, 2, 2],
       [2, 0, 1],
     ])
-    expect(ofKind(result.trace, 'orez')).toEqual([expect.objectContaining({ raw: 0, after: 1, bound: 'min' })])
+    expect(ofKind(result.trace, 'clamp')).toEqual([expect.objectContaining({ raw: 0, after: 1, bound: 'min' })])
   })
 
   it('applies shifts in row order, so the same pair gives 2 one way and 1 the other (10)', () => {
@@ -213,16 +212,16 @@ describe('scales', () => {
     const result = run1(config, [choose('Q_Marie_1_1', 'A_Marie_1_1_X')])
 
     expect(result.state.characters.Marie?.scales.Regime).toBe(4)
-    expect(ofKind(result.trace, 'zmena_skaly').map((entry) => entry.delta)).toEqual([2, -2])
+    expect(ofKind(result.trace, 'scale_shift').map((entry) => entry.delta)).toEqual([2, -2])
   })
 })
 
 describe('resources and households', () => {
   it('sends a single character\'s money to the personal account (3)', () => {
     const { chapter2 } = runFixture()
-    const gift = ofKind(chapter2.trace, 'zmena_zdroje').find((entry) => entry.source.optionId === 'A_Antonin_2_1_Mirek' && entry.delta === -10)
+    const gift = ofKind(chapter2.trace, 'resource_shift').find((entry) => entry.source.optionId === 'A_Antonin_2_1_Mirek' && entry.delta === -10)
 
-    expect(gift).toMatchObject({ account: { kind: 'osobni', characterId: 'Antonin' }, routing: 'osobni_svobodna', before: 40, after: 30 })
+    expect(gift).toMatchObject({ account: { kind: 'personal', characterId: 'Antonin' }, routing: 'personal_single', before: 40, after: 30 })
   })
 
   it('creates the household alphabetically and routes the same chapter\'s money to it (4, 6)', () => {
@@ -230,7 +229,7 @@ describe('resources and households', () => {
       questions1: [marriage('Mirek, Marie'), single('Marie', 'R_Marie_Wealth+2, R_Marie_Wealth_private+1'), single('Mirek', 'R_Mirek_Wealth+2')],
     })
     const result = run1(config, [
-      withInputs(byOrg(choose('Q_Org_1_1', 'A_Org_1_1_Ano')), 'A_Org_1_1_Ano', 3, 5),
+      withInputs(choose('Q_Org_1_1', 'A_Org_1_1_Ano'), 'A_Org_1_1_Ano', 3, 5),
       choose('Q_Marie_1_1', 'A_Marie_1_1_X'),
       choose('Q_Mirek_1_1', 'A_Mirek_1_1_X'),
     ])
@@ -240,14 +239,14 @@ describe('resources and households', () => {
     expect(result.state.characters.Marie).toMatchObject({ householdId: 'MarieMirek', resources: { Wealth: 10 - 5 + 1 } })
     expect(result.state.characters.Mirek).toMatchObject({ householdId: 'MarieMirek', resources: { Wealth: 20 - 3 } })
 
-    const shifts = ofKind(result.trace, 'zmena_zdroje')
+    const shifts = ofKind(result.trace, 'resource_shift')
     expect(shifts.find((entry) => entry.source.characterId === 'Marie' && entry.delta === 2)).toMatchObject({
-      account: { kind: 'domacnost', householdId: 'MarieMirek', memberIds: ['Marie', 'Mirek'] },
-      routing: 'spolecny_manzelstvi',
+      account: { kind: 'household', householdId: 'MarieMirek', memberIds: ['Marie', 'Mirek'] },
+      routing: 'joint_married',
     })
-    expect(shifts.find((entry) => entry.delta === 1)).toMatchObject({ account: { kind: 'osobni', characterId: 'Marie' }, routing: 'vynuceny_osobni' })
+    expect(shifts.find((entry) => entry.delta === 1)).toMatchObject({ account: { kind: 'personal', characterId: 'Marie' }, routing: 'forced_private' })
     expect(shifts.find((entry) => entry.delta === -3)).toMatchObject({
-      account: { kind: 'osobni', characterId: 'Mirek' },
+      account: { kind: 'personal', characterId: 'Mirek' },
       source: { derivedFrom: { raw: 'HOUSEHOLD_CREATE(Mirek, Marie)', inputs: { input1: 3, input2: 5 } } },
     })
   })
@@ -255,12 +254,12 @@ describe('resources and households', () => {
   it('adds both spouses\' contributions to the joint account and names each contributor (5)', () => {
     const { chapter2 } = runFixture({
       chapter2Answers: chapter2Answers().map((answer) =>
-        answer.questionId === 'Q_Organizatori_2_1' ? byOrg(choose('Q_Organizatori_2_1', 'A_Organizatori_2_1_Ne')) : answer,
+        answer.questionId === 'Q_Organizatori_2_1' ? choose('Q_Organizatori_2_1', 'A_Organizatori_2_1_Ne') : answer,
       ),
     })
 
     expect(chapter2.state.households.MarieMirek?.resources.Wealth).toBe(16 + 2 + 10)
-    const joint = ofKind(chapter2.trace, 'zmena_zdroje').filter((entry) => entry.account.kind === 'domacnost')
+    const joint = ofKind(chapter2.trace, 'resource_shift').filter((entry) => entry.account.kind === 'household')
     expect(joint.map((entry) => [entry.source.characterId, entry.delta, entry.before, entry.after])).toEqual([
       ['Marie', 2, 16, 18],
       ['Antonin', 10, 18, 28],
@@ -269,13 +268,13 @@ describe('resources and households', () => {
 
   it('pays the joint balance out on dissolution and keeps the personal accounts (6)', () => {
     const config = configFrom({ characters: MARRIED_CHARACTERS, resources: JOINT_RESOURCES, questions1: [divorce()] })
-    const result = run1(config, [withInputs(byOrg(choose('Q_Org_1_1', 'A_Org_1_1_Ano')), 'A_Org_1_1_Ano', 7, 3)])
+    const result = run1(config, [withInputs(choose('Q_Org_1_1', 'A_Org_1_1_Ano'), 'A_Org_1_1_Ano', 7, 3)])
 
     expect(result.conflicts).toEqual([])
     expect(result.state.households).toEqual({})
     expect(result.state.characters.Marie).toEqual({ scales: { Regime: 4 }, resources: { Wealth: 17 } })
     expect(result.state.characters.Mirek).toEqual({ scales: {}, resources: { Wealth: 23 } })
-    expect(ofKind(result.trace, 'domacnost_zanik')).toEqual([expect.objectContaining({ householdId: 'MarieMirek', balances: { Wealth: 10 } })])
+    expect(ofKind(result.trace, 'household_dissolve')).toEqual([expect.objectContaining({ householdId: 'MarieMirek', balances: { Wealth: 10 } })])
   })
 
   it('handles a divorce and a new marriage in one chapter, DELETE before CREATE (7)', () => {
@@ -289,8 +288,8 @@ describe('resources and households', () => {
       ],
     })
     const result = run1(config, [
-      withInputs(byOrg(choose('Q_Org_1_1', 'A_Org_1_1_Ano')), 'A_Org_1_1_Ano', 2, 4),
-      withInputs(byOrg(choose('Q_Org_1_2', 'A_Org_1_2_Ano')), 'A_Org_1_2_Ano', 5, 5),
+      withInputs(choose('Q_Org_1_1', 'A_Org_1_1_Ano'), 'A_Org_1_1_Ano', 2, 4),
+      withInputs(choose('Q_Org_1_2', 'A_Org_1_2_Ano'), 'A_Org_1_2_Ano', 5, 5),
     ])
 
     expect(result.conflicts).toEqual([])
@@ -298,7 +297,7 @@ describe('resources and households', () => {
     expect(result.state.characters.Marie).toMatchObject({ householdId: 'KarelMarie', resources: { Wealth: 10 + 5 - 2 } })
     expect(result.state.characters.Mirek).toEqual({ scales: {}, resources: { Wealth: 25 } })
     expect(result.state.characters.Karel).toMatchObject({ householdId: 'KarelMarie', resources: { Wealth: 30 - 4 } })
-    expect(result.trace.map((entry) => entry.kind).slice(0, 2)).toEqual(['domacnost_zanik', 'domacnost_vznik'])
+    expect(result.trace.map((entry) => entry.kind).slice(0, 2)).toEqual(['household_dissolve', 'household_create'])
   })
 
   it('returns household conflicts and moves no money for the refused effects (14)', () => {
@@ -308,33 +307,33 @@ describe('resources and households', () => {
       questions1: [{ ...marriage('Marie, Karel'), ID: 'Q_Org_1_1' }, divorce('Q_Org_1_2', 'Karel, Mirek')],
     })
     const result = run1(config, [
-      withInputs(byOrg(choose('Q_Org_1_1', 'A_Org_1_1_Ano')), 'A_Org_1_1_Ano', 1, 1),
-      withInputs(byOrg(choose('Q_Org_1_2', 'A_Org_1_2_Ano')), 'A_Org_1_2_Ano', 1, 1),
+      withInputs(choose('Q_Org_1_1', 'A_Org_1_1_Ano'), 'A_Org_1_1_Ano', 1, 1),
+      withInputs(choose('Q_Org_1_2', 'A_Org_1_2_Ano'), 'A_Org_1_2_Ano', 1, 1),
     ])
 
     expect(result.conflicts).toEqual([
-      expect.objectContaining({ kind: 'domacnost_neexistuje', householdId: 'KarelMirek' }),
-      expect.objectContaining({ kind: 'uz_v_domacnosti', characterId: 'Marie', currentHouseholdId: 'MarieMirek', householdId: 'KarelMarie' }),
+      expect.objectContaining({ kind: 'household_missing', householdId: 'KarelMirek' }),
+      expect.objectContaining({ kind: 'already_in_household', characterId: 'Marie', currentHouseholdId: 'MarieMirek', householdId: 'KarelMarie' }),
     ])
     expect(result.state.households).toEqual({ MarieMirek: { memberIds: ['Marie', 'Mirek'], resources: { Wealth: 10 } } })
     expect(result.state.characters.Karel?.resources.Wealth).toBe(30)
-    expect(result.trace.filter((entry) => entry.kind === 'konflikt')).toHaveLength(2)
+    expect(result.trace.filter((entry) => entry.kind === 'conflict')).toHaveLength(2)
   })
 
   it('reports a dissolution whose inputs do not add up to the balance (14)', () => {
     const config = configFrom({ characters: MARRIED_CHARACTERS, resources: JOINT_RESOURCES, questions1: [divorce()] })
-    const result = run1(config, [withInputs(byOrg(choose('Q_Org_1_1', 'A_Org_1_1_Ano')), 'A_Org_1_1_Ano', 7, 7)])
+    const result = run1(config, [withInputs(choose('Q_Org_1_1', 'A_Org_1_1_Ano'), 'A_Org_1_1_Ano', 7, 7)])
 
     expect(result.conflicts).toEqual([
-      expect.objectContaining({ kind: 'rozdeleni_nesedi', householdId: 'MarieMirek', balance: 10, inputsTotal: 14 }),
+      expect.objectContaining({ kind: 'payout_mismatch', householdId: 'MarieMirek', balance: 10, inputsTotal: 14 }),
     ])
   })
 
-  it('reports a missing input as nedopocitano instead of guessing', () => {
+  it('reports a missing input as unresolved_value instead of guessing', () => {
     const config = configFrom({ questions1: [marriage()] })
-    const result = run1(config, [byOrg(choose('Q_Org_1_1', 'A_Org_1_1_Ano'))])
+    const result = run1(config, [choose('Q_Org_1_1', 'A_Org_1_1_Ano')])
 
-    expect(result.conflicts.map((conflict) => conflict.kind)).toEqual(['nedopocitano', 'nedopocitano', 'nedopocitano'])
+    expect(result.conflicts.map((conflict) => conflict.kind)).toEqual(['unresolved_value', 'unresolved_value', 'unresolved_value'])
     expect(result.conflicts[0]).toMatchObject({ missingInputKeys: ['input1'] })
     expect(result.state.characters.Marie?.resources.Wealth).toBe(10)
   })
@@ -359,16 +358,16 @@ describe('polls', () => {
     const config = configFrom({ questions1: pollQuestions() })
     const result = run1(config, votes('A_Poll_A', 'A_Poll_B', 'A_Poll_B'))
 
-    expect(ofKind(result.trace, 'anketa')[0]).toMatchObject({ winnerOptionId: 'A_Poll_B', decidedByRowOrder: false })
+    expect(ofKind(result.trace, 'poll')[0]).toMatchObject({ winnerOptionId: 'A_Poll_B', decidedByRowOrder: false })
     expect(result.state.characters.Marie?.scales.Regime).toBe(3)
-    expect(ofKind(result.trace, 'zmena_skaly')).toHaveLength(1)
-    expect(ofKind(result.trace, 'zmena_skaly')[0]?.source).toMatchObject({ kind: 'anketa', questionId: 'Q_Poll', optionId: 'A_Poll_B' })
+    expect(ofKind(result.trace, 'scale_shift')).toHaveLength(1)
+    expect(ofKind(result.trace, 'scale_shift')[0]?.source).toMatchObject({ kind: 'poll', questionId: 'Q_Poll', optionId: 'A_Poll_B' })
   })
 
   it('breaks a tie by row order and lets a condition read the winner (11)', () => {
     const { chapter1 } = runFixture()
 
-    expect(ofKind(chapter1.trace, 'anketa')[0]).toMatchObject({ winnerOptionId: 'A_Group_Funkcionari_Nastupce_Antonin', decidedByRowOrder: true })
+    expect(ofKind(chapter1.trace, 'poll')[0]).toMatchObject({ winnerOptionId: 'A_Group_Funkcionari_Nastupce_Antonin', decidedByRowOrder: true })
     expect(chapter1.conflicts).toEqual([])
     expect(chapter1.variants.find((variant) => variant.blockId === 'B_Antonin_1_Historie_2')).toMatchObject({ variationId: 'V_Antonin_1_Historie_2_B' })
   })
@@ -405,7 +404,7 @@ describe('variants and question gates', () => {
     const result = run1(config, [setValue('Q_Org_1_1', 'A_Org_1_1_N', 9)])
 
     expect(result.questions).toEqual([{ questionId: 'Q_Marie_2_1', characterId: 'Marie', asked: true }])
-    expect(result.variants).toEqual([{ blockId: 'B_Marie_1_X', characterId: 'Marie', status: 'vybrana', variationId: 'V_A', text: 'Vysoký režim' }])
+    expect(result.variants).toEqual([{ blockId: 'B_Marie_1_X', characterId: 'Marie', status: 'selected', variationId: 'V_A', text: 'Vysoký režim' }])
   })
 
   it('picks by priority over row order, falls back to DEFAULT and accepts an empty text (9)', () => {
@@ -435,14 +434,14 @@ describe('variants and question gates', () => {
 
     // The true left side would short-circuit a lazy evaluation; the typo must still surface.
     variation.condition = 'A_Marie_1_1_X OR A_Marie_1_1_Neexistuje'
-    expect(() => run1(config, answers)).toThrow(/neznamy_identifikator.*A_Marie_1_1_Neexistuje/)
+    expect(() => run1(config, answers)).toThrow(/unknown_identifier.*A_Marie_1_1_Neexistuje/)
 
     variation.condition = 'S_Marie_Regme >= 3'
-    expect(() => run1(config, answers)).toThrow(/neznamy_identifikator.*S_Marie_Regme/)
+    expect(() => run1(config, answers)).toThrow(/unknown_identifier.*S_Marie_Regme/)
 
     variation.condition = 'RANDOM(50)'
     config.questions[1]!.condition = 'RANDOM(50)'
-    expect(() => run1(config, answers)).toThrow(/random_v_otazce/)
+    expect(() => run1(config, answers)).toThrow(/random_in_question/)
   })
 })
 
@@ -450,9 +449,9 @@ describe('randomness', () => {
   it('asks for the roll it lacks, then uses the stored one and never re-rolls (12)', () => {
     const withoutRoll = runFixture({ chapter1Rolls: [] })
     expect(withoutRoll.chapter1.missingRolls).toEqual([
-      { ownerKind: 'postava', ownerId: 'Marie', variationId: 'V_Marie_1_Historie_1_C', occurrence: 0, percent: 50 },
+      { ownerKind: 'character', ownerId: 'Marie', variationId: 'V_Marie_1_Historie_1_C', occurrence: 0, percent: 50 },
     ])
-    expect(withoutRoll.chapter1.variants.find((variant) => variant.blockId === 'B_Marie_1_Historie_1')).toMatchObject({ status: 'nerozhodnuto', variationId: null })
+    expect(withoutRoll.chapter1.variants.find((variant) => variant.blockId === 'B_Marie_1_Historie_1')).toMatchObject({ status: 'undecided', variationId: null })
 
     const hit = runFixture({ chapter1Rolls: [{ ...chapter1Rolls()[0]!, value: 20 }] })
     expect(hit.chapter1.missingRolls).toEqual([])
@@ -472,7 +471,7 @@ describe('randomness', () => {
       ],
     })
     const answers = [choose('Q_Marie_1_1', 'A_Marie_1_1_X')]
-    const roll = (occurrence: number, value: number): RollInput => ({ ownerKind: 'postava', ownerId: 'Marie', variationId: 'V_A', occurrence, value })
+    const roll = (occurrence: number, value: number): RollInput => ({ ownerKind: 'character', ownerId: 'Marie', variationId: 'V_A', occurrence, value })
 
     expect(run1(config, answers).missingRolls.map((request) => request.occurrence)).toEqual([0, 1])
     expect(run1(config, answers, [roll(0, 30)]).missingRolls.map((request) => request.occurrence)).toEqual([1])
@@ -500,7 +499,7 @@ describe('purity', () => {
     const chapter2 = (answers: AnswerInput[]) =>
       evaluate(chapter1.state, { chapter: 2, answers: [...chapter1Answers(), ...answers], rolls: chapter1Rolls() }, config)
 
-    expect(() => chapter2(chapter2Answers().slice(1))).toThrow(/chybi_odpoved Q_Marie_2_1/)
+    expect(() => chapter2(chapter2Answers().slice(1))).toThrow(/missing_answer Q_Marie_2_1/)
     expect(() => chapter2([...chapter2Answers(), choose('Q_Marie_2_2', 'A_Marie_2_2_Ano')])).toThrow(/never asked/)
   })
 })

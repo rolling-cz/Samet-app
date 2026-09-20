@@ -67,7 +67,7 @@ const insertRun = async (tx: Database, input: NewRun): Promise<RunId> => {
     CHAPTER_NUMBERS.map((number) => ({ number })),
   )
   await scope.insert(auditLog, {
-    action: 'beh.zalozeni',
+    action: 'run.create',
     entityKind: 'runs',
     entityId: id,
     summary: audit.runCreated(id, input.label),
@@ -104,7 +104,7 @@ export const renameRun = async ({ runId, label, author }: RunRename): Promise<vo
 
     await tx.update(runs).set({ label }).where(eq(runs.id, runId))
     await forRun(runId, tx as unknown as Database).insert(auditLog, {
-      action: 'beh.prejmenovani',
+      action: 'run.rename',
       entityKind: 'runs',
       entityId: runId,
       summary: audit.runRenamed(runId, before.label, label),

@@ -28,7 +28,7 @@ export interface VariantSelection {
   characterId?: CharacterId
   groupId?: GroupId
   /** `nerozhodnuto` only ever means a missing roll (§7.4). */
-  status: 'vybrana' | 'nerozhodnuto'
+  status: 'selected' | 'undecided'
   variationId: VariationId | null
   /** An empty string is a valid text: the marker vanishes without trace (§8.2). */
   text: string | null

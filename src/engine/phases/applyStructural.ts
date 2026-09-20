@@ -1,6 +1,6 @@
 /**
  * Phase 2: households created and dissolved (§4.4, §7.3). Every
- * `HOUSEHOLD_DELETE` before any `HOUSEHOLD_CREATE`, so a divorce and a new
+ * `HOUSEHOLD_DISSOLVE` before any `HOUSEHOLD_CREATE`, so a divorce and a new
  * marriage in one chapter never leave a character in two households.
  *
  * A dissolved household keeps its record until the value phase has paid the
@@ -38,15 +38,15 @@ const checkPayout = (
   impacts: ImpactInstance[],
 ): void => {
   for (const impact of impacts) {
-    if (impact.effectKey !== instance.key || impact.impact.kind !== 'zdroj' || impact.impact.owner !== householdId) continue
+    if (impact.effectKey !== instance.key || impact.impact.kind !== 'resource' || impact.impact.owner !== householdId) continue
     const amount = impactAmount(impact)
-    // A missing input is reported by the value phase as `nedopocitano`.
+    // A missing input is reported by the value phase as `unresolved_value`.
     if (amount === undefined) continue
 
     const balance = household.resources[impact.impact.key] ?? 0
     if (balance + amount === 0) continue
     addConflict(context, {
-      kind: 'rozdeleni_nesedi',
+      kind: 'payout_mismatch',
       source: instance.source,
       householdId,
       resourceKey: impact.impact.key,
@@ -60,7 +60,7 @@ const dissolve = (context: EvaluationContext, instance: EffectInstance, impacts:
   const householdId = householdIdOf(instance.effect.members)
   const household = context.state.households[householdId]
   if (!household || context.dissolvedHouseholdIds.has(householdId)) {
-    addConflict(context, { kind: 'domacnost_neexistuje', source: instance.source, householdId })
+    addConflict(context, { kind: 'household_missing', source: instance.source, householdId })
     context.rejectedEffectKeys.add(instance.key)
 
     return
@@ -71,8 +71,8 @@ const dissolve = (context: EvaluationContext, instance: EffectInstance, impacts:
   for (const memberId of household.memberIds) delete characterStateOf(context.state, memberId).householdId
   context.dissolvedHouseholdIds.add(householdId)
   context.trace.push({
-    phase: 'strukturalni',
-    kind: 'domacnost_zanik',
+    phase: 'structural',
+    kind: 'household_dissolve',
     householdId,
     memberIds: instance.effect.members,
     source: instance.source,
@@ -87,7 +87,7 @@ const create = (context: EvaluationContext, instance: EffectInstance): void => {
     const current = characterStateOf(context.state, memberId).householdId
     if (current === undefined) continue
     addConflict(context, {
-      kind: 'uz_v_domacnosti',
+      kind: 'already_in_household',
       source: instance.source,
       characterId: memberId,
       currentHouseholdId: current,
@@ -112,8 +112,8 @@ const create = (context: EvaluationContext, instance: EffectInstance): void => {
   for (const memberId of instance.effect.members) characterStateOf(context.state, memberId).householdId = householdId
 
   context.trace.push({
-    phase: 'strukturalni',
-    kind: 'domacnost_vznik',
+    phase: 'structural',
+    kind: 'household_create',
     householdId,
     memberIds: instance.effect.members,
     source: instance.source,
@@ -124,7 +124,7 @@ export const applyStructural = (context: EvaluationContext, collected: Collected
   for (const kind of STRUCTURAL_EFFECT_KINDS) {
     for (const instance of collected.effects) {
       if (instance.effect.kind !== kind) continue
-      if (kind === 'domacnost_zanik') dissolve(context, instance, collected.impacts)
+      if (kind === 'household_dissolve') dissolve(context, instance, collected.impacts)
       else create(context, instance)
     }
   }

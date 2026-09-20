@@ -27,11 +27,11 @@ const impact = (
   effect: ParsedAnswerEffect,
 ): ScaleImpact => ({
   externalId: `R_${owner}_${HOUSEHOLD_TRANSFER_RESOURCE_KEY}`,
-  kind: 'zdroj',
+  kind: 'resource',
   owner,
   key: HOUSEHOLD_TRANSFER_RESOURCE_KEY,
   forcedPrivate,
-  mode: 'posun',
+  mode: 'shift',
   fromAnswer: false,
   terms,
   raw: effect.raw,
@@ -40,7 +40,7 @@ const impact = (
 
 /**
  * `HOUSEHOLD_CREATE` moves both personal accounts into the joint one,
- * `HOUSEHOLD_DELETE` the other way round. Returns nothing when the effect does
+ * `HOUSEHOLD_DISSOLVE` the other way round. Returns nothing when the effect does
  * not name two members — the validation reports that on its own.
  */
 export const householdEffectImpacts = (effect: ParsedAnswerEffect): ScaleImpact[] => {

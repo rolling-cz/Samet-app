@@ -58,17 +58,17 @@ export const buildAliases = (
 }
 
 export type CharacterResolution =
-  | { status: 'presna'; id: string }
-  | { status: 'podle_jmena'; id: string }
-  | { status: 'neznama' }
+  | { status: 'exact'; id: string }
+  | { status: 'by_name'; id: string }
+  | { status: 'unknown' }
 
 export const resolveCharacter = (
   value: string,
   aliases: CharacterAliases,
 ): CharacterResolution => {
-  if (value === '') return { status: 'neznama' }
-  if (aliases.ids.has(value)) return { status: 'presna', id: value }
+  if (value === '') return { status: 'unknown' }
+  if (aliases.ids.has(value)) return { status: 'exact', id: value }
   const id = aliases.byAlias.get(fold(value))
 
-  return id === undefined ? { status: 'neznama' } : { status: 'podle_jmena', id }
+  return id === undefined ? { status: 'unknown' } : { status: 'by_name', id }
 }

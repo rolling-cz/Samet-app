@@ -32,7 +32,7 @@ export const requireColumns = (
   const missing = missingColumns(headers, required)
   for (const column of missing) {
     issues.error(
-      'chybejici_sloupec',
+      'missing_column',
       { sheet: sheetName },
       `Listu \`${sheetName}\` chybí povinný sloupec \`${column}\`.`,
       { value: column },

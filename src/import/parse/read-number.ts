@@ -21,7 +21,7 @@ export const readInteger = (
   const value = Number(raw)
   if (!Number.isInteger(value)) {
     issues.error(
-      'hodnota_mimo_rozsah',
+      'value_out_of_range',
       row.at(column),
       `Sloupec \`${column}\` u \`${subject}\` musí být celé číslo, je tam „${raw}".`,
       { value: raw },

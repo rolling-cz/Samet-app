@@ -12,38 +12,38 @@ describe('parseCondition', () => {
   it('reads a bare answer reference', () => {
     const result = parseCondition('A_Marie_1_1_Karel')
     expect(result.ok).toBe(true)
-    expect(result.references).toEqual([{ name: 'A_Marie_1_1_Karel', kind: 'odpoved' }])
+    expect(result.references).toEqual([{ name: 'A_Marie_1_1_Karel', kind: 'answer' }])
   })
 
   it('reads negation', () => {
     const result = parseCondition('!A_Marie_2_1_Mirek')
     expect(result.ok).toBe(true)
-    expect(result.references).toEqual([{ name: 'A_Marie_2_1_Mirek', kind: 'odpoved' }])
+    expect(result.references).toEqual([{ name: 'A_Marie_2_1_Mirek', kind: 'answer' }])
   })
 
   it('reads AND with a scale comparison', () => {
     const result = parseCondition('A_Marie_2_1_Mirek AND S_Marie_Regime >= 7')
     expect(result.ok).toBe(true)
     expect(result.references).toEqual([
-      { name: 'A_Marie_2_1_Mirek', kind: 'odpoved' },
-      { name: 'S_Marie_Regime', kind: 'skala' },
+      { name: 'A_Marie_2_1_Mirek', kind: 'answer' },
+      { name: 'S_Marie_Regime', kind: 'scale' },
     ])
   })
 
   it('classifies a resource reference', () => {
     const result = parseCondition('A_Marie_2_4_Ano AND R_Marie_Wealth >= 7')
-    expect(result.references.map((r) => r.kind)).toEqual(['odpoved', 'zdroj'])
+    expect(result.references.map((r) => r.kind)).toEqual(['answer', 'resource'])
   })
 
   it('an identifier with no known prefix is reported, not guessed at', () => {
     const result = parseCondition('F_Vedouci')
-    expect(result.references.map((r) => r.kind)).toEqual(['neznamy'])
+    expect(result.references.map((r) => r.kind)).toEqual(['unknown'])
   })
 
   it('accepts the single = the author writes', () => {
     const result = parseCondition('S_Marie_Regime = 5')
     expect(result.ok).toBe(true)
-    expect(result.references).toEqual([{ name: 'S_Marie_Regime', kind: 'skala' }])
+    expect(result.references).toEqual([{ name: 'S_Marie_Regime', kind: 'scale' }])
   })
 
   it('leaves <=, >= and != alone while rewriting =', () => {

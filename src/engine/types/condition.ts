@@ -23,28 +23,28 @@ import type {
  * structural phase.
  */
 export type ResourceReference =
-  | { kind: 'smerovany'; characterId: CharacterId }
+  | { kind: 'routed'; characterId: CharacterId }
   /** `_private` was written, or the resource has no joint account at all. */
-  | { kind: 'osobni'; characterId: CharacterId; reason: 'vynuceny_osobni' | 'osobni_zdroj' }
-  | { kind: 'domacnost'; householdId: HouseholdId }
+  | { kind: 'personal'; characterId: CharacterId; reason: 'forced_private' | 'private_resource' }
+  | { kind: 'household'; householdId: HouseholdId }
 
 export type CompiledNumber =
-  | { kind: 'cislo'; value: number }
-  | { kind: 'skala'; reference: string; characterId: CharacterId; scaleKey: ScaleKey }
-  | { kind: 'zdroj'; reference: string; owner: ResourceReference; resourceKey: ResourceKey }
+  | { kind: 'number'; value: number }
+  | { kind: 'scale'; reference: string; characterId: CharacterId; scaleKey: ScaleKey }
+  | { kind: 'resource'; reference: string; owner: ResourceReference; resourceKey: ResourceKey }
 
 export type CompiledCondition =
   /** `DEFAULT` or an empty cell — the fallback, always true (§8.2). */
   | { kind: 'always' }
   | {
-      kind: 'odpoved'
+      kind: 'answer'
       reference: string
       optionId: AnswerOptionId
       questionId: QuestionId
       questionChapter: ChapterNumber
     }
   /** The winning option of a poll, spelled like any other answer (§6.6). */
-  | { kind: 'anketa'; reference: string; pollId: QuestionId; optionId: AnswerOptionId }
+  | { kind: 'poll'; reference: string; pollId: QuestionId; optionId: AnswerOptionId }
   | { kind: 'random'; reference: string; percent: number; occurrence: number }
   | { kind: 'not'; operand: CompiledCondition }
   | { kind: 'and' | 'or'; left: CompiledCondition; right: CompiledCondition }
@@ -56,7 +56,7 @@ export type CompiledCondition =
     }
 
 /** `neznamo` means a roll is missing — nothing else can be undecided. */
-export type ConditionResult = 'plati' | 'neplati' | 'neznamo'
+export type ConditionResult = 'holds' | 'fails' | 'unknown'
 
 /**
  * A value the evaluation actually read, so the UI can explain the outcome
