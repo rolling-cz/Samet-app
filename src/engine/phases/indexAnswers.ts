@@ -3,9 +3,9 @@
  * that was asked and has no answer stops the computation, and every problem is
  * listed at once.
  *
- * A question of the chapter being computed counts as asked when its variant is
- * among the ones stored with the incoming state (§4.5). For earlier chapters
- * the recorded answers are the record of what was asked.
+ * A question counts as asked when its variant is among the ones stored with the
+ * incoming state (§4.5). That holds for the earlier chapters as well: the state
+ * keeps the whole run's selection, so their answers must all be passed in.
  */
 import type { Catalog } from '../catalog/buildCatalog'
 import { failIfAny, type EngineProblem } from '../errors/engineInputError'
@@ -21,7 +21,7 @@ export interface AnswerLookup {
 }
 
 export interface AnswerIndex extends AnswerLookup {
-  /** Questions of the computed chapter that are actually put to the org. */
+  /** Questions up to the computed chapter that were actually put to the org. */
   asked: Set<QuestionId>
 }
 
@@ -88,7 +88,7 @@ export const indexAnswers = (
       report(question.id, `answer to chapter ${question.chapter} while computing chapter ${chapter}`)
       continue
     }
-    if (question.chapter === chapter && !asked.has(question.id)) {
+    if (!asked.has(question.id)) {
       report(question.id, 'answer to a question whose variant was not selected — it was never asked')
       continue
     }

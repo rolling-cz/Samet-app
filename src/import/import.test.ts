@@ -308,6 +308,13 @@ describe('polls (§6.6)', () => {
     expect(byCode(result, 'unknown_poll')[0]?.value).toBe('Q_Group_Neexistuje')
   })
 
+  it('refuses a poll nobody votes in — its first row would win on zero votes', () => {
+    expect(byCode(run(pollSheet('Q_Group_Vedouci')), 'poll_without_votes')).toEqual([])
+
+    const issue = byCode(run(pollSheet('Q_Group_Neexistuje')), 'poll_without_votes')[0]
+    expect(issue).toMatchObject({ value: 'Q_Group_Vedouci', location: { sheet: '2_Questions' } })
+  })
+
   it('a poll must carry its own ID', () => {
     const result = run({
       questions: [

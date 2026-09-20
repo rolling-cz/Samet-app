@@ -170,9 +170,9 @@ Trace piš jako strukturovaná data, ne jako hotové věty. Formulace patří do
 
 Co engine **nesmí rozhodnout sám**, vrátí v `konflikty[]` a rozhodne org:
 
-- nedopočítaná hodnota (`nedopocitano`),
+- nedopočítaná hodnota (`unresolved_value`),
 - `HOUSEHOLD_CREATE` pro postavu, která už v domácnosti je,
-- `HOUSEHOLD_DISSOLVE` domácnosti, která neexistuje,
+- `HOUSEHOLD_DISSOLVE` domácnosti, která neexistuje, a dopad výslovně na společný účet domácnosti, která v tu chvíli neexistuje,
 - `HOUSEHOLD_DISSOLVE`, jehož inputy nedávají dohromady zůstatek společného účtu.
 
 **Nejsou to konflikty:** shoda hlasů v anketě (řeší pořadí řádků) a výběr varianty bloku (řeší priorita).

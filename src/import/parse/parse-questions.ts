@@ -1,5 +1,5 @@
 import type { CharacterAliases } from '../characters'
-import { answerId, FIRST_QUESTION_ORDINAL, questionId } from '../constants/question-ids'
+import { answerId, FIRST_QUESTION_ORDINAL, MISSING_POLL_ID_PREFIX, questionId } from '../constants/question-ids'
 import {
   BOOL_ANSWER_TEXTS,
   OTHER_ANSWER_MARKER,
@@ -227,7 +227,7 @@ const beginQuestion = (
         row.at('ID'),
         'Anketa (`poll`) musí mít vyplněné `ID` — u ankety se nikdy negeneruje.',
       )
-      question.externalId = `Q_poll_radek_${row.rowNumber}`
+      question.externalId = `${MISSING_POLL_ID_PREFIX}${row.rowNumber}`
     } else {
       question.externalId = questionId(
         characterId ?? characterRef,

@@ -9,6 +9,7 @@
 import { VALUE_EFFECT_KINDS, type ValueEffectKind } from '../constants/effectPhases'
 import { addConflict, type EvaluationContext } from '../evaluationContext'
 import { fail } from '../errors/engineInputError'
+import type { ResourceAccount } from '../types/account'
 import type { ImpactDefinition } from '../types/impact'
 import { clampToScale } from '../utils/clamp'
 import { routeResource } from '../utils/resourceRouting'
@@ -45,6 +46,18 @@ const applyScale = (context: EvaluationContext, instance: ImpactInstance, amount
   }
 }
 
+/**
+ * Money sent to a joint account nobody holds would vanish with it, and where it
+ * should go instead is the org's call (§4.4). A household effect's own payout
+ * and deposits are exempt: they are what empties or fills the account.
+ */
+const targetsMissingHousehold = (
+  context: EvaluationContext,
+  account: ResourceAccount,
+): account is Extract<ResourceAccount, { kind: 'household' }> =>
+  account.kind === 'household' &&
+  (context.state.households[account.householdId] === undefined || context.dissolvedHouseholdIds.has(account.householdId))
+
 const applyResource = (context: EvaluationContext, instance: ImpactInstance, amount: number): void => {
   const { impact, source } = instance
   const reference =
@@ -52,6 +65,11 @@ const applyResource = (context: EvaluationContext, instance: ImpactInstance, amo
     fail('unknown_reference', impact.raw, 'unknown resource')
   // Routing reads the household state as the structural phase left it (§7.3).
   const routed = routeResource(context.state, reference)
+  if (instance.effectKey === undefined && targetsMissingHousehold(context, routed.account)) {
+    addConflict(context, { kind: 'household_missing', source, householdId: routed.account.householdId, raw: impact.raw })
+
+    return
+  }
   const before = readResource(context.state, routed.account, impact.key)
   const after = impact.mode === 'absolute' ? amount : before + amount
   writeResource(context.state, routed.account, impact.key, after)

@@ -327,6 +327,50 @@ describe('resources and households', () => {
     expect(result.conflicts).toEqual([
       expect.objectContaining({ kind: 'payout_mismatch', householdId: 'MarieMirek', balance: 10, inputsTotal: 14 }),
     ])
+    // Refused whole: no divorce, and no money created out of the difference.
+    expect(result.state.households).toEqual({ MarieMirek: { memberIds: ['Marie', 'Mirek'], resources: { Wealth: 10 } } })
+    expect(result.state.characters.Marie).toMatchObject({ householdId: 'MarieMirek', resources: { Wealth: 10 } })
+    expect(result.state.characters.Mirek).toMatchObject({ householdId: 'MarieMirek', resources: { Wealth: 20 } })
+    expect(ofKind(result.trace, 'household_dissolve')).toEqual([])
+  })
+
+  it('refuses an impact on the joint account of a household dissolved in the same chapter', () => {
+    const config = configFrom({
+      characters: MARRIED_CHARACTERS,
+      resources: JOINT_RESOURCES,
+      questions1: [divorce(), single('Karel', 'R_MarieMirek_Wealth+5, R_Karel_Wealth-5')],
+    })
+    const result = run1(config, [
+      withInputs(choose('Q_Org_1_1', 'A_Org_1_1_Ano'), 'A_Org_1_1_Ano', 7, 3),
+      choose('Q_Karel_1_1', 'A_Karel_1_1_X'),
+    ])
+
+    expect(result.conflicts).toEqual([
+      expect.objectContaining({ kind: 'household_missing', householdId: 'MarieMirek', raw: 'R_MarieMirek_Wealth+5' }),
+    ])
+    // The divorce itself went through; only the stray +5 moved nothing.
+    expect(result.state.households).toEqual({})
+    expect(result.state.characters.Marie?.resources.Wealth).toBe(17)
+    expect(result.state.characters.Mirek?.resources.Wealth).toBe(23)
+    expect(result.state.characters.Karel?.resources.Wealth).toBe(25)
+  })
+
+  it('refuses an impact on a household that was never founded, and still reads it as 0 in a condition', () => {
+    const config = configFrom({
+      questions1: [single('Karel', 'R_MarieMirek_Wealth+5')],
+      content2: [
+        { Character: 'Karel', 'Block ID': 'B_Karel_1_Questions_1', 'Variation ID': 'V_A', Conditions: 'R_MarieMirek_Wealth = 0' },
+        { 'Variation ID': 'V_B' },
+      ],
+      questions2: [{ ...single('Karel', '', 'Q_Karel_2_1'), [QUESTION_CONDITION_COLUMN]: 'V_A' }],
+    })
+    const result = run1(config, [choose('Q_Karel_1_1', 'A_Karel_1_1_X')])
+
+    expect(result.conflicts).toEqual([
+      expect.objectContaining({ kind: 'household_missing', householdId: 'MarieMirek', raw: 'R_MarieMirek_Wealth+5' }),
+    ])
+    expect(result.state.households).toEqual({})
+    expect(result.state.selectedVariants.characters.Karel).toEqual(['V_A'])
   })
 
   it('reports a missing input as unresolved_value instead of guessing', () => {
@@ -370,6 +414,30 @@ describe('polls', () => {
     expect(ofKind(chapter1.trace, 'poll')[0]).toMatchObject({ winnerOptionId: 'A_Group_Funkcionari_Nastupce_Antonin', decidedByRowOrder: true })
     expect(chapter1.conflicts).toEqual([])
     expect(chapter1.variants.find((variant) => variant.blockId === 'B_Antonin_1_Historie_2')).toMatchObject({ variationId: 'V_Antonin_1_Historie_2_B' })
+  })
+
+  it('lets the first row win a poll whose every vote was gated off — decided, not a conflict', () => {
+    const config = configFrom({
+      questions1: [single('Marie', '')],
+      content2: [
+        { Character: 'Marie', 'Block ID': 'B_Marie_1_Questions_1', 'Variation ID': 'V_A', Conditions: 'A_Marie_1_1_X' },
+        { 'Variation ID': 'V_B' },
+      ],
+      questions2: [
+        { ID: 'P_2', Type: 'poll', Text: 'Anketa', [ANSWER_ID_COLUMN]: 'A_P_2_A', [ANSWER_LABEL_COLUMN]: 'A', [IMPACT_COLUMN]: 'S_Marie_Regime+3' },
+        { [ANSWER_ID_COLUMN]: 'A_P_2_B', [ANSWER_LABEL_COLUMN]: 'B' },
+        {},
+        { Character: 'Marie', Type: 'poll-answer', Text: 'P_2', [QUESTION_CONDITION_COLUMN]: 'V_B' },
+      ],
+    })
+    const answers = [choose('Q_Marie_1_1', 'A_Marie_1_1_X')]
+    const result = evaluate(run1(config, answers).state, { chapter: 2, answers, rolls: [] }, config)
+
+    expect(result.conflicts).toEqual([])
+    expect(ofKind(result.trace, 'poll')).toEqual([
+      expect.objectContaining({ pollId: 'P_2', winnerOptionId: 'A_P_2_A', decidedByRowOrder: true }),
+    ])
+    expect(result.state.characters.Marie?.scales.Regime).toBe(7)
   })
 
   it('refuses to run while a voter is missing', () => {
@@ -515,6 +583,21 @@ describe('question conditions are a lookup in the selected variants (§4.5)', ()
     )
     expect(chapter1.state.selectedVariants.groups.Funkcionari).toEqual(['V_Funkcionari_1_Vedeni_1_B'])
     expect(chapter2.state.selectedVariants.characters.Antonin).toContain('V_Antonin_2_Questions_1_A')
+    // Chapter 2's own selection is still there after chapter 2 is computed.
+    expect(chapter2.state.selectedVariants.characters.Marie).toEqual(
+      expect.arrayContaining(chapter1.state.selectedVariants.characters.Marie ?? []),
+    )
+  })
+
+  it('keeps the whole run\'s selection, so a forgotten earlier answer is loud and not a quiet false', () => {
+    const config = gatedConfig()
+    const first = [choose('Q_Marie_1_1', 'A_Marie_1_1_Karel')]
+    const second = [choose('Q_Marie_2_1', 'A_Marie_2_1_X'), choose('Q_Marie_2_3', 'A_Marie_2_3_X')]
+    const state = run1(config, first).state
+
+    const chapter2 = evaluate(state, { chapter: 2, answers: [...first, ...second], rolls: [] }, config)
+    expect(chapter2.state.selectedVariants.characters.Marie).toEqual(['V_Marie_1_Questions_1_A'])
+    expect(() => evaluate(state, { chapter: 2, answers: second, rolls: [] }, config)).toThrow(/missing_answer Q_Marie_1_1/)
   })
 
   it('leaves an undecided block out of the selection and refuses to build the next chapter on it', () => {

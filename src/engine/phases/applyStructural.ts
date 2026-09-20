@@ -28,15 +28,16 @@ const emptyJointAccounts = (context: EvaluationContext): Record<string, number> 
 /**
  * The inputs of a dissolution must add up to what is on the joint account;
  * the engine never splits a remainder itself (§4.4). Checked per resource the
- * derived impacts pay out of the household.
+ * derived impacts pay out of the household. `false` when any does not add up.
  */
-const checkPayout = (
+const payoutMatches = (
   context: EvaluationContext,
   instance: EffectInstance,
   household: HouseholdState,
   householdId: string,
   impacts: ImpactInstance[],
-): void => {
+): boolean => {
+  let matches = true
   for (const impact of impacts) {
     if (impact.effectKey !== instance.key || impact.impact.kind !== 'resource' || impact.impact.owner !== householdId) continue
     const amount = impactAmount(impact)
@@ -53,7 +54,10 @@ const checkPayout = (
       balance,
       inputsTotal: -amount,
     })
+    matches = false
   }
+
+  return matches
 }
 
 const dissolve = (context: EvaluationContext, instance: EffectInstance, impacts: ImpactInstance[]): void => {
@@ -66,7 +70,13 @@ const dissolve = (context: EvaluationContext, instance: EffectInstance, impacts:
     return
   }
 
-  checkPayout(context, instance, household, householdId, impacts)
+  // Refused like any other conflict: a payout that does not add up would
+  // create or destroy money, so the household stays and nothing moves.
+  if (!payoutMatches(context, instance, household, householdId, impacts)) {
+    context.rejectedEffectKeys.add(instance.key)
+
+    return
+  }
 
   for (const memberId of household.memberIds) delete characterStateOf(context.state, memberId).householdId
   context.dissolvedHouseholdIds.add(householdId)

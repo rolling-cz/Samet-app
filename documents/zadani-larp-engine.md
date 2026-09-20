@@ -186,6 +186,8 @@ Zdrojem konfigurace je Google Sheet s tabulkami (per kapitola):
 Stav postavy v kapitole N = `{ škály: {…}, zdroje: {…}, household: "…" }`. {?}
 Výchozí `household` pro kapitolu 1 je ze sloupce `Household` v listu `Characters` (§4.2).
 Součástí stavu jsou i **vybrané varianty** (`Variation ID`) každé postavy a skupiny v dané kapitole. Vznikají při přepočtu (§7.3), naplňují dokumenty (§8.3) a rozhodují, které otázky se v té kapitole položí (§4.5). Aplikace je proto musí umět vyhledat podle dvojice vlastník × kapitola.
+**Výběr se drží pro celý běh, ne jen pro aktuální kapitolu**: stav po kapitole N nese varianty všech kapitol až po N+1. Engine díky tomu ví, které otázky se v dřívějších kapitolách položily, a chybějící starší odpověď je hlasitá chyba, ne podmínka tiše vyhodnocená jako nepravda.
+**Ukládají se hned při přepočtu** — jakmile přepočet rozhodne, která varianta vyhrála, uloží se spolu s ním (`selected_variations`, vazba na `computation_id`), ne až při generování dokumentů.
 
 Stav se **ukládá jako snapshot po každé kapitole**, nikdy se nepřepisuje. Historie stavů je součástí auditu.
 
@@ -274,7 +276,8 @@ Obojí je **efekt odpovědi** (§6.7), ne ruční operace nad databází. Efekt 
 - Odvození se zatím týká jen zdroje `Wealth` (viz {?} výše).
 - **Výchozí domácnost** (sloupec `Household` v `Characters`, §4.2) má počáteční zůstatek společného účtu v listu `Resources`: řádek s ID domácnosti místo postavy.
 - **Chybí-li výchozí domácnosti řádek v `Resources` pro některý zdroj** (zatím jen `Wealth`), **import skončí chybou.** Nic se tiše nedoplňuje nulou.
-- **Konflikty (engine je nevyřeší sám, §7.3):** `HOUSEHOLD_CREATE` pro postavu, která už v domácnosti je; `HOUSEHOLD_DISSOLVE` domácnosti, která neexistuje; `HOUSEHOLD_DISSOLVE`, jehož inputy nedávají dohromady zůstatek společného účtu.
+- **Konflikty (engine je nevyřeší sám, §7.3):** `HOUSEHOLD_CREATE` pro postavu, která už v domácnosti je; `HOUSEHOLD_DISSOLVE` domácnosti, která neexistuje; `HOUSEHOLD_DISSOLVE`, jehož inputy nedávají dohromady zůstatek společného účtu. **Odmítnutý efekt nepohne ničím:** domácnost zůstane, jak byla, a odvozené dopady se neaplikují — platí to i pro rozdělení, které nesedí (jinak by peníze vznikly nebo zmizely).
+- **Dopad mířící výslovně na společný účet domácnosti, která v tu chvíli neexistuje** — ještě nevznikla, nebo v téže kapitole zanikla (`R_MarieMirek_Wealth+5` od třetí postavy, `resource_direct` na ten účet) — je rovněž konflikt a peníze se nepohnou; kam mají jít, rozhodne org. Import to předem poznat nemůže, záleží na odpovědích. Vlastní výplata a vklady efektu domácnosti jsou z pravidla vyjmuté. **V podmínkách se takový účet čte jako 0.** Příspěvků zapsaných logickým jménem (`R_Marie_Wealth+3`) se to netýká, ty se směrují na účet, který existuje.
 - Syntaxi efektů hlídá validace importu (§11, bod 10).
 
 #### Dopad na transparentnost
@@ -522,6 +525,7 @@ Anketa je jediná otázka, o které se rozhoduje z odpovědí **více postav** n
 - Vyhrává odpověď s nejvíce hlasy.
 - **Efekty odpovědi ankety se aplikují jednou za vítěznou odpověď**, ne za každého hlasujícího.
 - **Při shodě hlasů rozhoduje pořadí odpovědí (řádků) v definici ankety** — vyhrává dřívější. Remíza tedy není konflikt, který by engine vracel orgovi (§7.3): výsledek je deterministický.
+- **Stejně se řeší i anketa bez jediného hlasu** (žádná z podmíněných hlasovacích otázek se v běhu nepoložila): vyhrává první řádek definice, jeho efekty se aplikují a konflikt to není. Anketu, ve které podle tabulky vůbec nikdo hlasovat nemůže, odmítne už import (§11, bod 8).
 - Přepočet kapitoly nelze spustit, dokud nehlasovaly všechny postavy (§6.3).
 
 **Odkaz na výsledek v podmínkách [ROZHODNUTO].** V podmínkách (§4.5) se na výsledek ankety odkazuje **ID vítězné odpovědi** z definice ankety. Výraz platí, jen když tato odpověď anketu vyhrála (včetně rozhodnutí remízy podle pořadí výše).
@@ -743,7 +747,7 @@ Sada automatických kontrol (list `Validations`), spuštitelná kdykoli:
    6h. **Blok, kde má `Priority` jen část variant** — pořadí není jednoznačné (§8.2). Buď mají číslo všechny varianty bloku, nebo žádná.
    6i. **Vadný sloupec `Condition` v `N_Questions`** (§4.5): cokoli jiného než jediné `Variation ID` (výraz, ID odpovědi, porovnání škály, `RANDOM`, `DEFAULT`), `Variation ID`, které v `N_Content` téže kapitoly neexistuje, nebo které patří jiné postavě či skupině
 7. **Škály a zdroje** (`Scales`, `Resources`, §4.2): `Min` větší než `Max`, defaultní hodnota mimo rozsah `Min`–`Max`, postava neuvedená v registru `Characters`, duplicitní řádek postava × škála / zdroj, `Household` v `Characters`, které neodpovídá ID domácnosti dvou postav se stejnou hodnotou, řádek v `Resources` s ID domácnosti, která není ve sloupci `Household`, výchozí domácnost bez řádku v `Resources`
-8. **ID otázek a ankety** (§4.2, §6.6): `poll` bez vyplněného ID, `poll-answer` odkazující na neexistující anketu, duplicitní ID otázky (ručně zadané i automaticky doplněné), řádek odpovědi u `bool` otázky s textem jiným než `Ano` / `Ne`
+8. **ID otázek a ankety** (§4.2, §6.6): `poll` bez vyplněného ID, `poll-answer` odkazující na neexistující anketu, `poll`, ve které v téže kapitole nikdo nehlasuje (bez hlasů by vyhrál první řádek a jeho efekty by se aplikovaly), duplicitní ID otázky (ručně zadané i automaticky doplněné), řádek odpovědi u `bool` otázky s textem jiným než `Ano` / `Ne`
 9. **Šablony** (§10.2): soubor, jehož název neodpovídá žádné dvojici postava / skupina × kapitola, a postava nebo skupina, které chybí šablona v některé kapitole (seznam skupin se bere z listu `Groups`)
 10. **Efekty** (`Effects`, §4.4): neznámý efekt, špatný počet argumentů, argument, který není ID postavy z registru `Characters`, oba argumenty téže postavy
 

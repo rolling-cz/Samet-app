@@ -33,10 +33,16 @@ export type Conflict =
       householdId: HouseholdId
     }
   | {
-      /** `HOUSEHOLD_DISSOLVE` of a household that does not exist (§4.4). */
+      /**
+       * `HOUSEHOLD_DISSOLVE` of a household that does not exist, or an impact
+       * naming the joint account of one that does not exist at that moment —
+       * not founded yet, or dissolved in this very chapter (§4.4).
+       */
       kind: 'household_missing'
       source: EffectSource
       householdId: HouseholdId
+      /** The impact as the author wrote it; absent for the effect itself. */
+      raw?: string
     }
   | {
       /**

@@ -16,7 +16,7 @@ import { resolvePolls } from './phases/resolvePolls'
 import { selectVariants } from './phases/selectVariants'
 import { validateState } from './phases/validateState'
 import type { EngineConfig } from './types/config'
-import { CHAPTER_NUMBERS, NEXT_CHAPTER_OFFSET, type ChapterNumber } from './types/ids'
+import { CHAPTER_NUMBERS, NEXT_CHAPTER_OFFSET, type ChapterNumber, type QuestionId } from './types/ids'
 import type { EvaluationInputs } from './types/input'
 import type { EvaluateResult, VariantSelection } from './types/result'
 import type { RunState, SelectedVariants } from './types/state'
@@ -26,9 +26,12 @@ import { normalizeState } from './utils/normalizeState'
 const chapterAfter = (chapter: ChapterNumber): ChapterNumber | undefined =>
   CHAPTER_NUMBERS.find((candidate) => candidate === chapter + NEXT_CHAPTER_OFFSET)
 
-/** Undecided blocks stay out: nothing was selected for them yet (§7.4). */
-const selectedVariantsOf = (variants: VariantSelection[]): SelectedVariants => {
-  const selected: SelectedVariants = { characters: {}, groups: {} }
+/**
+ * The run's selection so far plus this computation's. Undecided blocks stay
+ * out: nothing was selected for them yet (§7.4).
+ */
+const withSelected = (earlier: SelectedVariants, variants: VariantSelection[]): SelectedVariants => {
+  const selected = structuredClone(earlier)
 
   for (const variant of variants) {
     if (variant.variationId === null) continue
@@ -48,10 +51,17 @@ export const evaluate = (state: RunState, inputs: EvaluationInputs, config: Engi
   const catalog = buildCatalog(config)
   validateState(state, catalog, inputs.chapter)
 
-  // Which of this chapter's questions were asked is a lookup in the variants
-  // the previous computation selected and stored with the state (§4.5).
-  const asked = gateQuestions(catalog, state.selectedVariants, inputs.chapter)
-  const answers = indexAnswers(inputs.answers, catalog, inputs.chapter, new Set(asked.gates.filter((gate) => gate.asked).map((gate) => gate.questionId)))
+  // Which questions were asked is a lookup in the variants stored with the
+  // state (§4.5) — for the earlier chapters too, so a forgotten old answer is
+  // a loud error and not a condition quietly reading `false`.
+  const asked = new Set<QuestionId>()
+  for (const chapter of CHAPTER_NUMBERS) {
+    if (chapter > inputs.chapter) continue
+    for (const gate of gateQuestions(catalog, state.selectedVariants, chapter).gates) {
+      if (gate.asked) asked.add(gate.questionId)
+    }
+  }
+  const answers = indexAnswers(inputs.answers, catalog, inputs.chapter, asked)
   const polls = resolvePolls(catalog, answers, inputs.chapter)
 
   const context: EvaluationContext = {
@@ -84,7 +94,7 @@ export const evaluate = (state: RunState, inputs: EvaluationInputs, config: Engi
     answeredUpTo: inputs.chapter,
   }
   const variants = selectVariants(context, scope)
-  const selectedVariants = selectedVariantsOf(variants)
+  const selectedVariants = withSelected(state.selectedVariants, variants)
   const nextChapter = chapterAfter(inputs.chapter)
   const questions = nextChapter === undefined ? { gates: [], traces: [] } : gateQuestions(catalog, selectedVariants, nextChapter)
   context.trace.push(...questions.traces)

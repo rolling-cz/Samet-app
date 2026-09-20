@@ -39,7 +39,10 @@ evaluate(stav, odpovědi, konfigurace) → { novýStav, trace[], konflikty[] }
 Žije v `src/engine/`. **Bez databáze, bez sítě, bez Reactu, bez `async`, bez
 importů z ostatních vrstev.** Musí jít otestovat na desítkách scénářů bez
 rozjetí aplikace. ESLint to hlídá (`no-restricted-imports` v
-`eslint.config.mjs`) — když to pravidlo začne překážet, není chyba v ESLintu.
+`eslint.config.mjs`): netestový soubor v `src/engine/` nesmí importovat nic mimo
+`src/engine/` — aliasem `@/…`, relativní cestou ven ani `node:*`; testy enginu
+smějí na `@/import` a `@/testing`. Když to pravidlo začne překážet, není chyba
+v ESLintu.
 Ve chvíli, kdy engine potřebuje `await`, je návrh špatně.
 
 Volající kód načte data z databáze, zavolá `evaluate` a výsledek uloží.
@@ -317,6 +320,16 @@ druhou postavu. Bez toho je to přesně ten black box, který §2 zakazuje.
 - **Konflikty** (`konflikty[]`, engine je nerozhodne): `HOUSEHOLD_CREATE` pro
   postavu, která už v domácnosti je; `HOUSEHOLD_DISSOLVE` domácnosti, která
   neexistuje; `HOUSEHOLD_DISSOLVE`, jehož inputy nedávají dohromady zůstatek.
+  **Odmítnutý efekt nepohne ničím** (`rejectedEffectKeys`): domácnost zůstane,
+  jak byla, a odvozené dopady se neaplikují — i u rozdělení, které nesedí.
+- **Dopad mířící výslovně na společný účet domácnosti, která v tu chvíli
+  neexistuje**, je taky konflikt `household_missing` a peníze se nepohnou —
+  ať domácnost ještě nevznikla, nebo v téže kapitole zanikla
+  (`R_MarieMirek_Wealth+5` od třetí postavy, `resource_direct` na ten účet).
+  Import to staticky rozhodnout neumí (záleží na odpovědích), proto konflikt,
+  ne chyba importu ani pád. Vlastní výplata a vklady efektu domácnosti jsou
+  z toho vyjmuté. **V podmínkách se takový účet dál čte jako 0.** Logických
+  jmen (`R_Marie_Wealth+3`) se to netýká, ta se směrují na existující účet.
 - **Členství ve skupině a vedení skupiny se nesledují** — ani v efektech, ani
   v `Groups`. Vyjadřují je varianty bloků a jejich podmínky (§4.6).
 
@@ -388,6 +401,17 @@ Varianta musí patřit **téže postavě** a existovat v `N_Content` **téže ka
 a kapitola a slouží třem věcem: naplnění dokumentu, rozhodnutí o otázkách
 v dotazníku a auditu. Varianty se vybírají při přepočtu předchozí kapitoly,
 takže jsou známé dřív, než se dotazník otevře — žádná cykličnost.
+
+- **Drží se pro celý běh.** `RunState.selectedVariants` po kapitole N nese výběr
+  všech kapitol až po N+1 (kapitolu varianty určuje její blok, takže stačí plochý
+  seznam ID per vlastník). Engine z něj pozná, které otázky se položily
+  i v dřívějších kapitolách — **volající proto předává odpovědi všech dosud
+  odehraných kapitol** a chybějící starší odpověď je `missing_answer`, ne tiché
+  `false` v podmínce.
+- **Ukládají se při přepočtu, ne při generování dokumentů.** Jakmile `evaluate`
+  rozhodne, která varianta vyhrála, volající ji zapíše do `selected_variations`
+  ve stejném kroku jako přepočet a snapshot (vazba na `computation_id`, nikdy
+  se nepřepisuje). Blok nerozhodnutý kvůli chybějícímu hodu řádek nemá.
 
 ## Bloky a jejich varianty (§8.2)
 
@@ -503,7 +527,12 @@ ze dvou typů:
 **Vyhodnocení je deterministické:** vyhrává odpověď s nejvíc hlasy, **při shodě
 rozhoduje pořadí řádků v definici ankety** (vyhrává dřívější). Remíza tedy
 **není konflikt pro orga**. Přepočet nelze spustit, dokud nehlasovaly všechny
-postavy s `poll-answer`.
+postavy s `poll-answer`. **Anketa, ve které v téže kapitole nikdo nehlasuje, je
+chyba importu** (`poll_without_votes`) — bez hlasů by vyhrál první řádek
+a jeho efekty by se aplikovaly. Když se v běhu nepoloží žádná z podmíněných
+hlasovacích otázek, platí totéž pravidlo jako u remízy: **vyhrává první řádek
+definice i s nulou hlasů**, efekty se aplikují a konflikt to není — vědomé
+rozhodnutí, neotevírat.
 
 V podmínkách se na výsledek odkazuje **ID vítězné odpovědi**. **Efekty odpovědi
 ankety se aplikují jednou za vítěznou odpověď**, ne za každého hlasujícího.
@@ -602,7 +631,8 @@ toho nabídni „mysleli jste …?".
 
 **Nezapomenutelné validace** (§11): `Min > Max`, výchozí hodnota mimo rozsah,
 postava mimo registr, duplicitní řádek postava × škála/zdroj, duplicitní ID
-otázky, `poll` bez ID, `poll-answer` na neexistující anketu, blok bez fallback
+otázky, `poll` bez ID, `poll-answer` na neexistující anketu, `poll` bez
+hlasujících, blok bez fallback
 varianty, fallback varianta jinde než poslední, částečně vyplněná `Priority`,
 cyklus mezi bloky, `Condition` v `N_Questions`, které není `Variation ID` téže
 postavy a kapitoly, `Household` v `Characters`, které neodpovídá dvojici

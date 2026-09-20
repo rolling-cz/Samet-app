@@ -22,6 +22,9 @@ export interface HouseholdState {
 /**
  * Variants chosen per owner, sorted (§4.3). They are state, not a by-product
  * of the documents: a question's `Condition` is looked up here (§4.5).
+ *
+ * Kept for the whole run, not per chapter: a variant's block says which
+ * chapter it belongs to, so the IDs need no further grouping.
  */
 export interface SelectedVariants {
   characters: Record<CharacterId, VariationId[]>
@@ -38,9 +41,13 @@ export interface RunState {
   characters: Record<CharacterId, CharacterState>
   households: Record<HouseholdId, HouseholdState>
   /**
-   * For chapter `completedChapter + 1`: chosen while `completedChapter` was
-   * computed, so they are known before that questionnaire opens. Empty at the
-   * start of the run — chapter 1 has no `1_Content`.
+   * Every selection made so far, up to chapter `completedChapter + 1` — whose
+   * variants were chosen while `completedChapter` was computed, so they are
+   * known before that questionnaire opens. Empty at the start of the run —
+   * chapter 1 has no `1_Content`.
+   *
+   * The earlier chapters stay so that the engine knows which of their
+   * questions were asked and can tell "not asked" from "answer not passed in".
    */
   selectedVariants: SelectedVariants
 }

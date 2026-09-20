@@ -52,8 +52,8 @@ export interface QuestionGate {
  * `variants` and `questions` describe the **next** chapter: computing chapter N
  * produces the documents and the questionnaire handed out at the start of
  * chapter N+1 (see `NEXT_CHAPTER_OFFSET`). `state.selectedVariants` carries the
- * same selection as bare IDs per owner, for the caller to store with the
- * snapshot (§4.3).
+ * same selection as bare IDs per owner, on top of the earlier chapters', for
+ * the caller to store with the snapshot (§4.3).
  */
 export interface EvaluateResult {
   /** A new object; the input state is never modified — the engine is pure. */

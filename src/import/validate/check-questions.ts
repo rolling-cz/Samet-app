@@ -1,3 +1,4 @@
+import { MISSING_POLL_ID_PREFIX } from '../constants/question-ids'
 import type { IssueCollector } from '../issue-collector'
 import type { ParsedConfig } from '../types/parsed-config'
 import type { ParsedAnswerOption, ParsedQuestion } from '../types/parsed-question'
@@ -20,9 +21,11 @@ export const checkQuestions = (
   for (const [chapter, questions] of config.questions) {
     const blockIds = new Set((config.blocks.get(chapter) ?? []).map((b) => b.externalId))
     const knownBlockIds = [...blockIds]
+    const votedPollIds = new Set(questions.map((question) => question.pollRef))
     for (const question of questions) {
       checkOwner(question, characterIds, knownCharacters, issues)
       checkPollReference(question, polls, issues)
+      checkPollHasVoters(question, chapter, votedPollIds, issues)
 
       for (const option of question.options) {
         for (const impact of option.impacts) {
@@ -157,6 +160,28 @@ const checkOwner = (
       value: question.characterRef,
       suggestion: suggestClosest(question.characterRef, knownCharacters),
     },
+  )
+}
+
+/**
+ * §6.6: with nobody to vote, the first row would win on zero votes and its
+ * effects would apply — a result no player chose.
+ */
+const checkPollHasVoters = (
+  question: ParsedQuestion,
+  chapter: number,
+  votedPollIds: Set<string | undefined>,
+  issues: IssueCollector,
+): void => {
+  // Nobody can vote in a poll without an ID; that one is reported already.
+  if (question.type !== 'poll' || question.externalId.startsWith(MISSING_POLL_ID_PREFIX)) return
+  if (votedPollIds.has(question.externalId)) return
+
+  issues.error(
+    'poll_without_votes',
+    question.location,
+    `V anketě \`${question.externalId}\` nikdo nehlasuje — v listu \`${chapter}_Questions\` není žádná otázka typu \`poll-answer\`, která by ve sloupci \`Text\` měla její ID. Bez hlasů by vyhrál první řádek a jeho efekty by se aplikovaly.`,
+    { value: question.externalId },
   )
 }
 

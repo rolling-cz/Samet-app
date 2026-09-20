@@ -20,3 +20,10 @@ export const answerId = (
 
 /** The first ordinal of a character's chapter; the count includes org and poll votes. */
 export const FIRST_QUESTION_ORDINAL = 1
+
+/**
+ * Stand-in ID of a `poll` whose `ID` cell is empty. A poll's ID is never
+ * generated (§6.6) — the missing one is already an error, and the stand-in only
+ * keeps the rest of the import going without piling follow-up errors on the row.
+ */
+export const MISSING_POLL_ID_PREFIX = 'Q_poll_radek_'

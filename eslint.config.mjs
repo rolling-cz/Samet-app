@@ -4,6 +4,17 @@ import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({ baseDirectory: dirname(fileURLToPath(import.meta.url)) })
 
+const ENGINE_PURITY_MESSAGE =
+  'src/engine musí zůstat čistý: bez DB, sítě, Reactu a bez importů z ostatních vrstev (pravidlo 1 v CLAUDE.md).'
+
+const ENGINE_BANNED_PACKAGES = ['next/*', 'react', 'react-dom', 'drizzle-orm', 'postgres', 'node:*']
+
+/** @param {string} escapingRelative regex of a relative import that leaves src/engine/ */
+const engineImportBans = (escapingRelative) => [
+  { group: ['@/*', ...ENGINE_BANNED_PACKAGES], message: ENGINE_PURITY_MESSAGE },
+  { regex: escapingRelative, message: ENGINE_PURITY_MESSAGE },
+]
+
 const config = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
@@ -11,16 +22,24 @@ const config = [
     ignores: ['.next/**', 'node_modules/**', 'drizzle/**', 'next-env.d.ts'],
   },
   {
-    // Architecture rule 1: the engine is a pure function, independent of app/ and db/.
+    // Architecture rule 1: the engine imports nothing outside src/engine/.
     files: ['src/engine/**/*.ts'],
+    ignores: ['src/engine/**/*.test.ts'],
+    rules: { 'no-restricted-imports': ['error', { patterns: engineImportBans('^(\\.\\./){2,}') }] },
+  },
+  {
+    // One `../` already leaves the engine from its root.
+    files: ['src/engine/*.ts'],
+    ignores: ['src/engine/**/*.test.ts'],
+    rules: { 'no-restricted-imports': ['error', { patterns: engineImportBans('^\\.\\./') }] },
+  },
+  {
+    // Tests go through the real import and the fixtures, but stay off the DB and React.
+    files: ['src/engine/**/*.test.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
-        {
-          patterns: [
-            { group: ['@/app/*', '@/db/*', 'next/*', 'react', 'react-dom', 'drizzle-orm', 'postgres'], message: 'src/engine musí zůstat čistý: bez DB, sítě a Reactu (pravidlo 1 v CLAUDE.md).' },
-          ],
-        },
+        { patterns: [{ group: ['@/app/*', '@/db/*', ...ENGINE_BANNED_PACKAGES], message: ENGINE_PURITY_MESSAGE }] },
       ],
     },
   },

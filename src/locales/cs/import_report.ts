@@ -63,6 +63,7 @@ export const importReport = Object.freeze({
     unknown_block: 'neznámý blok',
     unknown_answer: 'neznámá odpověď',
     unknown_poll: 'neznámá anketa',
+    poll_without_votes: 'anketa bez hlasujících',
     answer_without_question: 'odpověď bez otázky',
     question_without_answers: 'otázka bez odpovědí',
     duplicate_id: 'duplicitní ID',

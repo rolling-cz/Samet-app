@@ -1,7 +1,7 @@
 /**
  * The incoming state must match the config: every character with every scale
  * and personal account it was given, every household a real pair whose members
- * point back at it, every stored variant one of the owner's blocks for the
+ * point back at it, every stored variant one of the owner's blocks up to the
  * chapter being computed. A mismatch is a bug in whoever saved the snapshot,
  * and the engine names it rather than filling anything in.
  */
@@ -26,7 +26,7 @@ const checkSelectedVariants = (state: RunState, catalog: Catalog, chapter: Chapt
         report(variationId, 'selected variant is not in the config')
         continue
       }
-      if (block.chapter !== chapter) report(variationId, `selected for chapter ${chapter}, but its block belongs to chapter ${block.chapter}`)
+      if (block.chapter > chapter) report(variationId, `belongs to chapter ${block.chapter}, which is not decided before chapter ${chapter} is computed`)
       if ((ownerKind === 'character' ? block.characterId : block.groupId) !== ownerId) {
         report(variationId, `stored under ${ownerKind} ${ownerId}, who does not own block ${block.id}`)
       }
@@ -45,7 +45,7 @@ const checkSelectedVariants = (state: RunState, catalog: Catalog, chapter: Chapt
   // A draft with an undecided block must not be built on: whether the question
   // was asked is unknown, and "not asked" would be a guess.
   for (const question of catalog.config.questions) {
-    if (question.chapter !== chapter || question.conditionVariationId === undefined) continue
+    if (question.chapter > chapter || question.conditionVariationId === undefined) continue
     const block = catalog.variations.get(question.conditionVariationId)?.block
     if (block && !decidedBlocks.has(block.id)) {
       report(question.id, `block ${block.id} has no selected variant, so the questionnaire cannot be decided`)

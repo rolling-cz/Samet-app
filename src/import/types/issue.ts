@@ -21,6 +21,7 @@ export type IssueCode =
   | 'unknown_block'
   | 'unknown_answer'
   | 'unknown_poll'
+  | 'poll_without_votes'
   | 'answer_without_question'
   | 'question_without_answers'
   | 'duplicate_id'
