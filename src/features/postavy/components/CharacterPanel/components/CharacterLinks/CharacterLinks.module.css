@@ -1,0 +1,10 @@
+.link {
+  border-left: 3px solid transparent;
+}
+
+/* A bar as well as a tint, not colour alone (§6.4). */
+.link[data-selected='true'] {
+  border-left-color: var(--run-accent);
+  background-color: var(--mui-palette-action-selected);
+  font-weight: 600;
+}

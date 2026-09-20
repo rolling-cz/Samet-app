@@ -16,6 +16,10 @@ export const navigation = Object.freeze({
     vystupy: 'Přehled škál a vygenerované dokumenty přijdou po přepočtu.',
     sprava: '',
   } satisfies Record<RunSection, string>),
+  sectionInChapter: (section: string, chapter: number) => `${section} — kapitola ${chapter}`,
+  chapterBlockedTitle: (chapter: number) => `Kapitolu ${chapter} zatím nejde otevřít`,
+  chapterBlockedBody: (chapter: number, missingChapter: number) =>
+    `Kapitola ${chapter} vychází z potvrzeného přepočtu kapitoly ${missingChapter} — z něj se berou otázky i výchozí stav postav. Ten zatím neexistuje.`,
   sectionsLabel: 'Sekce běhu',
   runLabel: 'Běh',
   allRuns: 'Všechny běhy',

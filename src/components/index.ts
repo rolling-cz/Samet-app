@@ -1,6 +1,8 @@
 export { AppHeader } from './AppHeader/AppHeader'
 export { AuthorField } from './AuthorField/AuthorField'
+export { ChapterBlocked } from './ChapterBlocked/ChapterBlocked'
 export { FormDialog } from './FormDialog/FormDialog'
+export { PageNote } from './PageNote/PageNote'
 export { RunBadge } from './RunBadge/RunBadge'
 export { RunThemeRoot } from './RunThemeRoot/RunThemeRoot'
 export { SectionPlaceholder } from './SectionPlaceholder/SectionPlaceholder'

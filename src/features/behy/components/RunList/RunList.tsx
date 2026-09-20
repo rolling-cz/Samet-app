@@ -8,7 +8,7 @@ import TableRow from '@mui/material/TableRow'
 import Typography from '@mui/material/Typography'
 import Link from 'next/link'
 import { RunBadge } from '@/components'
-import { DEFAULT_RUN_SECTION, runRoute } from '@/core'
+import { runHomeRoute } from '@/core'
 import type { RunSummary } from '@/db'
 import { APP_LOCALE } from '@/locales/app-locale'
 import { common } from '@/locales/cs/common'
@@ -54,7 +54,7 @@ export const RunList = ({ runs }: { runs: RunSummary[] }) => (
                   <RenameRunButton runId={run.id} label={run.label} />
                   <Button
                     component={Link}
-                    href={runRoute(run.id, DEFAULT_RUN_SECTION)}
+                    href={runHomeRoute(run.id)}
                     variant="outlined"
                     data-testid={`run-list--open--${run.id}`}
                   >

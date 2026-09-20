@@ -84,7 +84,7 @@ V UI platí navíc: přepínač běhu trvale v hlavičce na každé obrazovce,
 dialogy u zásadních akcí vždy jmenují běh („Uzamknout kapitolu 2 běhu
 **2026-09-12_B**?"), název běhu je v názvu každého exportu.
 
-**Běh je v cestě URL** (`/beh/<runId>/<sekce>`), ne v cookie: dvě záložky smějí
+**Běh je v cestě URL** (`/beh/<runId>/kapitola/<n>/<sekce>`, Správa bez kapitoly: `/beh/<runId>/sprava`), ne v cookie: dvě záložky smějí
 držet dva různé běhy a sdílená cookie by jednu z nich tiše přepnula. Písmeno
 běhu začíná s každým datem zahájení znovu od `A`; A/B/C jsou běhy téhož data
 (`nextRunLetter`). **Ze stejného důvodu patří do cesty i kapitola a vybraná
@@ -850,8 +850,11 @@ Dál v tomhle pořadí; kroky 1–2 mají zadání v
 `documents/zadani-session-4-prepocet-jadro.md`, krok 3 v
 `documents/zadani-session-5-dotaznik.md`:
 
-1. **Navigace po postavách a kapitolách** — položky levého panelu a stavy kapitol
-   v hlavičce jako odkazy, postava i kapitola v cestě URL.
+1. **Navigace po postavách a kapitolách** — **hotovo.** Položky levého panelu
+   a stavy kapitol v hlavičce jsou odkazy, postava i kapitola jsou v cestě URL;
+   cesty skládá `src/core/constants/routes.ts`, adresu čte `useRunLocation`.
+   „Lze kapitolu otevřít?" je zatím zástupné (`chapterAvailability` podle stavu
+   předchozí kapitoly) — krok 2 ho nahradí rozhodnutím podle přepočtů.
 2. **Jádro přepočtu bez UI** — volající vrstva mimo `src/engine/`: načte stav
    a odpovědi všech dosud odehraných kapitol, zavolá `evaluate` a **v jedné
    transakci** zapíše `computations` (trace, konflikty), snapshot škál, zdrojů

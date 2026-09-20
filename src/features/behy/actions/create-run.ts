@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { failedFormState, HOME_ROUTE, isCalendarDate, NEW_RUN_SECTION, runRoute, type FormState } from '@/core'
+import { adminRoute, failedFormState, HOME_ROUTE, isCalendarDate, type FormState } from '@/core'
 import { readAuthor } from '@/core/services/auth-cookies'
 import { createRun } from '@/db'
 import { errors } from '@/locales/cs/errors'
@@ -30,5 +30,6 @@ export const createRunAction = async (_previous: FormState, formData: FormData):
   }
 
   revalidatePath(HOME_ROUTE, 'layout')
-  redirect(runRoute(runId, NEW_RUN_SECTION))
+  // A fresh run has no config yet, so it starts in Správa.
+  redirect(adminRoute(runId))
 }
