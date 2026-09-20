@@ -1,4 +1,5 @@
 .link {
+  gap: var(--mui-spacing);
   border-left: 3px solid transparent;
 }
 
@@ -7,4 +8,14 @@
   border-left-color: var(--run-accent);
   background-color: var(--mui-palette-action-selected);
   font-weight: 600;
+}
+
+.progress {
+  flex-shrink: 0;
+  color: var(--mui-palette-text-secondary);
+}
+
+.noMatch {
+  padding: calc(var(--mui-spacing) * 2);
+  color: var(--mui-palette-text-secondary);
 }

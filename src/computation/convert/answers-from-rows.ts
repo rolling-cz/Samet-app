@@ -1,51 +1,10 @@
 import { compareIds, type AnswerInput } from '@/engine'
-import { boolOptionLabel } from '../constants/bool-options'
+import { groupBy } from '@/utils/group-by'
 import type { AnswerRows } from '../types/answer-rows'
 import type { ConfigRows } from '../types/config-rows'
 import type { IdDirectory } from '../types/id-directory'
 import { UnknownIdError } from '../errors/unknownIdError'
-
-type QuestionRow = ConfigRows['questions'][number]
-type OptionRow = ConfigRows['answerOptions'][number]
-
-const byOrdinal = (a: OptionRow, b: OptionRow): number => a.ordinal - b.ordinal
-
-const groupBy = <T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> => {
-  const groups = new Map<string, T[]>()
-  for (const row of rows) {
-    const group = groups.get(keyOf(row)) ?? []
-    group.push(row)
-    groups.set(keyOf(row), group)
-  }
-
-  return groups
-}
-
-/**
- * Which options the answer stands for. Nothing is repaired: an answer with no
- * value yields no option, and the engine says what is wrong with it (§6.3).
- */
-const selectedOptions = (
-  question: QuestionRow,
-  answer: AnswerRows['answers'][number],
-  ownOptions: readonly OptionRow[],
-  chosen: readonly OptionRow[],
-): OptionRow[] => {
-  switch (question.type) {
-    case 'bool': {
-      if (answer.boolValue === null) return []
-      const label = boolOptionLabel(answer.boolValue)
-
-      return ownOptions.filter((option) => option.label === label)
-    }
-    // The number is the answer; the question's one option only carries `=VALUE` (§6.7).
-    case 'scale_direct':
-    case 'resource_direct':
-      return [...ownOptions]
-    default:
-      return [...chosen].sort(byOrdinal)
-  }
-}
+import { answeredOptions } from './answered-options'
 
 /**
  * Stored answers → the engine's `AnswerInput[]`, for every chapter up to
@@ -78,7 +37,7 @@ export const answersFromRows = (
 
       return option
     })
-    const selected = selectedOptions(question, answer, optionsByQuestion.get(question.id) ?? [], chosen)
+    const selected = answeredOptions(question, answer.boolValue, optionsByQuestion.get(question.id) ?? [], chosen)
 
     const input: AnswerInput = {
       questionId: directory.questions.toExternal(question.id),

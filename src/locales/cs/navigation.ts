@@ -20,6 +20,7 @@ export const navigation = Object.freeze({
   chapterBlockedTitle: (chapter: number) => `Kapitolu ${chapter} zatím nejde otevřít`,
   chapterBlockedBody: (chapter: number, missingChapter: number) =>
     `Kapitola ${chapter} vychází z potvrzeného přepočtu kapitoly ${missingChapter} — z něj se berou otázky i výchozí stav postav. Ten zatím neexistuje.`,
+  chapterBlockedAction: (missingChapter: number) => `Přepočet kapitoly ${missingChapter}`,
   sectionsLabel: 'Sekce běhu',
   runLabel: 'Běh',
   allRuns: 'Všechny běhy',

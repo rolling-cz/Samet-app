@@ -855,10 +855,14 @@ Dál v tomhle pořadí; kroky 1–2 mají zadání v
    cesty skládá `src/core/constants/routes.ts`, adresu čte `useRunLocation`.
    „Lze kapitolu otevřít?" rozhoduje `loadChapterAvailability` z jádra přepočtu.
 2. **Jádro přepočtu bez UI** — **hotovo**, žije v `src/computation/` (viz sekce
-   „Jádro přepočtu" níže). V sekci Přepočet je jen tlačítko „Přepočítat";
-   potvrzení přepočtu zatím nemá UI (`confirmComputation`, `scripts/compute-demo.ts`).
-3. **Zadávání odpovědí kompletně pro kapitoly 1–3** — dotazník se na otázky
-   a stav ptá jen přes metody z kroku 2, nikdy si je neskládá sám.
+   „Jádro přepočtu" níže). V sekci Přepočet jsou jen tlačítka „Přepočítat"
+   a „Potvrdit verzi N" (bez potvrzení nejde otevřít další kapitola); trace,
+   konflikty a náhled změn přijdou v kroku 4.
+3. **Zadávání odpovědí kompletně pro kapitoly 1–3** — **hotovo**, žije
+   v `src/features/dotaznik/` (viz sekce „Dotazník" níže). Dotazník se na otázky
+   a stav ptá jen přes metody jádra, nikdy si je neskládá sám. Celou smyčku nad
+   fixture projde `scripts/questionnaire-demo.ts` (`--empty` připraví jen běh
+   k ručnímu proklikání).
 4. **Sekce Přepočet** — trace „proč", konflikty, náhled změn, editace.
 
 Krok 2 je před dotazníkem, protože dotazník kapitoly 2+ je lookup ve vybraných
@@ -895,9 +899,44 @@ načti(runId, kapitola) → evaluate(stav, odpovědi, konfigurace) → ulož(vý
 - **Hody hází jádro** (1–100), ukládá je ve stejné transakci a nikdy je
   nepřehazuje; smyčka má horní mez `MAX_ROLL_ROUNDS`.
 - **Dotazník a obrazovky se na otázky a stav ptají jen přes** `loadAskedQuestions`,
-  `loadCharacterState`, `loadChapterAvailability`, `loadComputationBlockers`.
+  `loadCharacterState`, `loadChapterAvailability`, `loadComputationBlockers`,
+  `loadQuestionnaire` (položené otázky postavy se zněním, volbami, `{input}` poli,
+  cílem `*_direct`, uloženou odpovědí a stavem před kapitolou),
+  `loadChapterCompletion` (vyplněnost všech postav kapitoly jedním průchodem)
+  a `loadChapterStaleness` (je přepočet starší než poslední změna odpovědi?).
+- **Vyplněnost se měří tím, co by zastavilo přepočet** (`answerState`,
+  `chapterCompletion`): chybějící odpověď, `multi` bez volby, chybějící číslo
+  u `*_direct`, prázdné `{input}` vybrané volby. Odpověď na nepoloženou otázku
+  se nepočítá; postava bez otázek je hotová.
+- **Zastaralost přepočtu se čte z `audit_log`**, ne z `answers` — zrušená odpověď
+  po sobě řádek nenechá. Akce `answer.change` / `answer.cancel` proto žijí
+  v `src/computation/constants/audit-actions.ts`.
+- **Kontext kapitoly (konfigurace + výchozí přepočet) se v rámci jednoho
+  požadavku načítá jednou** (`cache` z Reactu v `load-chapter-context.ts`);
+  zápis odpovědi ani jedno z toho nemění.
 - Ořez škály a každý nový hod jdou do `audit_log` při přepočtu (i nanečisto),
   s vazbou na `computation_id`.
+
+## Dotazník (`src/features/dotaznik/`)
+
+- **Jedna změna = jeden zápis jedné otázky** (`saveAnswer`). Formulář posílá
+  koncept (`AnswerDraft`, čísla jako text), server si otázku znovu načte z jádra
+  a koncept převede stejnou čistou funkcí jako formulář (`toAnswerWrite`):
+  `write` / `cancel` / `invalid`. Koncept, který není odpovědí (`multi` bez
+  volby, vymazané číslo, „zrušit odpověď"), odpověď **smaže** — vždy s auditem.
+- **Audit nese hodnotu před a po ve workbookových ID** (`StoredAnswerValue`);
+  zápis beze změny se neprovede a do auditu nejde.
+- **Vydaná kapitola:** server bez důvodu vrátí `reason_required`; UI se na důvod
+  zeptá jednou za otevřenou postavu (`useReleasedReason`) a posílá ho s každou
+  změnou. Kaskádu dělá `touchChapters` (`src/core/services/`), sdílená
+  s nouzovou opravou konfigurace.
+- **Vyplněnost sdílí panel a dotazník přes `CompletionProvider`** (`src/core/`):
+  layout běhu načte všechny kapitoly, každé uložení a každé otevření postavy
+  pošle čerstvý stav kapitoly — indikátory se hýbou bez načtení stránky.
+- **`Questionnaire` má `key` z kapitoly a postavy** — každá otázka drží svůj
+  koncept od připojení, jiná postava musí být jiná instance.
+- **Neuložená hodnota (chyba, neplatné číslo) drží odchod** (`useLeaveGuard`);
+  rozepsané pole se uloží při opuštění pole i při odchodu z postavy.
 
 ## Rozsah MVP (§14)
 

@@ -1,0 +1,12 @@
+.icon {
+  flex-shrink: 0;
+  color: var(--mui-palette-text-secondary);
+}
+
+.icon[data-status='in_progress'] {
+  color: var(--mui-palette-warning-main);
+}
+
+.icon[data-status='done'] {
+  color: var(--mui-palette-success-main);
+}

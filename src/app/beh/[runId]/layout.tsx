@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { AppHeader, RunThemeRoot } from '@/components'
 import { defaultChapterNumber } from '@/core'
+import { CompletionProvider } from '@/core/providers/CompletionProvider'
+import { loadRunCompletion } from '@/core/services/load-run-completion'
 import { loadRunShell } from '@/core/services/load-run-shell'
 import { readAuthor } from '@/core/services/auth-cookies'
 import { CharacterPanel, loadCharacterList } from '@/features/postavy'
@@ -21,21 +23,30 @@ const RunLayout = async ({ children, params }: RunLayoutProps) => {
   const shell = await loadRunShell(runId)
   if (!shell) notFound()
 
-  const [characters, author] = await Promise.all([loadCharacterList(shell.run.id), readAuthor()])
+  const [characters, author, completion] = await Promise.all([
+    loadCharacterList(shell.run.id),
+    readAuthor(),
+    loadRunCompletion(
+      shell.run.id,
+      shell.chapters.map((chapter) => chapter.number),
+    ),
+  ])
 
   return (
     <RunThemeRoot themeKey={runThemeKey(shell.run.letter)}>
       <AppHeader run={shell.run} runs={shell.runs} chapters={shell.chapters} author={author} />
-      <div className={styles.body}>
-        <CharacterPanel
-          runId={shell.run.id}
-          characters={characters}
-          defaultChapter={defaultChapterNumber(shell.chapters)}
-        />
-        <main className={styles.main} data-testid="run-main">
-          {children}
-        </main>
-      </div>
+      <CompletionProvider initial={completion}>
+        <div className={styles.body}>
+          <CharacterPanel
+            runId={shell.run.id}
+            characters={characters}
+            defaultChapter={defaultChapterNumber(shell.chapters)}
+          />
+          <main className={styles.main} data-testid="run-main">
+            {children}
+          </main>
+        </div>
+      </CompletionProvider>
     </RunThemeRoot>
   )
 }

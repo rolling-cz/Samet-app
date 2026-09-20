@@ -1,4 +1,5 @@
-import type { RunScope } from '@/db'
+import { cache } from 'react'
+import { forRun, type RunScope } from '@/db'
 import { FIRST_CHAPTER } from '@/db/constants/chapters'
 import { buildIdDirectory } from '../convert/build-id-directory'
 import { loadBaseline } from '../services/load-baseline'
@@ -17,8 +18,7 @@ export type ChapterContext =
     }
   | { _type: 'blocked'; missingChapter: number }
 
-/** What every read of a chapter starts from. A chapter the run does not have is an `UnknownIdError`. */
-export const loadChapterContext = async (scope: RunScope, chapter: number): Promise<ChapterContext> => {
+const buildChapterContext = async (scope: RunScope, chapter: number): Promise<ChapterContext> => {
   const config = await loadConfigRows(scope)
   const directory = buildIdDirectory(config)
   const chapterId = directory.chapters.toDb(chapter)
@@ -30,3 +30,13 @@ export const loadChapterContext = async (scope: RunScope, chapter: number): Prom
 
   return { _type: 'open', config, directory, chapterId, baselineId: baseline.id }
 }
+
+/**
+ * One screen asks several reads about the same chapter; within a request they
+ * share this. Config and baseline are all it holds, and no answer write changes either.
+ */
+const chapterContextOf = cache((runId: string, chapter: number) => buildChapterContext(forRun(runId), chapter))
+
+/** What every read of a chapter starts from. A chapter the run does not have is an `UnknownIdError`. */
+export const loadChapterContext = (scope: RunScope, chapter: number): Promise<ChapterContext> =>
+  chapterContextOf(scope.runId, chapter)

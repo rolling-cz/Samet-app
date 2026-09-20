@@ -107,11 +107,13 @@ export class RunScope {
   }
 
   /**
-   * Run-scoped delete. Two legitimate uses: the config import dropping entities
-   * a re-uploaded sheet no longer carries — only before the first computation
-   * (§6.5) — and cancelling an answer back to "nobody answered yet", always
-   * with an audit entry (rule 3). `restrict` foreign keys still protect
-   * anything entered against them.
+   * Run-scoped delete. Two legitimate uses besides the seed: the config import
+   * dropping entities a re-uploaded sheet no longer carries — only before the
+   * first computation (§6.5) — and the questionnaire: cancelling an answer back
+   * to "nobody answered yet", or dropping the options and `{input}` values an
+   * edited answer no longer holds. Both always with an audit entry carrying the
+   * value before (rule 3). `restrict` foreign keys still protect anything
+   * entered against them.
    */
   delete<T extends RunScopedTable>(table: T, ...conditions: (SQL | undefined)[]) {
     return this.db.delete(table).where(this.scoped(table, ...conditions))

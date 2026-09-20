@@ -1,0 +1,40 @@
+/* Unanswered and answered differ by border style and icon, not by colour alone (§6.3). */
+.card {
+  padding: var(--mui-spacing) calc(var(--mui-spacing) * 1.5) calc(var(--mui-spacing) * 0.25);
+  background-color: var(--mui-palette-background-paper);
+  border: 1px solid var(--mui-palette-divider);
+  border-left: 4px dashed var(--mui-palette-text-secondary);
+  border-radius: var(--mui-shape-borderRadius);
+}
+
+.card[data-state='incomplete'] {
+  border-left: 4px double var(--mui-palette-warning-main);
+}
+
+.card[data-state='complete'] {
+  border-left: 4px solid var(--mui-palette-success-main);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mui-spacing);
+}
+
+.text {
+  flex: 1;
+  font-weight: 600;
+}
+
+.ordinal {
+  color: var(--mui-palette-text-secondary);
+}
+
+.help {
+  margin-left: calc(var(--mui-spacing) * 3.5);
+  color: var(--mui-palette-text-secondary);
+}
+
+.body {
+  margin-left: calc(var(--mui-spacing) * 3.5);
+}

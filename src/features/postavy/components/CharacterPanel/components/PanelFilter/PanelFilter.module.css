@@ -1,0 +1,11 @@
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mui-spacing) * 0.25);
+  padding: var(--mui-spacing) calc(var(--mui-spacing) * 1.5) 0;
+}
+
+.toggle {
+  margin: 0;
+  color: var(--mui-palette-text-secondary);
+}

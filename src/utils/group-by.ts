@@ -1,0 +1,11 @@
+export const groupBy = <T, K = string>(rows: readonly T[], keyOf: (row: T) => K): Map<K, T[]> => {
+  const groups = new Map<K, T[]>()
+  for (const row of rows) {
+    const key = keyOf(row)
+    const group = groups.get(key) ?? []
+    group.push(row)
+    groups.set(key, group)
+  }
+
+  return groups
+}

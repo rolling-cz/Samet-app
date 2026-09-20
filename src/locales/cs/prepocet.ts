@@ -15,5 +15,13 @@ export const prepocet = Object.freeze({
     `Archivovaná konfigurace ${filename} už neprojde importem (chyb: ${count}). Nahraj opravenou ve Správě.`,
   noBaseline: (missingChapter: number) => `Chybí potvrzený přepočet kapitoly ${missingChapter}, ze kterého se vychází.`,
   unknownChapter: (chapter: number) => `Kapitola ${chapter} v běhu není.`,
+  confirm: (version: number) => `Potvrdit verzi ${version}`,
+  confirmQuestion: (chapter: number, version: number, runId: string) =>
+    `Potvrdit přepočet kapitoly ${chapter} (verze ${version}) běhu ${runId}? Další kapitola z něj bude vycházet.`,
+  confirmed: (chapter: number, version: number) =>
+    `Přepočet kapitoly ${chapter}, verze ${version}, je potvrzený. Další kapitola z něj vychází.`,
+  alreadyConfirmed: 'Tahle verze už potvrzená je.',
+  confirmHasConflicts: (count: number) => `Verzi nejde potvrdit, má nerozhodnuté konflikty: ${count}.`,
+  confirmNotFound: 'Verze přepočtu se nenašla.',
   authorRequired: 'Chybí jméno z „Kdo jsi?" — každý přepočet se zapisuje do auditu se jménem.',
 })

@@ -7,10 +7,11 @@ interface VystupyPageProps {
 
 const VystupyPage = async ({ params }: VystupyPageProps) => {
   const { runId, chapter: chapterSegment } = await params
-  const { chapter, availability } = await loadChapterPage(runId, chapterSegment)
+  const page = await loadChapterPage(runId, chapterSegment)
+  const { chapter, availability } = page
 
   if (availability._type === 'blocked') {
-    return <ChapterBlocked chapter={chapter} missingChapter={availability.missingChapter} />
+    return <ChapterBlocked runId={page.runId} chapter={chapter} missingChapter={availability.missingChapter} />
   }
 
   return <SectionPlaceholder section="vystupy" chapter={chapter} />

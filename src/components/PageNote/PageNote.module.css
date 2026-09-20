@@ -6,3 +6,7 @@
   margin-top: var(--mui-spacing);
   color: var(--mui-palette-text-secondary);
 }
+
+.action {
+  margin-top: calc(var(--mui-spacing) * 1.5);
+}
