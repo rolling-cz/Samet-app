@@ -1,3 +1,4 @@
+import type { IssueLocation } from './issue'
 import type { Sourced } from './sourced'
 
 /**
@@ -11,6 +12,11 @@ export interface ParsedCharacter extends Sourced {
   externalId: string
   firstName: string
   lastName: string
-  /** Household the character starts in, when the sheet names one (§4.4). */
+  /**
+   * The `Household` column (§4.2): the household the character starts chapter 1
+   * in. Empty when they start single.
+   */
   householdRef?: string
+  /** Where the `Household` cell is, so its validation can point at it. */
+  householdLocation: IssueLocation
 }

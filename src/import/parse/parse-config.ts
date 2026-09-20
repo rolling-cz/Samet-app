@@ -7,6 +7,7 @@
  * parse continues with what is left.
  */
 import { buildAliases } from '../characters'
+import { collectDefaultHouseholds } from '../households'
 import {
   CHAPTER_SHEET_KINDS,
   CHAPTERS,
@@ -43,6 +44,7 @@ export const parseConfig = (workbook: Workbook, issues: IssueCollector): ParsedC
 
   const characters = parseCharacters(workbook, issues, repairs)
   const aliases = buildAliases(characters)
+  const households = collectDefaultHouseholds(characters)
 
   const groups = parseGroups(workbook, issues, repairs)
 
@@ -67,6 +69,7 @@ export const parseConfig = (workbook: Workbook, issues: IssueCollector): ParsedC
   return {
     chapters: [...chapters],
     characters,
+    households,
     groups,
     scales: parseScales(workbook, aliases, issues, repairs),
     resources: parseResources(workbook, aliases, issues, repairs),

@@ -1,7 +1,8 @@
-import { CHARACTER_ARGUMENT_EFFECTS, GROUP_ARGUMENT_EFFECTS } from '../constants/sheet-vocabulary'
 import type { IssueCollector } from '../issue-collector'
 import type { ParsedConfig } from '../types/parsed-config'
-import type { ParsedQuestion } from '../types/parsed-question'
+import type { ParsedAnswerOption, ParsedQuestion } from '../types/parsed-question'
+import { householdExternalId } from '@/engine'
+import { splitHouseholdId } from '../utils/household-id'
 import { suggestClosest } from '../utils/suggest-closest'
 import { answersUpTo, checkConditionReferences, type ReferenceScope } from './check-references'
 import { householdResourceIds, knownResourceIds, knownScaleIds } from './known-scale-ids'
@@ -9,11 +10,9 @@ import { householdResourceIds, knownResourceIds, knownScaleIds } from './known-s
 export const checkQuestions = (
   config: ParsedConfig,
   characterIds: Set<string>,
-  groupIds: Set<string>,
   issues: IssueCollector,
 ): void => {
   const knownCharacters = [...characterIds]
-  const knownGroups = [...groupIds]
   const scaleIds = knownScaleIds(config)
   const resourceIds = knownResourceIds(config)
   const jointIds = householdResourceIds(config)
@@ -92,27 +91,7 @@ export const checkQuestions = (
           )
         }
 
-        for (const effect of option.effects) {
-          if (CHARACTER_ARGUMENT_EFFECTS.includes(effect.name) && !characterIds.has(effect.argument)) {
-            issues.error(
-              'neznama_postava',
-              option.location,
-              `Efekt \`${effect.raw}\` u odpovědi \`${option.externalId}\` odkazuje na postavu \`${effect.argument}\`, která není v listu \`Characters\`.`,
-              {
-                value: effect.argument,
-                suggestion: suggestClosest(effect.argument, knownCharacters),
-              },
-            )
-          }
-          if (GROUP_ARGUMENT_EFFECTS.includes(effect.name) && !groupIds.has(effect.argument)) {
-            issues.error(
-              'neznama_skupina',
-              option.location,
-              `Efekt \`${effect.raw}\` u odpovědi \`${option.externalId}\` odkazuje na skupinu \`${effect.argument}\`, která není v listu \`Groups\`.`,
-              { value: effect.argument, suggestion: suggestClosest(effect.argument, knownGroups) },
-            )
-          }
-        }
+        checkEffects(option, characterIds, knownCharacters, issues)
       }
     }
   }
@@ -126,17 +105,46 @@ export const checkQuestions = (
  * and saying so is worth more than "neexistuje".
  */
 const householdOutOfOrder = (owner: string, characterIds: Set<string>): string | undefined => {
-  for (const first of characterIds) {
-    if (!owner.startsWith(first)) continue
+  const members = splitHouseholdId(owner, characterIds)
+  if (!members) return undefined
 
-    const second = owner.slice(first.length)
-    if (!characterIds.has(second)) continue
-    if (first.localeCompare(second, 'cs') <= 0) continue
+  const correct = householdExternalId(members[0], members[1])
 
-    return `${second}${first}`
+  return correct === owner ? undefined : correct
+}
+
+/**
+ * The `Effects` column's arguments (§11, bod 10). The syntax is settled by the
+ * parser; what is left is whether the two IDs name two different characters the
+ * registry knows — a household of one, or of somebody who does not exist, is
+ * not something the engine can be asked to decide.
+ */
+const checkEffects = (
+  option: ParsedAnswerOption,
+  characterIds: Set<string>,
+  knownCharacters: string[],
+  issues: IssueCollector,
+): void => {
+  for (const effect of option.effects) {
+    for (const argument of effect.args) {
+      if (characterIds.has(argument)) continue
+      issues.error(
+        'neznama_postava',
+        effect.location,
+        `Efekt \`${effect.raw}\` u odpovědi \`${option.externalId}\` odkazuje na postavu \`${argument}\`, která není v listu \`Characters\`.`,
+        { value: argument, suggestion: suggestClosest(argument, knownCharacters) },
+      )
+    }
+
+    const [first, second] = effect.args
+    if (first === undefined || second !== first) continue
+    issues.error(
+      'vadny_efekt',
+      effect.location,
+      `Efekt \`${effect.raw}\` u odpovědi \`${option.externalId}\` jmenuje dvakrát tutéž postavu — domácnost tvoří dvě různé postavy.`,
+      { value: first },
+    )
   }
-
-  return undefined
 }
 
 /** Polls of the whole run, by ID; a vote may sit in the same sheet as its poll. */

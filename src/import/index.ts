@@ -7,6 +7,8 @@ export { parseConfig, unknownSheets } from './parse/parse-config'
 export { validateConfig, type ValidationInput } from './validate/validate-config'
 export { readTemplateFiles, templateCoverage, type RawFile, type TemplateAssignment, type TemplateCoverage } from './template-upload'
 export { parseScaleImpact, splitImpactId, literalAmount, inputKeys } from './scale-impact'
+export { householdEffectImpacts } from './household-effect-impacts'
+export { collectDefaultHouseholds } from './households'
 export type { ImpactKind, ImpactTerm, ScaleImpact } from './scale-impact'
 export { parseCondition, DEFAULT_CONDITION } from './expression'
 export { parseTemplate, parseTemplateFilename, blockMarkers, KNOWN_VARIABLES } from './template'
@@ -20,6 +22,7 @@ export type { ParsedCharacter } from './types/parsed-character'
 export type { ParsedScaleRow } from './types/parsed-scale'
 export type { ParsedResourceRow } from './types/parsed-resource'
 export type { ParsedGroup } from './types/parsed-group'
+export type { ParsedHousehold } from './types/parsed-household'
 export type {
   ParsedAnswerEffect,
   ParsedAnswerOption,

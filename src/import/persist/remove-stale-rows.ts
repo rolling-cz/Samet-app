@@ -17,6 +17,8 @@ import {
   effectInputs,
   effects,
   groups,
+  householdResources,
+  households,
   questions,
   resources,
   scales,
@@ -73,9 +75,11 @@ export const findStaleRows = async (scope: RunScope, written: WrittenRows): Prom
   await collect(scope, written, 'contentBlocks', contentBlocks, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'characterScales', characterScales, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'characterResources', characterResources, (r) => ({ id: r.id, label: r.externalId })),
+  await collect(scope, written, 'householdResources', householdResources, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'scales', scales, (r) => ({ id: r.id, label: r.key })),
   await collect(scope, written, 'resources', resources, (r) => ({ id: r.id, label: r.key })),
   await collect(scope, written, 'characters', characters, (r) => ({ id: r.id, label: r.externalId })),
+  await collect(scope, written, 'households', households, (r) => ({ id: r.id, label: r.externalId })),
   await collect(scope, written, 'groups', groups, (r) => ({ id: r.id, label: r.externalId })),
 ]
 

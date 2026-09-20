@@ -4,7 +4,7 @@
  * Carries labelled data, not finished sentences: the wording belongs to the UI
  * and must be changeable without recomputing.
  */
-import type { CharacterId, GroupId, HouseholdId, RuleId } from './ids'
+import type { CharacterId, HouseholdId, RuleId } from './ids'
 
 export interface TraceContribution {
   sourceKind: 'odpoved' | 'pravidlo' | 'hod' | 'pocatecni' | 'rucni'
@@ -17,7 +17,7 @@ export interface TraceContribution {
    * this there is no way to explain it.
    */
   characterId?: CharacterId
-  /** Set on merge and split, where §4.4 requires both original values. */
+  /** Set when a household is created or dissolved; §4.4 wants both inputs. */
   householdId?: HouseholdId
   /** Contribution to the numeric value, weight already applied. */
   delta?: number
@@ -28,13 +28,14 @@ export interface TraceContribution {
 
 /**
  * Fixed evaluation order (§7.3): collect answers, apply exclusions, structural
- * changes (households, marriages, membership, leadership), then values
- * (absolute `scale_direct` settings first, then scale and flag changes by
- * descending priority), then bands, then leftover conflicts.
+ * changes (households created and dissolved), then values (absolute
+ * `scale_direct` settings first, then scale changes by descending priority),
+ * then bands, then leftover conflicts.
  *
- * `strukturalni` must complete before `hodnotove`: a shared scale needs to know
- * its household members before contributions are summed into it. Evaluating a
- * marriage in between scale changes would make the result depend on rule order.
+ * `strukturalni` must complete before `hodnotove`: a shared resource needs to
+ * know its household members before contributions are summed into it.
+ * Evaluating a marriage in between value changes would make the result depend
+ * on rule order.
  */
 export type TracePhase =
   | 'sber'
@@ -55,21 +56,18 @@ export interface TraceEntry {
     | 'priznak'
     | 'pasmo'
     | 'blok'
-    | 'clenstvi'
-    | 'vedeni'
     | 'tag'
     | 'vylouceni'
     | 'konflikt'
-    | 'domacnost_slouceni'
-    | 'domacnost_rozdeleni'
+    | 'domacnost_vznik'
+    | 'domacnost_zanik'
 
   characterId?: CharacterId
-  groupId?: GroupId
-  /** Set on shared-scale changes and on household merge/split (§4.4). */
+  /** Set on joint-account changes and when a household starts or ends (§4.4). */
   householdId?: HouseholdId
 
   subject: {
-    kind: 'skala' | 'priznak' | 'blok' | 'skupina' | 'tag' | 'domacnost'
+    kind: 'skala' | 'priznak' | 'blok' | 'tag' | 'domacnost'
     id: string
     label: string
   }

@@ -67,6 +67,8 @@ export const importReport = Object.freeze({
     otazka_bez_odpovedi: 'otázka bez odpovědí',
     duplicitni_id: 'duplicitní ID',
     vadny_dopad_na_skalu: 'vadný dopad na škálu',
+    vadny_efekt: 'vadný efekt',
+    vadna_domacnost: 'vadná domácnost',
     hodnota_mimo_rozsah: 'hodnota mimo rozsah',
     vadny_vyraz: 'vadná podmínka',
     vadna_znacka_sablony: 'vadná značka v šabloně',

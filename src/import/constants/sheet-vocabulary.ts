@@ -13,14 +13,16 @@ export const QUESTION_TYPES = Object.freeze([
 /** Types that set a value absolutely and must name a concrete account (§4.4). */
 export const DIRECT_QUESTION_TYPES = Object.freeze(['scale_direct', 'resource_direct'])
 
-/** Structural effects an answer may carry directly (layer 2). */
-export const ANSWER_EFFECTS = Object.freeze(['SNATEK', 'ROZVOD', 'VEDENI', 'CLENSTVI'] as const)
+/**
+ * Structural effects an answer may carry (layer 2, §4.4). Upper case like
+ * `RANDOM` and `DEFAULT`; both take the two members' registry IDs.
+ *
+ * Group membership and leadership are deliberately not here — they are not
+ * state (§4.6).
+ */
+export const ANSWER_EFFECTS = Object.freeze(['HOUSEHOLD_CREATE', 'HOUSEHOLD_DELETE'] as const)
 
-/** Effects whose argument is a character ID. */
-export const CHARACTER_ARGUMENT_EFFECTS = Object.freeze(['SNATEK', 'ROZVOD'])
-
-/** Effects whose argument is a group ID. */
-export const GROUP_ARGUMENT_EFFECTS = Object.freeze(['VEDENI', 'CLENSTVI'])
+export type AnswerEffectName = (typeof ANSWER_EFFECTS)[number]
 
 /** Spellings of the `hrac` question source (§6.7), lowercased. */
 export const PLAYER_SOURCE_WORDS = Object.freeze(['hráč', 'hrac', 'hráčka', 'hracka'])
@@ -45,8 +47,14 @@ export const RESOURCE_SCOPES = Object.freeze(['private', 'household'] as const)
 /** Answer ID suffix or answer text marking free text filled in by the org. */
 export const OTHER_ANSWER_MARKER = '_OTHER_'
 
-/** Separators accepted in list cells (`Blocks`, `Effects`, impacts). */
+/** Separators accepted in list cells (`Blocks`, impacts). */
 export const LIST_SEPARATOR = /[,;]/
 
-/** Separator between group members in the `Groups` sheet. */
-export const MEMBER_SEPARATOR = /[,;]/
+/**
+ * Separator between effects in one cell (§4.4). Deliberately not a comma: the
+ * comma already separates the arguments inside `HOUSEHOLD_CREATE(Marie, Mirek)`.
+ */
+export const EFFECT_SEPARATOR = /[;\n]/
+
+/** Separator between the arguments of one effect call. */
+export const EFFECT_ARGUMENT_SEPARATOR = ','

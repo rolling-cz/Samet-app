@@ -101,10 +101,17 @@ const plannedEffects = (
   }
 
   for (const effect of option.effects) {
-    const kind = ANSWER_EFFECT_KINDS[effect.name]
-    // §7.3: the partner comes from whoever the chosen option names, so the
-    // author does not write an answer per pair of 23 characters.
-    if (kind) planned.push({ payload: { kind, relatedFromAnswer: true }, inputs: [] })
+    const [first, second] = effect.args
+    const characterId = first === undefined ? undefined : refs.characterIds.get(first)
+    const relatedCharacterId = second === undefined ? undefined : refs.characterIds.get(second)
+    // Both members are written out (§4.4); an argument the registry does not
+    // know is already an error, so there is nothing to store.
+    if (!characterId || !relatedCharacterId) continue
+
+    planned.push({
+      payload: { kind: ANSWER_EFFECT_KINDS[effect.name], characterId, relatedCharacterId },
+      inputs: [],
+    })
   }
 
   return planned

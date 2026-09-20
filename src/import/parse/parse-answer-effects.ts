@@ -1,12 +1,24 @@
-import { ANSWER_EFFECTS } from '../constants/sheet-vocabulary'
+import { HOUSEHOLD_MEMBERS } from '../constants/household-members'
+import {
+  ANSWER_EFFECTS,
+  EFFECT_ARGUMENT_SEPARATOR,
+  EFFECT_SEPARATOR,
+  type AnswerEffectName,
+} from '../constants/sheet-vocabulary'
 import type { IssueCollector } from '../issue-collector'
 import type { IssueLocation } from '../types/issue'
 import type { ParsedAnswerEffect } from '../types/parsed-question'
-import { splitList } from '../utils/split-list'
 
-/** `NAZEV(argument)` in the `Effects` column. */
-const EFFECT_CALL = /^([A-Z_]+)\(([^)]*)\)$/
+/** `HOUSEHOLD_CREATE(Marie, Mirek)` in the `Effects` column (§4.4). */
+const EFFECT_CALL = /^([A-Z_]+)\s*\(([^)]*)\)$/
 
+/**
+ * The `Effects` column (§4.4, layer 2).
+ *
+ * Only the syntax is settled here — whether the arguments are characters the
+ * registry knows is a validation question, so one unknown ID does not cost the
+ * author the rest of the report.
+ */
 export const parseAnswerEffects = (
   cell: string,
   answerId: string,
@@ -15,31 +27,58 @@ export const parseAnswerEffects = (
 ): ParsedAnswerEffect[] => {
   const effects: ParsedAnswerEffect[] = []
 
-  for (const raw of splitList(cell)) {
+  for (const part of cell.split(EFFECT_SEPARATOR)) {
+    const raw = part.trim()
+    if (raw === '') continue
+
     const match = EFFECT_CALL.exec(raw)
     if (!match) {
       issues.error(
-        'chybejici_hodnota',
+        'vadny_efekt',
         location,
-        `Efekt „${raw}" u odpovědi \`${answerId}\` se nedá přečíst — čeká se tvar \`NAZEV(argument)\`, například \`SNATEK(Mirek)\`.`,
+        `Efekt „${raw}" u odpovědi \`${answerId}\` se nedá přečíst — čeká se tvar \`NAZEV(Postava1, Postava2)\`, například \`HOUSEHOLD_CREATE(Marie, Mirek)\`.`,
         { value: raw },
       )
       continue
     }
 
     const name = match[1] ?? ''
-    const argument = match[2] ?? ''
-    if (!(ANSWER_EFFECTS as readonly string[]).includes(name)) {
+    if (!isKnownEffect(name)) {
       issues.error(
-        'chybejici_hodnota',
+        'vadny_efekt',
         location,
         `Neznámý efekt \`${name}\` u odpovědi \`${answerId}\` — k dispozici jsou ${ANSWER_EFFECTS.join(', ')}.`,
         { value: name },
       )
       continue
     }
-    effects.push({ name, argument: argument.trim(), raw })
+
+    const args = splitArguments(match[2] ?? '')
+    if (args.length !== HOUSEHOLD_MEMBERS) {
+      issues.error(
+        'vadny_efekt',
+        location,
+        `Efekt \`${raw}\` u odpovědi \`${answerId}\` má ${args.length} argumentů — \`${name}\` jich čeká ${HOUSEHOLD_MEMBERS}, ID obou postav domácnosti.`,
+        { value: raw },
+      )
+      continue
+    }
+
+    effects.push({ name, args, raw, location })
   }
 
   return effects
+}
+
+const isKnownEffect = (name: string): name is AnswerEffectName =>
+  (ANSWER_EFFECTS as readonly string[]).includes(name)
+
+const splitArguments = (list: string): string[] => {
+  const args: string[] = []
+  for (const part of list.split(EFFECT_ARGUMENT_SEPARATOR)) {
+    const argument = part.trim()
+    if (argument !== '') args.push(argument)
+  }
+
+  return args
 }

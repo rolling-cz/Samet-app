@@ -2,6 +2,7 @@ import { foreignKey, integer, pgTable, text, unique, uuid } from 'drizzle-orm/pg
 import { createdAt } from './columns'
 import { resourceScope } from './enums'
 import { characters } from './characters'
+import { households } from './households'
 import { runs } from './runs'
 
 /**
@@ -66,6 +67,46 @@ export const characterResources = pgTable(
     }).onDelete('restrict'),
     foreignKey({
       name: 'character_resources_resource_fk',
+      columns: [t.runId, t.resourceId],
+      foreignColumns: [resources.runId, resources.id],
+    }).onDelete('restrict'),
+  ],
+)
+
+/**
+ * The joint account's starting balance (§4.2) — a `Resources` row whose owner
+ * is a household ID (`MarieMirek`) instead of a character.
+ *
+ * Only a household from the `Household` column of `Characters` may have one,
+ * and every such household must (§11, bod 7): an opening balance is never
+ * filled in with a quiet zero.
+ */
+export const householdResources = pgTable(
+  'household_resources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => runs.id, { onDelete: 'restrict' }),
+    householdId: uuid('household_id').notNull(),
+    resourceId: uuid('resource_id').notNull(),
+    /** Full ID from the source spreadsheet, e.g. `R_MarieMirek_Wealth`. */
+    externalId: text('external_id').notNull(),
+    /** Starting value for chapter 1. */
+    defaultValue: integer('default_value').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('household_resources_run_id_key').on(t.runId, t.id),
+    unique('household_resources_unique').on(t.runId, t.householdId, t.resourceId),
+    unique('household_resources_external_key').on(t.runId, t.externalId),
+    foreignKey({
+      name: 'household_resources_household_fk',
+      columns: [t.runId, t.householdId],
+      foreignColumns: [households.runId, households.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'household_resources_resource_fk',
       columns: [t.runId, t.resourceId],
       foreignColumns: [resources.runId, resources.id],
     }).onDelete('restrict'),

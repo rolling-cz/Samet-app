@@ -52,24 +52,21 @@ export const resourceScope = pgEnum('resource_scope', ['private', 'household'])
  */
 export const resourceTarget = pgEnum('resource_target', ['smerovany', 'osobni', 'domacnost'])
 
-/** Effect kind (§7.1, §4.4). Scales and resources are separate on purpose. */
+/**
+ * Effect kind (§7.1, §4.4). Scales and resources are separate on purpose.
+ *
+ * Group membership and leadership are deliberately absent: they are not state,
+ * block variants and their conditions express them (§4.6).
+ */
 export const effectKind = pgEnum('effect_kind', [
   'zmena_skaly',
   'nastaveni_skaly',
   'zmena_zdroje',
   'nastaveni_zdroje',
   'blok',
-  'clenstvi',
-  'vedeni',
-  'domacnost_slouceni',
-  'domacnost_rozdeleni',
+  'domacnost_vznik',
+  'domacnost_zanik',
 ])
-
-/** Group membership action. */
-export const membershipAction = pgEnum('membership_action', ['pridat', 'odebrat'])
-
-/** Role in a group. */
-export const groupRole = pgEnum('group_role', ['clen', 'vedouci'])
 
 /** Where a character state value came from. */
 export const stateSource = pgEnum('state_source', ['pocatecni', 'prepocet', 'rucni'])

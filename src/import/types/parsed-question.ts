@@ -1,14 +1,15 @@
 import type { ExpressionParse } from '../expression'
 import type { ScaleImpact } from '../scale-impact'
 import type { Sourced } from './sourced'
-import type { QUESTION_TYPES } from '../constants/sheet-vocabulary'
+import type { AnswerEffectName, QUESTION_TYPES } from '../constants/sheet-vocabulary'
 
 export type ParsedQuestionType = (typeof QUESTION_TYPES)[number]
 
-/** One of `SNATEK(Mirek)`, `VEDENI(...)`, `CLENSTVI(...)` from the `Effects` column. */
-export interface ParsedAnswerEffect {
-  name: string
-  argument: string
+/** One `HOUSEHOLD_CREATE(Marie, Mirek)` from the `Effects` column (§4.4). */
+export interface ParsedAnswerEffect extends Sourced {
+  name: AnswerEffectName
+  /** Both members' registry IDs, in the order the author wrote them. */
+  args: string[]
   raw: string
 }
 
@@ -16,13 +17,16 @@ export interface ParsedAnswerOption extends Sourced {
   externalId: string
   label: string
   ordinal: number
-  /** `Scale and Resources Impact`, already parsed (§4.2). */
+  /**
+   * `Scale and Resources Impact`, already parsed (§4.2), plus the impacts
+   * derived from a household effect (§4.4) — the author writes those nowhere.
+   */
   impacts: ScaleImpact[]
   /** `Blocks`: blocks this answer switches on (layer 2). */
   blocks: string[]
   /** `Effects`: structural effects (layer 2). */
   effects: ParsedAnswerEffect[]
-  /** Character the option names, resolved from the ID suffix or from `SNATEK(…)`. */
+  /** Character the option names, resolved from the ID suffix or from an effect. */
   referencedCharacter?: string
   isOther: boolean
   /**

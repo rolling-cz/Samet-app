@@ -34,7 +34,6 @@ import {
   diceRolls,
   effectInputs,
   effects,
-  groupMemberships,
   groups,
   householdMemberships,
   householdResourceValues,
@@ -46,6 +45,7 @@ import {
   templates,
   uploadedFiles,
 } from '../src/db/schema'
+import { householdExternalId } from '../src/engine'
 
 const RUN_ID = '2026-09-12_A'
 const AUTHOR = 'seed skript'
@@ -111,7 +111,6 @@ const wipeSeedRun = async () => {
     householdResourceValues,
     householdMemberships,
     households,
-    groupMemberships,
     diceRolls,
     answerSelectedOptions,
     answers,
@@ -183,11 +182,7 @@ const main = async () => {
   const characterRows = await unscopedDb
     .insert(characters)
     .values(
-      CHARACTER_SEED.map((character) => ({
-        runId: RUN_ID,
-        homeGroupId: srdceParty.id,
-        ...character,
-      })),
+      CHARACTER_SEED.map((character) => ({ runId: RUN_ID, ...character })),
     )
     .returning()
   const characterId = new Map(characterRows.map((row) => [row.externalId, row.id]))
@@ -260,17 +255,6 @@ const main = async () => {
   await seedContent(chapter2.id, characterId)
   await seedQuestions(chapter2.id, characterId, scaleId, resourceId)
 
-  await unscopedDb.insert(groupMemberships).values(
-    characterRows.map((row) => ({
-      runId: RUN_ID,
-      chapterId: chapter1.id,
-      characterId: row.id,
-      groupId: srdceParty.id,
-      role: row.externalId === 'Karel' ? ('vedouci' as const) : ('clen' as const),
-      source: 'pocatecni' as const,
-    })),
-  )
-
   await unscopedDb.insert(auditLog).values({
     runId: RUN_ID,
     action: 'beh.zalozeni',
@@ -328,10 +312,6 @@ const seedHousehold = async (
     source: 'prepocet',
   })
 }
-
-/** §4.2: both IDs sorted alphabetically and glued, so the pair always yields the same ID. */
-const householdExternalId = (first: string, second: string): string =>
-  [first, second].sort((a, b) => a.localeCompare(b, 'cs')).join('')
 
 /** A block whose chosen variant nests another block (§8.4). */
 const seedContent = async (
@@ -402,8 +382,9 @@ const seedContent = async (
 }
 
 /**
- * A marriage question whose answer moves money into the joint account through
- * an `{input}` the org types in, plus a poll and one vote in it.
+ * A marriage question carrying `HOUSEHOLD_CREATE` (§4.4): the effect itself
+ * brings the transfer into the joint account, through the two `{input}`s the
+ * org types in. Plus a poll and one vote in it.
  */
 const seedQuestions = async (
   chapterId: string,
@@ -422,52 +403,53 @@ const seedQuestions = async (
     .insert(questions)
     .values({
       runId: RUN_ID,
-      externalId: 'Q_Marie_2_1',
+      externalId: 'Q_Organizatori_2_1',
       chapterId,
       characterId: marie,
       ordinal: 1,
-      type: 'single',
+      type: 'bool',
       source: 'org',
-      text: 'Vzala sis někoho?',
+      text: 'Došlo ke sňatku Marie a Mirka?',
     })
     .returning()
   if (!marriage) return
 
-  const [tookMirek] = await unscopedDb
+  const [yes] = await unscopedDb
     .insert(answerOptions)
     .values({
       runId: RUN_ID,
-      externalId: 'A_Marie_2_1_Mirek',
+      externalId: 'A_Organizatori_2_1_Ano',
       questionId: marriage.id,
       ordinal: 1,
-      label: 'Mirek Pokorný',
+      label: 'Ano',
       referencedCharacterId: mirek,
     })
     .returning()
   await unscopedDb.insert(answerOptions).values({
     runId: RUN_ID,
-    externalId: 'A_Marie_2_1_Nikdo',
+    externalId: 'A_Organizatori_2_1_Ne',
     questionId: marriage.id,
     ordinal: 2,
-    label: 'Nikdo',
+    label: 'Ne',
   })
-  if (!tookMirek) return
+  if (!yes) return
 
   const effectRows = await unscopedDb
     .insert(effects)
     .values([
       {
         runId: RUN_ID,
-        answerOptionId: tookMirek.id,
-        externalId: 'A_Marie_2_1_Mirek#0',
+        answerOptionId: yes.id,
+        externalId: 'A_Organizatori_2_1_Ano#0',
         ordinal: 0,
-        kind: 'domacnost_slouceni',
-        relatedFromAnswer: true,
+        kind: 'domacnost_vznik',
+        characterId: marie,
+        relatedCharacterId: mirek,
       },
       {
         runId: RUN_ID,
-        answerOptionId: tookMirek.id,
-        externalId: 'A_Marie_2_1_Mirek#1',
+        answerOptionId: yes.id,
+        externalId: 'A_Organizatori_2_1_Ano#1',
         ordinal: 1,
         kind: 'zmena_zdroje',
         characterId: marie,
@@ -477,9 +459,19 @@ const seedQuestions = async (
       },
       {
         runId: RUN_ID,
-        answerOptionId: tookMirek.id,
-        externalId: 'A_Marie_2_1_Mirek#2',
+        answerOptionId: yes.id,
+        externalId: 'A_Organizatori_2_1_Ano#2',
         ordinal: 2,
+        kind: 'zmena_zdroje',
+        characterId: mirek,
+        resourceId: wealth,
+        resourceTarget: 'osobni',
+      },
+      {
+        runId: RUN_ID,
+        answerOptionId: yes.id,
+        externalId: 'A_Organizatori_2_1_Ano#3',
+        ordinal: 3,
         kind: 'zmena_zdroje',
         resourceId: wealth,
         resourceTarget: 'domacnost',
@@ -488,14 +480,18 @@ const seedQuestions = async (
     ])
     .returning()
 
-  // The same placeholder name on both sides: one input field, one number,
-  // moved out of the personal account and into the joint one.
-  const fromPersonal = effectRows.find((row) => row.externalId === 'A_Marie_2_1_Mirek#1')
-  const toHousehold = effectRows.find((row) => row.externalId === 'A_Marie_2_1_Mirek#2')
-  if (fromPersonal && toHousehold) {
+  // `{input1}` is the first member of the effect, `{input2}` the second (§4.4):
+  // two input fields, and the joint account gets the sum of both.
+  const byExternalId = new Map(effectRows.map((row) => [row.externalId, row.id]))
+  const fromMarie = byExternalId.get('A_Organizatori_2_1_Ano#1')
+  const fromMirek = byExternalId.get('A_Organizatori_2_1_Ano#2')
+  const toHousehold = byExternalId.get('A_Organizatori_2_1_Ano#3')
+  if (fromMarie && fromMirek && toHousehold) {
     await unscopedDb.insert(effectInputs).values([
-      { runId: RUN_ID, effectId: fromPersonal.id, ordinal: 0, inputKey: 'input', sign: -1 },
-      { runId: RUN_ID, effectId: toHousehold.id, ordinal: 0, inputKey: 'input', sign: 1 },
+      { runId: RUN_ID, effectId: fromMarie, ordinal: 0, inputKey: 'input1', sign: -1 },
+      { runId: RUN_ID, effectId: fromMirek, ordinal: 0, inputKey: 'input2', sign: -1 },
+      { runId: RUN_ID, effectId: toHousehold, ordinal: 0, inputKey: 'input1', sign: 1 },
+      { runId: RUN_ID, effectId: toHousehold, ordinal: 1, inputKey: 'input2', sign: 1 },
     ])
   }
 

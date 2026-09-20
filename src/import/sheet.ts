@@ -97,7 +97,6 @@ export const readSheet = (
 
   const headerRowIndex = findHeaderRow(grid, options.required ?? [])
   const headerRow = mergeHeaderRows(grid, headerRowIndex)
-  const bodyRows = grid.slice(headerRowIndex + 1)
 
   const headers: string[] = []
   const headerIndex = new Map<string, number>()
@@ -108,6 +107,11 @@ export const readSheet = (
       headers.push(header)
     }
   })
+
+  // A sheet exported from Google Sheets carries thousands of empty rows below
+  // the data. Counting those as skipped would drown the one number the author
+  // cares about: the blank rows they left inside the data.
+  const bodyRows = dropTrailingBlankRows(grid.slice(headerRowIndex + 1), headerIndex)
 
   const fillDown = options.fillDown ?? []
   const carried = new Map<string, string>()
@@ -160,6 +164,18 @@ export const readSheet = (
  * The header is the topmost row naming at least one required column. Without
  * a hint (no required columns given) it is the first row, as it used to be.
  */
+/** Everything below the last row with a value in a known column is export padding. */
+const dropTrailingBlankRows = (bodyRows: Grid, headerIndex: Map<string, number>): Grid => {
+  for (let index = bodyRows.length - 1; index >= 0; index--) {
+    const row = bodyRows[index] ?? []
+    for (const columnIndex of headerIndex.values()) {
+      if (normalizeCell(row[columnIndex]) !== '') return bodyRows.slice(0, index + 1)
+    }
+  }
+
+  return []
+}
+
 const findHeaderRow = (grid: Grid, required: readonly string[]): number => {
   if (required.length === 0) return 0
 

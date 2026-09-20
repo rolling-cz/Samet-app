@@ -9,6 +9,7 @@ import type { ImportRepairs, Workbook } from '../types/parsed-config'
 import type { ParsedResourceRow } from '../types/parsed-resource'
 import { readConfigSheet, requireColumns } from './read-config-sheet'
 import { readInteger } from './read-number'
+import { splitHouseholdId } from '../utils/household-id'
 import { resolveOwner } from './resolve-character-refs'
 
 /**
@@ -22,8 +23,13 @@ import { resolveOwner } from './resolve-character-refs'
 const DEFAULT_RESOURCE_SCOPE: ParsedResourceRow['scope'] = 'household'
 
 /**
- * The `Resources` sheet (§4.2): which resources a character holds and with what
+ * The `Resources` sheet (§4.2): which resources an owner holds and with what
  * starting value. No `Min` / `Max` — a resource is unbounded (§4.1).
+ *
+ * The owner is a character, or a household ID — the joint account's opening
+ * balance (§4.2). A household is recognised by its shape, two registry IDs
+ * glued together, so that a household the `Household` column does not name can
+ * be reported as such instead of as a misspelt character.
  *
  * `Scope`, when the sheet has the column, says whether the resource can also
  * live on a joint account. It describes the resource, not the pair, so the
@@ -74,19 +80,24 @@ export const parseResources = (
       issues.error(
         'chybejici_hodnota',
         row.at('Character'),
-        `Zdroj \`${externalId}\` nemá postavu — každý řádek je dvojice postava × zdroj.`,
+        `Zdroj \`${externalId}\` nemá vlastníka — každý řádek je dvojice postava (nebo domácnost) × zdroj.`,
       )
       continue
     }
 
-    const characterId = resolveOwner(
-      characterRef,
-      aliases,
-      repairs,
-      row.at('Character'),
-      `Zdroj \`${externalId}\``,
-      issues,
-    )
+    // A household owner must not go through the alias resolution: `MarieMirek`
+    // is nobody's name, and a "did you mean Marie?" would be noise.
+    const householdRef = splitHouseholdId(characterRef, aliases.ids) ? characterRef : undefined
+    const characterId = householdRef
+      ? undefined
+      : resolveOwner(
+          characterRef,
+          aliases,
+          repairs,
+          row.at('Character'),
+          `Zdroj \`${externalId}\``,
+          issues,
+        )
 
     const previous = seen.get(externalId)
     if (previous !== undefined) {
@@ -104,6 +115,7 @@ export const parseResources = (
       externalId,
       characterRef,
       characterId,
+      householdRef,
       key,
       label: row.get('Name') || key,
       scope: readScope(row.get('Scope'), key, scopeByKey, row.at('Scope'), issues),

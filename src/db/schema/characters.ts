@@ -1,20 +1,14 @@
-import {
-  foreignKey,
-  integer,
-  pgTable,
-  text,
-  unique,
-  uuid,
-} from 'drizzle-orm/pg-core'
+import { foreignKey, integer, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
 import { createdAt } from './columns'
+import { households } from './households'
 import { runs } from './runs'
 
 /**
  * Group / organisation / gang (§4.1), from the `Groups` sheet (§4.2).
  *
- * Members and leadership are not here: they change per chapter and live in
- * `group_memberships` as a snapshot. The sheet's member and leader columns are
- * the chapter-1 starting state.
+ * ID and name, nothing else: who belongs to a group and who leads it is not
+ * state (§4.6) — block variants and their conditions say it. The registry is
+ * here so the import can check that every group has a template (§10.2, §11).
  */
 export const groups = pgTable(
   'groups',
@@ -23,7 +17,7 @@ export const groups = pgTable(
     runId: text('run_id')
       .notNull()
       .references(() => runs.id, { onDelete: 'restrict' }),
-    /** ID from the source spreadsheet, e.g. `G_SrdceParty`. */
+    /** ID from the source spreadsheet, e.g. `SrdceParty`. */
     externalId: text('external_id').notNull(),
     name: text('name').notNull(),
     createdAt: createdAt(),
@@ -36,7 +30,7 @@ export const groups = pgTable(
 
 /**
  * A character in a run (§4.2). A minimal registry: nothing beyond scales,
- * resources and membership is modelled — characterisation lives in fixed
+ * resources and the household is modelled — characterisation lives in fixed
  * template text, which is not a data model (§4.6).
  *
  * Starting values do not live here: they are in the `Scales` and `Resources`
@@ -59,17 +53,21 @@ export const characters = pgTable(
     lastName: text('last_name').notNull(),
     /** Birth year, used to compute `{VEK}` in each chapter. */
     birthYear: integer('birth_year'),
-    /** Default group from config; current membership is in `group_memberships`. */
-    homeGroupId: uuid('home_group_id'),
+    /**
+     * Household the character starts chapter 1 in — the `Household` column of
+     * `Characters` (§4.2). NULL means they start single. Membership from
+     * chapter 2 on is a snapshot in `household_memberships`.
+     */
+    defaultHouseholdId: uuid('default_household_id'),
     createdAt: createdAt(),
   },
   (t) => [
     unique('characters_run_id_key').on(t.runId, t.id),
     unique('characters_run_external_key').on(t.runId, t.externalId),
     foreignKey({
-      name: 'characters_home_group_fk',
-      columns: [t.runId, t.homeGroupId],
-      foreignColumns: [groups.runId, groups.id],
+      name: 'characters_default_household_fk',
+      columns: [t.runId, t.defaultHouseholdId],
+      foreignColumns: [households.runId, households.id],
     }).onDelete('restrict'),
   ],
 )

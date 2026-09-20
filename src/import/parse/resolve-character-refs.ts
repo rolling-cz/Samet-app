@@ -45,14 +45,17 @@ export const resolveOwner = (
  * Which character an option names (§6.6). An option that names another
  * character must reference the registry ID, never free text — otherwise a
  * marriage or a rename breaks the link. The ID suffix is the author's own
- * convention (`A_Marie_2_1_Mirek`), and a structural effect states it outright.
+ * convention (`A_Marie_2_1_Mirek`); a household effect names both members
+ * outright, and the second one is the partner this answer is about.
  */
 export const resolveReferencedCharacter = (
   option: ParsedAnswerOption,
   characterIds: Set<string>,
 ): string | undefined => {
-  const fromEffect = option.effects.find((e) => characterIds.has(e.argument))
-  if (fromEffect) return fromEffect.argument
+  for (const effect of option.effects) {
+    const partner = effect.args[1]
+    if (partner !== undefined && characterIds.has(partner)) return partner
+  }
 
   const suffix = option.externalId.split('_').pop()
   if (suffix && characterIds.has(suffix)) return suffix

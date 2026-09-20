@@ -13,6 +13,7 @@ import {
   ANSWER_ID_COLUMN,
   ANSWER_LABEL_COLUMN,
   chapterSheetName,
+  EFFECTS_COLUMN,
   IMPACT_COLUMN,
   QUESTION_COLUMNS,
   QUESTION_CONDITION_COLUMN,
@@ -22,6 +23,7 @@ import {
 } from '../constants/sheets'
 import type { IssueCollector } from '../issue-collector'
 import { parseCondition } from '../expression'
+import { householdEffectImpacts } from '../household-effect-impacts'
 import { parseScaleImpact } from '../scale-impact'
 import type { SheetRow } from '../sheet'
 import type { ImportRepairs, Workbook } from '../types/parsed-config'
@@ -312,13 +314,24 @@ const readAnswer = (
     )
   }
 
+  const effects = parseAnswerEffects(
+    row.get(EFFECTS_COLUMN),
+    externalId,
+    row.at(EFFECTS_COLUMN),
+    issues,
+  )
+
+  // A household effect brings its own transfer between the accounts (§4.4), so
+  // the author writes none — anything they did write stays and is reported.
+  for (const effect of effects) impacts.push(...householdEffectImpacts(effect))
+
   const option: ParsedAnswerOption = {
     externalId,
     label,
     ordinal: question.options.length + 1,
     impacts,
     blocks: splitList(row.get(ANSWER_BLOCKS_COLUMN)),
-    effects: parseAnswerEffects(row.get('Effects'), externalId, row.at('Effects'), issues),
+    effects,
     isOther: externalId.endsWith(OTHER_ANSWER_MARKER) || label === OTHER_ANSWER_MARKER,
     isDerived: false,
     location: row.at(ANSWER_ID_COLUMN),

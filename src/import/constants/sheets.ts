@@ -3,7 +3,7 @@
 /** Character registry. */
 export const CHARACTERS_SHEET = 'Characters'
 
-/** Group registry: ID, name, members, leader. */
+/** Group registry: ID and name; members and leadership are not state (§4.6). */
 export const GROUPS_SHEET = 'Groups'
 
 /**
@@ -29,14 +29,18 @@ export type ChapterSheetKind = (typeof CHAPTER_SHEET_KINDS)[number]
 /** The game has exactly three chapters (§1). */
 export const CHAPTERS = Object.freeze([1, 2, 3] as const)
 
-export const CHARACTER_COLUMNS = Object.freeze(['ID', 'Name', 'Surname'])
+/** `Household` names the household the character starts chapter 1 in (§4.2). */
+export const CHARACTER_COLUMNS = Object.freeze(['ID', 'Name', 'Surname', 'Household'])
 
-export const GROUP_COLUMNS = Object.freeze(['ID', 'Name', 'Members'])
+export const GROUP_COLUMNS = Object.freeze(['ID', 'Name'])
 
 /** `ID` holds the whole `S_<Postava>_<Skala>`; `Character` repeats its owner. */
 export const SCALE_COLUMNS = Object.freeze(['Character', 'ID', 'Min', 'Max', 'Default'])
 
-/** Resources have no bounds to give them (§4.1). */
+/**
+ * Resources have no bounds to give them (§4.1). `Character` may hold a
+ * household ID instead — the joint account's opening balance (§4.2).
+ */
 export const RESOURCE_COLUMNS = Object.freeze(['Character', 'ID', 'Default'])
 
 /** `Character` is written once per owner and carries down over their rows. */
@@ -70,6 +74,9 @@ export const IMPACT_COLUMN = 'Scale and Resources Impact'
 export const ANSWER_ID_COLUMN = 'ID Answer'
 
 export const ANSWER_LABEL_COLUMN = 'Text response'
+
+/** Structural effects of an answer (§4.4, layer 2). */
+export const EFFECTS_COLUMN = 'Effects'
 
 /** A question-level condition; from chapter 2 on, a question may have one (§4.2). */
 export const QUESTION_CONDITION_COLUMN = 'Condition'

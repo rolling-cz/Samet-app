@@ -1,10 +1,5 @@
 /** Run state at the start of a chapter — the first argument of `evaluate`. */
-import type { BandId, ChapterNumber, CharacterId, FlagId, GroupId, HouseholdId, ScaleId } from './ids'
-
-export interface Membership {
-  groupId: GroupId
-  role: 'clen' | 'vedouci'
-}
+import type { BandId, ChapterNumber, CharacterId, FlagId, HouseholdId, ScaleId } from './ids'
 
 export interface CharacterState {
   characterId: CharacterId
@@ -13,12 +8,11 @@ export interface CharacterState {
   /** Derived from the value; kept for outputs and conditions. */
   bands: Record<ScaleId, BandId>
   flags: Record<FlagId, boolean>
-  memberships: Membership[]
   /**
-   * Always set — a single character is a household of one, so the engine has
-   * no "no household" branch (§4.4).
+   * Absent while the character is single: they are not a household of one, and
+   * their money simply stays on the personal account (§4.4).
    */
-  householdId: HouseholdId
+  householdId?: HouseholdId
   /** Template variables: `{PRIJMENI}`, `{VEK}`, … (§8.8). */
   variables: Record<string, string>
 }
@@ -31,16 +25,13 @@ export interface HouseholdState {
   bands: Record<ScaleId, BandId>
 }
 
-export interface GroupState {
-  groupId: GroupId
-  leaderId?: CharacterId
-  memberIds: CharacterId[]
-}
-
+/**
+ * Groups are not here on purpose: who belongs to one and who leads it is not
+ * state (§4.6) — block variants and their conditions say it.
+ */
 export interface RunState {
   runId: string
   chapter: ChapterNumber
   characters: Record<CharacterId, CharacterState>
-  groups: Record<GroupId, GroupState>
   households: Record<HouseholdId, HouseholdState>
 }

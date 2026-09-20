@@ -25,6 +25,8 @@ export type IssueCode =
   | 'otazka_bez_odpovedi'
   | 'duplicitni_id'
   | 'vadny_dopad_na_skalu'
+  | 'vadny_efekt'
+  | 'vadna_domacnost'
   | 'hodnota_mimo_rozsah'
   | 'vadny_vyraz'
   | 'vadna_znacka_sablony'

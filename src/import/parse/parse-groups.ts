@@ -1,4 +1,3 @@
-import { MEMBER_SEPARATOR } from '../constants/sheet-vocabulary'
 import { GROUP_COLUMNS, GROUPS_SHEET } from '../constants/sheets'
 import type { IssueCollector } from '../issue-collector'
 import type { ParsedGroup } from '../types/parsed-group'
@@ -6,10 +5,12 @@ import type { ImportRepairs, Workbook } from '../types/parsed-config'
 import { readConfigSheet, requireColumns } from './read-config-sheet'
 
 /**
- * The `Groups` sheet (§4.2): ID, name, members, leader.
+ * The `Groups` sheet (§4.2): ID and name.
  *
- * Members and leadership are the chapter-1 starting state; from then on they
- * are a per-chapter snapshot the engine writes.
+ * Members and leadership are not read because they are not state (§4.6) —
+ * block variants and their conditions say who belongs where. The registry
+ * exists so blocks can be owned by a group and so the import can check that
+ * each group has a template (§10.2).
  */
 export const parseGroups = (
   workbook: Workbook,
@@ -49,17 +50,9 @@ export const parseGroups = (
     groups.push({
       externalId,
       name: row.get('Name') || externalId,
-      memberRefs: splitMembers(row.get('Members')),
-      leaderRef: row.get('Leader') || undefined,
-      location: row.at('Members'),
+      location: row.at('ID'),
     })
   }
 
   return groups
 }
-
-const splitMembers = (cell: string): string[] =>
-  cell
-    .split(MEMBER_SEPARATOR)
-    .map((value) => value.trim())
-    .filter((value) => value !== '')

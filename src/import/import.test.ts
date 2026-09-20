@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { importWorkbook } from './import-config'
-import { buildWorkbook, defaultTemplates, type WorkbookParts } from './testing/build-workbook'
+import { buildWorkbook, defaultTemplates, type Row, type WorkbookParts } from './testing/build-workbook'
 import type { ImportResult } from './types/import-result'
 
 const run = (parts: WorkbookParts = {}): ImportResult => importWorkbook(buildWorkbook(parts))
@@ -45,14 +45,12 @@ describe('a workbook the author got right', () => {
     expect(run().config.characters[0]?.lastName).toBe('Balážová')
   })
 
-  it('reads the groups registry, members and leader', () => {
-    const group = run().config.groups[0]
-    expect(group).toMatchObject({
+  it('reads the groups registry — ID and name, nothing about membership', () => {
+    expect(run().config.groups[0]).toEqual({
       externalId: 'SrdceParty',
       name: 'Srdce party',
-      leaderRef: 'Mirek',
+      location: expect.anything(),
     })
-    expect(group?.memberRefs).toEqual(['Marie', 'Mirek'])
   })
 
   it('groups the answer rows under the question that starts above them', () => {
@@ -499,6 +497,136 @@ describe('nested blocks (§8.4)', () => {
   })
 })
 
+describe('households the game starts with (§4.2)', () => {
+  const married = (marieHousehold: string, mirekHousehold: string, resources?: Row[]) =>
+    run({
+      characters: [
+        { ID: 'Marie', Name: 'Marie', Surname: 'Balážová', Household: marieHousehold },
+        { ID: 'Mirek', Name: 'Mirek', Surname: 'Pokorný', Household: mirekHousehold },
+      ],
+      resources: resources ?? [
+        { Character: 'Marie', ID: 'R_Marie_Wealth', Scope: 'household', Default: '4' },
+        { Character: 'Mirek', ID: 'R_Mirek_Wealth', Scope: 'household', Default: '6' },
+        { Character: 'MarieMirek', ID: 'R_MarieMirek_Wealth', Scope: 'household', Default: '0' },
+      ],
+    })
+
+  it('reads the pair and the joint account`s opening balance', () => {
+    const result = married('MarieMirek', 'MarieMirek')
+    expect(result.errors).toEqual([])
+    expect(result.config.households).toHaveLength(1)
+    expect(result.config.households[0]).toMatchObject({
+      externalId: 'MarieMirek',
+      memberIds: ['Marie', 'Mirek'],
+    })
+    const joint = result.config.resources.find((r) => r.externalId === 'R_MarieMirek_Wealth')
+    expect(joint).toMatchObject({ householdRef: 'MarieMirek', characterId: undefined, defaultValue: 0 })
+  })
+
+  it('refuses a household ID that is not its two members sorted alphabetically', () => {
+    const issue = byCode(married('MirekMarie', 'MirekMarie'), 'vadna_domacnost')[0]
+    expect(issue).toMatchObject({ value: 'MirekMarie', suggestion: 'MarieMirek' })
+  })
+
+  it('refuses a household only one character carries', () => {
+    const issue = byCode(married('MarieMirek', ''), 'vadna_domacnost')[0]
+    expect(issue?.message).toContain('1 postav')
+  })
+
+  it('refuses a joint account for a household the `Household` column does not name', () => {
+    const issue = byCode(
+      married('', '', [
+        { Character: 'Marie', ID: 'R_Marie_Wealth', Scope: 'household', Default: '4' },
+        { Character: 'Mirek', ID: 'R_Mirek_Wealth', Scope: 'household', Default: '6' },
+        { Character: 'MarieMirek', ID: 'R_MarieMirek_Wealth', Scope: 'household', Default: '0' },
+      ]),
+      'vadna_domacnost',
+    )[0]
+    expect(issue?.value).toBe('MarieMirek')
+  })
+
+  it('refuses a default household with no opening balance — nothing is filled in with a zero', () => {
+    const issue = byCode(
+      married('MarieMirek', 'MarieMirek', [
+        { Character: 'Marie', ID: 'R_Marie_Wealth', Scope: 'household', Default: '4' },
+        { Character: 'Mirek', ID: 'R_Mirek_Wealth', Scope: 'household', Default: '6' },
+      ]),
+      'vadna_domacnost',
+    )[0]
+    expect(issue?.value).toBe('R_MarieMirek_Wealth')
+  })
+})
+
+describe('household effects in the `Effects` column (§4.4)', () => {
+  const withEffect = (effect: string) =>
+    run({
+      questions: [
+        {
+          Character: 'Marie',
+          Type: 'bool',
+          Text: 'Došlo ke sňatku?',
+          'Text response': 'Ano',
+          Effects: effect,
+        },
+      ],
+      content: [{ Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A' }],
+    })
+
+  const optionOf = (result: ImportResult) => result.config.questions.get(2)?.[0]?.options[0]
+
+  it('reads both members out of one call — the comma inside it is not a separator', () => {
+    const result = withEffect('HOUSEHOLD_CREATE(Marie, Mirek)')
+    expect(result.errors).toEqual([])
+    expect(optionOf(result)?.effects).toHaveLength(1)
+    expect(optionOf(result)?.effects[0]).toMatchObject({
+      name: 'HOUSEHOLD_CREATE',
+      args: ['Marie', 'Mirek'],
+    })
+  })
+
+  it('derives the transfer the author never writes', () => {
+    const impacts = optionOf(withEffect('HOUSEHOLD_CREATE(Marie, Mirek)'))?.impacts ?? []
+    expect(impacts.map((impact) => impact.externalId)).toEqual([
+      'R_Marie_Wealth',
+      'R_Mirek_Wealth',
+      'R_MarieMirek_Wealth',
+    ])
+  })
+
+  it('takes a semicolon between two effects', () => {
+    const result = withEffect('HOUSEHOLD_DELETE(Marie, Mirek); HOUSEHOLD_CREATE(Marie, Mirek)')
+    expect(result.errors).toEqual([])
+    expect(optionOf(result)?.effects.map((effect) => effect.name)).toEqual([
+      'HOUSEHOLD_DELETE',
+      'HOUSEHOLD_CREATE',
+    ])
+  })
+
+  it('reports an effect name nobody implements', () => {
+    expect(byCode(withEffect('VEDENI(SrdceParty, Mirek)'), 'vadny_efekt')[0]?.value).toBe('VEDENI')
+  })
+
+  it('reports a call with one member — a household is a pair', () => {
+    const issue = byCode(withEffect('HOUSEHOLD_CREATE(Marie)'), 'vadny_efekt')[0]
+    expect(issue?.message).toContain('čeká 2')
+  })
+
+  it('reports the same character named twice', () => {
+    expect(byCode(withEffect('HOUSEHOLD_CREATE(Marie, Marie)'), 'vadny_efekt')[0]?.value).toBe(
+      'Marie',
+    )
+  })
+
+  it('reports a member the registry does not know, with a suggestion', () => {
+    const issue = byCode(withEffect('HOUSEHOLD_CREATE(Marie, Mrek)'), 'neznama_postava')[0]
+    expect(issue).toMatchObject({ value: 'Mrek', suggestion: 'Mirek' })
+  })
+
+  it('reports a call it cannot read at all', () => {
+    expect(byCode(withEffect('HOUSEHOLD_CREATE Marie Mirek'), 'vadny_efekt')).toHaveLength(1)
+  })
+})
+
 describe('blocks may belong to a group (§8.2)', () => {
   it('accepts a group in the Character column', () => {
     const result = run({
@@ -560,7 +688,6 @@ describe('tolerance the author has earned (§10.1)', () => {
   it('resolves Věra to the registry ID Vera and says so', () => {
     const result = run({
       characters: [{ ID: 'Vera', Name: 'Věra', Surname: 'Svobodová' }],
-      groups: [{ ID: 'SrdceParty', Name: 'Srdce party', Members: 'Vera', Leader: 'Vera' }],
       scales: [{ Character: 'Věra', ID: 'S_Vera_Regime', Min: '1', Max: '10', Default: '5' }],
       resources: [{ Character: 'Vera', ID: 'R_Vera_Wealth', Scope: 'private', Default: '3' }],
       questions: [

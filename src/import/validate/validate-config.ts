@@ -26,7 +26,7 @@ export const validateConfig = ({ config, templates }: ValidationInput, issues: I
 
   checkCharacters(config, issues)
   checkScales(config, issues)
-  checkQuestions(config, characterIds, groupIds, issues)
+  checkQuestions(config, characterIds, issues)
   checkContent(config, characterIds, groupIds, issues)
   checkUntouchedScales(config, issues)
   if (templates) checkTemplates(config, templates, issues)

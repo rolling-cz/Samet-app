@@ -1,5 +1,5 @@
 /** Rules and the rule set passed to `evaluate` (§7.1). */
-import type { CharacterDefinition, GroupDefinition } from './character'
+import type { CharacterDefinition } from './character'
 import type { Effect } from './effect'
 import type {
   AnswerOptionId,
@@ -7,7 +7,6 @@ import type {
   ChapterNumber,
   CharacterId,
   FlagId,
-  GroupId,
   QuestionId,
   RuleId,
   ScaleId,
@@ -27,7 +26,7 @@ export interface RuleCondition {
   connector: 'AND' | 'OR'
   negate: boolean
 
-  subject: 'odpoved' | 'skala' | 'pasmo' | 'priznak' | 'clenstvi' | 'vedeni' | 'hod'
+  subject: 'odpoved' | 'skala' | 'pasmo' | 'priznak' | 'hod'
   operator:
     | 'eq'
     | 'neq'
@@ -47,7 +46,6 @@ export interface RuleCondition {
   scaleId?: ScaleId
   bandId?: BandId
   flagId?: FlagId
-  groupId?: GroupId
 
   valueText?: string
   valueNumber?: number
@@ -86,7 +84,6 @@ export interface RuleSet {
   rules: Rule[]
   scales: ScaleDefinition[]
   flags: FlagDefinition[]
-  groups: GroupDefinition[]
   characters: CharacterDefinition[]
   questions: QuestionDefinition[]
 }

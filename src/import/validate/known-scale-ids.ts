@@ -15,7 +15,11 @@ export const knownScaleIds = (config: ParsedConfig): Set<string> =>
   new Set(config.scales.filter((row) => row.characterId).map((row) => row.externalId))
 
 export const knownResourceIds = (config: ParsedConfig): Set<string> =>
-  new Set(config.resources.filter((row) => row.characterId).map((row) => row.externalId))
+  new Set(
+    config.resources
+      .filter((row) => row.characterId !== undefined || row.householdRef !== undefined)
+      .map((row) => row.externalId),
+  )
 
 /**
  * Resource IDs a condition may also name: the joint accounts (§4.4).

@@ -36,10 +36,7 @@ export const CharacterPanel = ({ characters }: { characters: CharacterListItem[]
       <List disablePadding>
         {characters.map((character) => (
           <ListItem key={character.id} data-testid={`character-panel--${character.externalId}`}>
-            <ListItemText
-              primary={postavy.fullName(character.firstName, character.lastName)}
-              secondary={character.groupName ?? postavy.noGroup}
-            />
+            <ListItemText primary={postavy.fullName(character.firstName, character.lastName)} />
           </ListItem>
         ))}
       </List>

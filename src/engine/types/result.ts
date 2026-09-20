@@ -6,15 +6,20 @@ import type { RunState } from './state'
 import type { TraceEntry } from './trace'
 
 /**
- * Two rules of equal priority produced opposite results. The engine does not
- * decide — it hands this to the UI for the org to resolve (§7.3).
+ * Something the engine must not decide on its own: two rules of equal priority
+ * with opposite effects, a `HOUSEHOLD_CREATE` for a character who already lives
+ * in one, a `HOUSEHOLD_DELETE` of a household that does not exist (§4.4).
+ *
+ * A tie in a poll is not here: the earlier row of the poll definition wins, so
+ * the result is fully determined (§6.6). Neither is a choice between block
+ * variants, which priority or row order settles (§8.2).
  */
 export interface Conflict {
   id: string
   characterId?: CharacterId
   householdId?: HouseholdId
   subject: {
-    kind: 'skala' | 'priznak' | 'blok' | 'skupina' | 'domacnost'
+    kind: 'skala' | 'priznak' | 'blok' | 'domacnost'
     id: string
     label: string
   }

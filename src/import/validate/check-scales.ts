@@ -43,7 +43,30 @@ export const checkScales = (config: ParsedConfig, issues: IssueCollector): void 
     }
   }
 
+  const defaultHouseholds = new Set(config.households.map((household) => household.externalId))
+  const withBalance = new Map<string, Set<string>>()
+
   for (const row of config.resources) {
+    if (row.householdRef !== undefined) {
+      if (defaultHouseholds.has(row.householdRef)) {
+        const keys = withBalance.get(row.householdRef) ?? new Set<string>()
+        keys.add(row.key)
+        withBalance.set(row.householdRef, keys)
+        continue
+      }
+
+      issues.error(
+        'vadna_domacnost',
+        row.location,
+        `Zdroj \`${row.externalId}\` je vedený na domácnost \`${row.householdRef}\`, která není ve sloupci \`Household\` listu \`Characters\` — společný účet má jen domácnost, se kterou hra začíná (§4.2).`,
+        {
+          value: row.householdRef,
+          suggestion: suggestClosest(row.householdRef, defaultHouseholds),
+        },
+      )
+      continue
+    }
+
     if (row.characterId !== undefined) continue
     issues.error(
       'neznama_postava',
@@ -51,5 +74,40 @@ export const checkScales = (config: ParsedConfig, issues: IssueCollector): void 
       `Zdroj \`${row.key}\` je vedený na postavu \`${row.characterRef}\`, která není v listu \`Characters\`.`,
       { value: row.characterRef, suggestion: suggestClosest(row.characterRef, characterIds) },
     )
+  }
+
+  checkOpeningBalances(config, withBalance, issues)
+}
+
+/**
+ * A household the game starts with needs its joint account's opening balance
+ * (§4.2): nothing is quietly filled in with a zero, because a balance nobody
+ * wrote is a number nobody checked.
+ *
+ * Only shared resources are required — a `private` one has no joint account to
+ * open.
+ */
+const checkOpeningBalances = (
+  config: ParsedConfig,
+  withBalance: Map<string, Set<string>>,
+  issues: IssueCollector,
+): void => {
+  const sharedKeys = new Set<string>()
+  for (const row of config.resources) {
+    if (row.scope === 'household') sharedKeys.add(row.key)
+  }
+  if (sharedKeys.size === 0) return
+
+  for (const household of config.households) {
+    const present = withBalance.get(household.externalId)
+    for (const key of sharedKeys) {
+      if (present?.has(key)) continue
+      issues.error(
+        'vadna_domacnost',
+        household.location,
+        `Výchozí domácnost \`${household.externalId}\` nemá v listu \`Resources\` řádek \`R_${household.externalId}_${key}\` — počáteční zůstatek společného účtu se nedoplňuje nulou (§4.2).`,
+        { value: `R_${household.externalId}_${key}` },
+      )
+    }
   }
 }

@@ -9,6 +9,7 @@ import {
   ANSWER_BLOCKS_COLUMN,
   ANSWER_ID_COLUMN,
   ANSWER_LABEL_COLUMN,
+  EFFECTS_COLUMN,
   IMPACT_COLUMN,
   QUESTION_CONDITION_COLUMN,
   QUESTION_PRIVATE_COLUMN,
@@ -16,7 +17,7 @@ import {
 } from '../constants/sheets'
 import type { Workbook } from '../types/parsed-config'
 
-type Row = Record<string, string>
+export type Row = Record<string, string>
 
 export interface WorkbookParts {
   characters?: Row[]
@@ -31,8 +32,8 @@ export interface WorkbookParts {
   omit?: string[]
 }
 
-const CHARACTER_COLUMNS = ['ID', 'Name', 'Surname']
-const GROUP_COLUMNS = ['ID', 'Name', 'Members', 'Leader']
+const CHARACTER_COLUMNS = ['ID', 'Name', 'Surname', 'Household']
+const GROUP_COLUMNS = ['ID', 'Name']
 const SCALE_COLUMNS = ['Character', 'ID', 'Min', 'Max', 'Default']
 const RESOURCE_COLUMNS = ['Character', 'ID', 'Scope', 'Default']
 const QUESTION_COLUMNS = [
@@ -45,7 +46,7 @@ const QUESTION_COLUMNS = [
   ANSWER_LABEL_COLUMN,
   IMPACT_COLUMN,
   ANSWER_BLOCKS_COLUMN,
-  'Effects',
+  EFFECTS_COLUMN,
   QUESTION_SOURCE_COLUMN,
   QUESTION_PRIVATE_COLUMN,
 ]
@@ -64,9 +65,7 @@ const DEFAULT_CHARACTERS: Row[] = [
   { ID: 'Mirek', Name: 'Mirek', Surname: 'Pokorný' },
 ]
 
-const DEFAULT_GROUPS: Row[] = [
-  { ID: 'SrdceParty', Name: 'Srdce party', Members: 'Marie, Mirek', Leader: 'Mirek' },
-]
+const DEFAULT_GROUPS: Row[] = [{ ID: 'SrdceParty', Name: 'Srdce party' }]
 
 const DEFAULT_SCALES: Row[] = [
   { Character: 'Marie', ID: 'S_Marie_Regime', Min: '1', Max: '10', Default: '6' },

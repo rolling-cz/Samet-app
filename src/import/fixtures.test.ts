@@ -20,7 +20,7 @@ import type { UploadedTemplate } from './types/parsed-template'
 import { readWorkbook } from './workbook'
 
 /** Mistakes the faulty workbook carries, per `fixtures-ocekavane-vysledky.md`. */
-const EXPECTED_WORKBOOK_ERRORS = 38
+const EXPECTED_WORKBOOK_ERRORS = 37
 
 /** Mistakes that only show once the templates are uploaded (§10.2). */
 const EXPECTED_TEMPLATE_ERRORS = 5

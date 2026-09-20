@@ -59,6 +59,11 @@ export interface ScaleImpact {
   terms: ImpactTerm[]
   /** The exact text this came from, for error messages. */
   raw: string
+  /**
+   * The effect this impact was derived from (§4.4), when it was not written in
+   * the sheet at all. The trace has to name it: the author sees no such line.
+   */
+  derivedFrom?: string
 }
 
 export interface ScaleImpactProblem {

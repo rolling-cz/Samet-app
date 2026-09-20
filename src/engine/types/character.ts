@@ -1,11 +1,5 @@
-/** Character and group registry entries (§4.2). */
-import type { CharacterId, GroupId, ScaleId } from './ids'
-
-export interface GroupDefinition {
-  id: GroupId
-  externalId: string
-  name: string
-}
+/** Character registry entry (§4.2). */
+import type { CharacterId, ScaleId } from './ids'
 
 export interface CharacterDefinition {
   id: CharacterId

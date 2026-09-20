@@ -70,6 +70,7 @@ export const parseCharacters = (
       firstName: row.get('Name'),
       lastName: row.get('Surname'),
       householdRef: row.get('Household') || undefined,
+      householdLocation: row.at('Household'),
       location: row.at('ID'),
     })
   }

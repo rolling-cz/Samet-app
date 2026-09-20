@@ -9,6 +9,7 @@ import type { Grid } from '../sheet'
 import type { ParsedBlock } from './parsed-block'
 import type { ParsedCharacter } from './parsed-character'
 import type { ParsedGroup } from './parsed-group'
+import type { ParsedHousehold } from './parsed-household'
 import type { ParsedQuestion } from './parsed-question'
 import type { ParsedResourceRow } from './parsed-resource'
 import type { ParsedScaleRow } from './parsed-scale'
@@ -37,10 +38,12 @@ export interface ParsedConfig {
   /** Chapter numbers the workbook actually carries. */
   chapters: number[]
   characters: ParsedCharacter[]
+  /** Households the game starts with, from the `Household` column (§4.2). */
+  households: ParsedHousehold[]
   groups: ParsedGroup[]
   /** One row per pair character × scale; `Min` / `Max` belong to the pair (§4.2). */
   scales: ParsedScaleRow[]
-  /** One row per pair character × resource; resources are unbounded (§4.1). */
+  /** One row per pair owner × resource; resources are unbounded (§4.1). */
   resources: ParsedResourceRow[]
   questions: Map<number, ParsedQuestion[]>
   blocks: Map<number, ParsedBlock[]>

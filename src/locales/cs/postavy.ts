@@ -4,5 +4,4 @@ export const postavy = Object.freeze({
   count: (count: number) => `${count}`,
   empty: 'Postavy se objeví po nahrání konfigurace ve Správě.',
   fullName: (firstName: string, lastName: string) => `${firstName} ${lastName}`,
-  noGroup: 'bez skupiny',
 })

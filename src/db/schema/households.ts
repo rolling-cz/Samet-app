@@ -14,6 +14,10 @@ import { chapters, runs } from './runs'
  * A single character is NOT a household of one (§4.4): their money stays on
  * their personal account and routing decides which of the two an impact hits.
  *
+ * A household either starts the game — the `Household` column of `Characters`
+ * (§4.2) — or is created in play by `HOUSEHOLD_CREATE`; `createdInChapterId`
+ * says which, and a default one belongs to chapter 1.
+ *
  * The household's identity survives chapters; who belongs to it is a
  * per-chapter snapshot in `household_memberships`. A divorce therefore deletes
  * nothing, it just produces different membership in the next chapter.
