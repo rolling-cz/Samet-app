@@ -6,6 +6,8 @@ export interface ParsedTemplate {
   chapter?: number
   filename: string
   markdown: string
+  /** Came in a zip from „Načíst z Google"; such a template beats an uploaded one (§10.2). */
+  fromGoogle?: boolean
   blockIds: string[]
   variables: string[]
   problems: { line: number; raw: string; detail: string }[]
@@ -15,4 +17,5 @@ export interface ParsedTemplate {
 export interface UploadedTemplate {
   filename: string
   markdown: string
+  fromGoogle?: boolean
 }

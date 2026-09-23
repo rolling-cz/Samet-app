@@ -25,4 +25,6 @@ export const audit = Object.freeze({
     `Odpověď postavy ${characterId} na ${questionId} v kapitole ${chapter} změněna.${touchedNote(touchedChapters)}`,
   answerCancelled: (questionId: string, characterId: string, chapter: number, touchedChapters: number[]) =>
     `Odpověď postavy ${characterId} na ${questionId} v kapitole ${chapter} zrušena — otázka je znovu nezodpovězená.${touchedNote(touchedChapters)}`,
+  templatesRefreshed: (chapter: number, fileNames: string[], rejected: number) =>
+    `Šablony kapitoly ${chapter} obnoveny z Google Docs: ${fileNames.join(', ')}.${rejected > 0 ? ` Neprošlo kontrolou a zůstalo původní: ${rejected}.` : ''}`,
 })

@@ -2,7 +2,7 @@
 
 import Chip from '@mui/material/Chip'
 import Link from 'next/link'
-import { ADMIN_SECTION, chapterRoute, DEFAULT_CHAPTER_SECTION, type ChapterSummary } from '@/core'
+import { ADMIN_SECTION, chapterHasSection, chapterRoute, DEFAULT_CHAPTER_SECTION, type ChapterSummary } from '@/core'
 import { useRunLocation } from '@/core/hooks/useRunLocation'
 import { navigation } from '@/locales/cs/navigation'
 import { statuses } from '@/locales/cs/statuses'
@@ -11,15 +11,19 @@ import styles from './ChapterStatuses.module.css'
 interface ChapterStatusesProps {
   runId: string
   chapters: ChapterSummary[]
+  lastChapter: number
 }
 
 /** Switching the chapter keeps the section and the selected character. */
-export const ChapterStatuses = ({ runId, chapters }: ChapterStatusesProps) => {
+export const ChapterStatuses = ({ runId, chapters, lastChapter }: ChapterStatusesProps) => {
   const location = useRunLocation()
 
   // Správa has no chapter, so from there a chapter opens on the default section.
   const section =
     location.section === undefined || location.section === ADMIN_SECTION ? DEFAULT_CHAPTER_SECTION : location.section
+
+  const sectionIn = (chapter: number) =>
+    chapterHasSection(section, chapter, lastChapter) ? section : DEFAULT_CHAPTER_SECTION
 
   return (
     <ul className={styles.list} aria-label={navigation.chaptersLabel} data-testid="chapter-statuses">
@@ -27,7 +31,7 @@ export const ChapterStatuses = ({ runId, chapters }: ChapterStatusesProps) => {
         <li key={chapter.number}>
           <Chip
             component={Link}
-            href={chapterRoute(runId, chapter.number, section, location.characterId)}
+            href={chapterRoute(runId, chapter.number, sectionIn(chapter.number), location.characterId)}
             clickable
             variant="outlined"
             label={navigation.chapter(chapter.number, statuses.chapter[chapter.status], chapter.isTouched)}

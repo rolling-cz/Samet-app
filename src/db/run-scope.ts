@@ -9,7 +9,7 @@
  * A query this layer cannot express (a multi-table join) gets a new method
  * here, never a bypass in the application.
  */
-import { and, eq, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, type SQL } from 'drizzle-orm'
 import { type PgColumn, PgTable } from 'drizzle-orm/pg-core'
 import { unscopedDb, type Database } from './client'
 
@@ -77,6 +77,30 @@ export class RunScope {
       .select(fields)
       .from(table as PgTable)
       .where(this.scoped(table, ...conditions))
+  }
+
+  /**
+   * Like `selectColumns()`, plus `order by` and `limit` — the method this layer
+   * owes anyone who needs "the newest row". Archived uploads are the case:
+   * their `content` is large, so picking the latest by sorting whole rows in
+   * JavaScript would pull every version over the wire.
+   */
+  selectColumnsOrdered<T extends RunScopedTable, F extends Record<string, PgColumn>>(
+    table: T,
+    fields: F,
+    order: { by: PgColumn; direction?: 'asc' | 'desc'; limit?: number },
+    ...conditions: (SQL | undefined)[]
+  ) {
+    // `$dynamic()` keeps one builder type across the optional `limit`; without
+    // it Drizzle narrows `orderBy()`'s result and `limit` falls off.
+    const query = this.db
+      .select(fields)
+      .from(table as PgTable)
+      .where(this.scoped(table, ...conditions))
+      .$dynamic()
+      .orderBy(order.direction === 'desc' ? desc(order.by) : asc(order.by))
+
+    return order.limit === undefined ? query : query.limit(order.limit)
   }
 
   /** Insert with `run_id` filled in automatically. */

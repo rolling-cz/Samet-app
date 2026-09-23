@@ -1,0 +1,8 @@
+.list {
+  margin: calc(var(--mui-spacing) * 0.5) 0 0;
+  padding-left: calc(var(--mui-spacing) * 2.5);
+}
+
+.list a {
+  color: inherit;
+}

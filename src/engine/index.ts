@@ -27,6 +27,10 @@ export * from './types/result'
 export * from './constants/effectPhases'
 export * from './constants/expressionLanguage'
 export { householdExternalId } from './utils/householdId'
+// Reading a resource the way a condition would: the document prints values the
+// same rules chose the text by (§4.4).
+export { characterResourceReference, routeResource } from './utils/resourceRouting'
+export { readResource } from './utils/stateAccess'
 export { splitHouseholdId } from './utils/splitHouseholdId'
 export { normalizeState } from './utils/normalizeState'
 export { compareIds } from './utils/compareIds'

@@ -13,6 +13,7 @@ import type { ParsedHousehold } from './parsed-household'
 import type { ParsedQuestion } from './parsed-question'
 import type { ParsedResourceRow } from './parsed-resource'
 import type { ParsedScaleRow } from './parsed-scale'
+import type { ParsedTemplateSource } from './parsed-template-source'
 
 /** Sheets as the workbook presents them: name to grid. */
 export type Workbook = Map<string, Grid>
@@ -47,6 +48,8 @@ export interface ParsedConfig {
   resources: ParsedResourceRow[]
   questions: Map<number, ParsedQuestion[]>
   blocks: Map<number, ParsedBlock[]>
+  /** The optional `Templates` sheet; absent when the workbook has none (§10.2). */
+  templateSources?: ParsedTemplateSource[]
   sheetNames: string[]
   repairs: ImportRepairs
 }

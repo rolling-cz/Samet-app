@@ -7,6 +7,8 @@
  * still has none.
  */
 import JSZip from 'jszip'
+import { personLabel } from '@/utils/person-label'
+import { DOWNLOAD_REPORT_FILE } from './constants/google-templates'
 import { toParsedTemplate } from './template'
 import type { ParsedConfig } from './types/parsed-config'
 import type { ParsedTemplate, UploadedTemplate } from './types/parsed-template'
@@ -35,6 +37,7 @@ export const readTemplateFiles = async (files: RawFile[]): Promise<ParsedTemplat
 
 const readZip = async (data: ArrayBuffer | Uint8Array): Promise<UploadedTemplate[]> => {
   const zip = await JSZip.loadAsync(data)
+  const fromGoogle = zip.file(DOWNLOAD_REPORT_FILE) !== null
   const out: UploadedTemplate[] = []
 
   for (const entry of Object.values(zip.files)) {
@@ -42,7 +45,7 @@ const readZip = async (data: ArrayBuffer | Uint8Array): Promise<UploadedTemplate
     // Zips from macOS carry a `__MACOSX` shadow tree; it is not content.
     if (entry.name.startsWith('__MACOSX/') || entry.name.includes('/._')) continue
     if (!/\.md$/i.test(entry.name)) continue
-    out.push({ filename: entry.name, markdown: await entry.async('string') })
+    out.push({ filename: entry.name, markdown: await entry.async('string'), ...(fromGoogle ? { fromGoogle } : {}) })
   }
 
   return out
@@ -69,6 +72,8 @@ export interface TemplateCoverage {
   /** Uploaded files whose name matches no character, group or chapter. */
   unmatched: ParsedTemplate[]
   missingCount: number
+  /** Templates replaced by a later one for the same owner and chapter. */
+  duplicates: { overridden: ParsedTemplate; used: ParsedTemplate }[]
 }
 
 /**
@@ -84,12 +89,20 @@ export const templateCoverage = (
   templates: ParsedTemplate[],
 ): TemplateCoverage => {
   const byKey = new Map<string, ParsedTemplate>()
+  const overridden: { key: string; template: ParsedTemplate }[] = []
   for (const template of templates) {
     if (template.ownerRef === undefined || template.chapter === undefined) continue
-    byKey.set(coverageKey(template.ownerRef, template.chapter), template)
+    const key = templateKey(template.ownerRef, template.chapter)
+    const previous = byKey.get(key)
+    if (previous && templateWins(previous, template)) {
+      overridden.push({ key, template })
+      continue
+    }
+    if (previous) overridden.push({ key, template: previous })
+    byKey.set(key, template)
   }
 
-  const used = new Set<string>()
+  const usedKeys = new Set<string>()
   const assignments: TemplateAssignment[] = []
 
   const expect = (
@@ -98,8 +111,9 @@ export const templateCoverage = (
     ownerKind: TemplateAssignment['ownerKind'],
   ) => {
     for (const chapter of config.chapters) {
-      const match = byKey.get(coverageKey(ownerExternalId, chapter))
-      if (match) used.add(match.filename)
+      const key = templateKey(ownerExternalId, chapter)
+      const match = byKey.get(key)
+      if (match) usedKeys.add(key)
 
       assignments.push({
         ownerExternalId,
@@ -113,8 +127,7 @@ export const templateCoverage = (
   }
 
   for (const character of config.characters) {
-    const name = `${character.firstName} ${character.lastName}`.trim() || character.externalId
-    expect(character.externalId, name, 'character')
+    expect(character.externalId, personLabel(character.firstName, character.lastName, character.externalId), 'character')
   }
   for (const group of config.groups) {
     expect(group.externalId, group.name, 'group')
@@ -122,11 +135,26 @@ export const templateCoverage = (
 
   return {
     assignments,
-    unmatched: templates.filter((t) => !used.has(t.filename)),
+    unmatched: templates.filter(
+      (t) => t.ownerRef === undefined || t.chapter === undefined || !usedKeys.has(templateKey(t.ownerRef, t.chapter)),
+    ),
     missingCount: assignments.filter((a) => a.status !== 'assigned').length,
+    duplicates: overridden.flatMap(({ key, template }) => {
+      const winner = byKey.get(key)
+
+      return usedKeys.has(key) && winner ? [{ overridden: template, used: winner }] : []
+    }),
   }
 }
 
-/** Case-insensitive: the author exports from Docs and the case drifts. */
-const coverageKey = (ownerRef: string, chapter: number): string =>
-  `${ownerRef.toLowerCase()}#${chapter}`
+/**
+ * Which of two templates for one owner and chapter is used (§10.2): one from
+ * Google beats an uploaded file — uploads are the fallback for a tab that did
+ * not download — and otherwise the later one wins. The archive picks by the
+ * same rule (`pickNewestTemplates`), so the check and the print agree.
+ */
+export const templateWins = (current: Pick<ParsedTemplate, 'fromGoogle'>, challenger: Pick<ParsedTemplate, 'fromGoogle'>): boolean =>
+  current.fromGoogle === true && challenger.fromGoogle !== true
+
+/** Owner × chapter, case-insensitive: the author exports from Docs and the case drifts. */
+export const templateKey = (ownerRef: string, chapter: number): string => `${ownerRef.toLowerCase()}#${chapter}`

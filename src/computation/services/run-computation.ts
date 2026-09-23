@@ -4,7 +4,7 @@ import {
   createInitialState,
   EngineInputError,
   evaluate,
-  CHAPTER_NUMBERS,
+  isChapterNumber,
   type ChapterNumber,
   type EngineConfig,
   type RunState,
@@ -32,9 +32,6 @@ export interface ComputationRequest {
   /** From `readAuthor` — the server reads it, no form sends it. */
   author: string
 }
-
-const isChapterNumber = (chapter: number): chapter is ChapterNumber =>
-  (CHAPTER_NUMBERS as readonly number[]).includes(chapter)
 
 /** `randomInt`'s upper bound is exclusive. */
 const rollDie = (): number => randomInt(DICE_MIN, DICE_SIDES + 1)

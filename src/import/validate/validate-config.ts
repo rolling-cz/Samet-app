@@ -13,6 +13,7 @@ import { checkQuestionConditions } from './check-question-conditions'
 import { checkQuestions } from './check-questions'
 import { checkUntouchedScales } from './check-scale-usage'
 import { checkScales } from './check-scales'
+import { checkTemplateSources } from './check-template-sources'
 import { checkTemplates } from './check-templates'
 
 export interface ValidationInput {
@@ -31,5 +32,6 @@ export const validateConfig = ({ config, templates }: ValidationInput, issues: I
   checkQuestionConditions(config, issues)
   checkContent(config, characterIds, groupIds, issues)
   checkUntouchedScales(config, issues)
+  checkTemplateSources(config, issues)
   if (templates) checkTemplates(config, templates, issues)
 }

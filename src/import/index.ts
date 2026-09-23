@@ -12,7 +12,13 @@ export { toEngineConfig } from './to-engine-config'
 export { collectDefaultHouseholds } from './households'
 export type { ImpactKind, ImpactTerm, ScaleImpact } from './scale-impact'
 export { parseCondition, DEFAULT_CONDITION } from './expression'
-export { parseTemplate, parseTemplateFilename, blockMarkers, KNOWN_VARIABLES } from './template'
+export {
+  parseTemplate,
+  parseTemplateFilename,
+  blockMarkers,
+  KNOWN_VARIABLES,
+  toParsedTemplate,
+} from './template'
 export { readWorkbook } from './workbook'
 export { columnLetter } from './utils/column-letter'
 export { editDistance, suggestClosest } from './utils/suggest-closest'
@@ -33,3 +39,17 @@ export type {
 export type { ParsedBlock, ParsedVariation } from './types/parsed-block'
 export type { ParsedTemplate, UploadedTemplate } from './types/parsed-template'
 export type { UploadedFile } from './types/uploaded-file'
+export { classifyDownload, exportRedirectTarget } from './google/classify-download'
+export {
+  buildDownloadZip,
+  downloadReport,
+  downloadZipName,
+  planDownloads,
+  type DownloadItem,
+  type DownloadJob,
+  type DownloadReport,
+  type DownloadStatus,
+  type DownloadedFile,
+} from './google/download-plan'
+export { refreshedTemplateErrors, templateErrorBaseline } from './google/check-refreshed-template'
+export { archiveTemplateFile } from './persist/archive-templates'

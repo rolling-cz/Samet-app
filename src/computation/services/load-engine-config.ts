@@ -3,10 +3,17 @@ import type { RunScope } from '@/db'
 import { uploadedFiles } from '@/db/schema'
 import type { EngineConfig } from '@/engine'
 import { importXlsx } from '@/import/import-config'
+import type { ParsedConfig } from '@/import/types/parsed-config'
 import { toEngineConfig } from '@/import/to-engine-config'
 
 export type LoadedEngineConfig =
-  | { _type: 'loaded'; config: EngineConfig; configUploadId: string }
+  | {
+      _type: 'loaded'
+      config: EngineConfig
+      /** The same file as parsed by the import — for what the engine does not read, like the `Templates` sheet. */
+      parsed: ParsedConfig
+      configUploadId: string
+    }
   | { _type: 'no_config' }
   /** The archived file no longer imports cleanly — the import code changed under it. */
   | { _type: 'unusable'; configUploadId: string; filename: string; errors: string[] }
@@ -21,30 +28,23 @@ export type LoadedEngineConfig =
  * is parsed again all the same, and one with errors is never used.
  */
 export const loadEngineConfig = async (scope: RunScope): Promise<LoadedEngineConfig> => {
-  const uploads = await scope.selectColumns(
+  const [latest] = await scope.selectColumnsOrdered(
     uploadedFiles,
-    { id: uploadedFiles.id, createdAt: uploadedFiles.createdAt },
+    { id: uploadedFiles.id, filename: uploadedFiles.filename, content: uploadedFiles.content },
+    { by: uploadedFiles.createdAt, direction: 'desc', limit: 1 },
     eq(uploadedFiles.kind, 'config'),
   )
-  const [latest] = [...uploads].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   if (!latest) return { _type: 'no_config' }
 
-  const [file] = await scope.selectColumns(
-    uploadedFiles,
-    { filename: uploadedFiles.filename, content: uploadedFiles.content },
-    eq(uploadedFiles.id, latest.id),
-  )
-  if (!file) return { _type: 'no_config' }
-
-  const imported = importXlsx(file.content)
+  const imported = importXlsx(latest.content)
   if (!imported.usable) {
     return {
       _type: 'unusable',
       configUploadId: latest.id,
-      filename: file.filename,
+      filename: latest.filename,
       errors: imported.errors.map((issue) => issue.message),
     }
   }
 
-  return { _type: 'loaded', config: toEngineConfig(imported.config), configUploadId: latest.id }
+  return { _type: 'loaded', config: toEngineConfig(imported.config), parsed: imported.config, configUploadId: latest.id }
 }

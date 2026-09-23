@@ -17,6 +17,7 @@ import {
   IGNORED_SHEETS,
   RESOURCES_SHEET,
   SCALES_SHEET,
+  TEMPLATES_SHEET,
   VALIDATIONS_SHEET,
 } from '../constants/sheets'
 import type { IssueCollector } from '../issue-collector'
@@ -29,6 +30,7 @@ import { parseGroups } from './parse-groups'
 import { parseQuestions } from './parse-questions'
 import { parseResources } from './parse-resources'
 import { parseScales } from './parse-scales'
+import { parseTemplateSources } from './parse-template-sources'
 
 export const parseConfig = (workbook: Workbook, issues: IssueCollector): ParsedConfig => {
   const repairs: ImportRepairs = {
@@ -75,6 +77,7 @@ export const parseConfig = (workbook: Workbook, issues: IssueCollector): ParsedC
     resources: parseResources(workbook, aliases, issues, repairs),
     questions,
     blocks,
+    templateSources: parseTemplateSources(workbook, aliases, groups, issues, repairs),
     sheetNames: [...workbook.keys()],
     repairs,
   }
@@ -87,6 +90,7 @@ export const unknownSheets = (workbook: Workbook): string[] => {
     GROUPS_SHEET,
     SCALES_SHEET,
     RESOURCES_SHEET,
+    TEMPLATES_SHEET,
     VALIDATIONS_SHEET,
     ...IGNORED_SHEETS,
   ])

@@ -45,6 +45,13 @@ export type IssueCode =
   | 'unreachable_variant'
   | 'scale_without_impact'
   | 'invalid_template_filename'
+  | 'foreign_template_block'
+  | 'invalid_template_url'
+  | 'template_url_without_tab'
+  | 'duplicate_template_source'
+  | 'shared_template_url'
+  | 'owner_without_template_url'
+  | 'duplicate_template'
 
 /** Where in the uploaded file the problem sits. */
 export interface IssueLocation {

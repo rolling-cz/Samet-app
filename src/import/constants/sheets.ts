@@ -15,6 +15,20 @@ export const SCALES_SHEET = 'Scales'
 /** The same for resources, which have no `Min` / `Max` (§4.1). */
 export const RESOURCES_SHEET = 'Resources'
 
+/**
+ * Optional: where each owner's template lives in Google Docs, per chapter
+ * (§10.2). One sheet for all chapters on purpose — never `1_Templates`, and
+ * never in `CHAPTER_SHEET_KINDS`: the chapter sheets are how the parser learns
+ * which chapters the workbook has, and a templates sheet would add one.
+ */
+export const TEMPLATES_SHEET = 'Templates'
+
+/** `Character` holds a character or a group, as in `N_Content`. */
+export const TEMPLATE_SOURCE_COLUMNS = Object.freeze(['Character', 'Chapter', 'URL'])
+
+/** One owner, three chapters: the author writes the owner once. */
+export const TEMPLATE_SOURCE_FILL_DOWN_COLUMNS = Object.freeze(['Character'])
+
 /** Validation notes for the author; read by nobody but them. */
 export const VALIDATIONS_SHEET = 'Validations'
 

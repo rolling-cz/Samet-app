@@ -1,0 +1,64 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--mui-spacing) * 1);
+  padding: calc(var(--mui-spacing) * 1.5);
+  border: 1px dashed var(--mui-palette-divider);
+  border-radius: var(--mui-shape-borderRadius);
+}
+
+.section > :global(.MuiAlert-root) {
+  align-self: stretch;
+}
+
+.hint {
+  color: var(--mui-palette-text-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mui-spacing);
+}
+
+.list {
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--mui-spacing) * 1);
+  padding-block: calc(var(--mui-spacing) * 0.5);
+  border-bottom: 1px solid var(--mui-palette-divider);
+}
+
+.owner {
+  font-weight: 500;
+}
+
+.docTitle {
+  color: var(--mui-palette-text-secondary);
+}
+
+.status {
+  color: var(--mui-palette-error-main);
+}
+
+.item[data-status='ok'] .status {
+  color: var(--mui-palette-success-main);
+}
+
+.open {
+  margin-left: auto;
+  color: inherit;
+}
+
+.toggle {
+  padding-inline: 0;
+}

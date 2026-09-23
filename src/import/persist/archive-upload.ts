@@ -30,13 +30,19 @@ export const archiveUpload = async (scope: RunScope, input: ArchiveInput): Promi
     .returning({ id: uploadedFiles.id })
   if (!config) throw new Error(errors.archiveFailed)
 
+  // `now()` is the transaction's start, so every file of one upload would tie
+  // and the newest template per owner × chapter would be picked by chance.
+  // Later in the list is newer (a Google template still beats any upload).
+  let stamp = 0
   for (const file of input.templateFiles) {
+    stamp = Math.max(Date.now(), stamp + 1)
     await scope.insert(uploadedFiles, {
       kind: 'template',
       filename: file.filename,
       content: file.content,
       note,
       reason,
+      createdAt: new Date(stamp),
       createdBy: input.author,
     })
   }

@@ -1,3 +1,5 @@
+import type { DownloadStatus } from '@/import'
+
 /** Admin screen (§10.2). */
 export const sprava = Object.freeze({
   title: 'Správa konfigurace',
@@ -31,4 +33,38 @@ export const sprava = Object.freeze({
   showChecks: 'Výsledky kontrol',
   download: 'Stáhnout',
   noFindings: 'Kontroly nic nenašly.',
+
+  google: Object.freeze({
+    title: 'Šablony z Google Docs',
+    hint: 'Stáhne karty podle listu Templates ve vybraném .xlsx. Dokumenty musí být sdílené „kdokoli s odkazem". Stažené šablony se přidají k nahrávce a mají přednost — nahrané soubory jsou jen záloha pro karty, které se nestáhly.',
+    fetch: 'Načíst z Google',
+    fetching: 'Stahuji z Google…',
+    discard: 'Nepoužít',
+    ready: (ok: number, total: number, time: string) => `Staženo ${ok} z ${total} šablon (${time}). Přidají se k nahrávce.`,
+    skippedRows: (count: number) => `Řádků listu Templates s chybou (přeskočené): ${count} — podrobnosti ukáže kontrola.`,
+    noConfigFile: 'Nejdřív vyber .xlsx — seznam adres je v jeho listu Templates.',
+    noSheet: 'Vybraný .xlsx nemá list Templates (sloupce Character, Chapter, URL).',
+    noRows: (skipped: number) => `V listu Templates není žádný použitelný řádek (vadných: ${skipped}). Podrobnosti ukáže kontrola.`,
+    unreadable: (detail: string) => `Soubor se nepodařilo přečíst: ${detail}`,
+    requestFailed: (detail: string) => `Stahování se nepovedlo: ${detail}`,
+    showDownloaded: (count: number) => `Zobrazit stažené (${count})`,
+    hideDownloaded: 'Skrýt stažené',
+    open: 'Otevřít',
+    owner: (label: string, chapter: number) => `${label}, kapitola ${chapter}`,
+    docTitle: (title: string) => `← „${title}"`,
+    statuses: Object.freeze({
+      ok: 'staženo',
+      not_public: 'není sdílený odkazem (Google chce přihlášení)',
+      not_found: 'dokument neexistuje',
+      forbidden: 'přístup odepřen',
+      not_markdown: 'nevrátil markdown',
+      empty: 'karta je prázdná',
+      rate_limited: 'Google omezil počet požadavků — zkus to za chvíli znovu',
+      failed: 'neočekávaná odpověď',
+      timed_out: 'nestihl odpovědět',
+      network_error: 'chyba sítě',
+      skipped_deadline: 'nestihlo se — zkus to znovu',
+      rejected: 'staženo, ale neprošlo kontrolou — zůstává dosavadní šablona',
+    } satisfies Record<DownloadStatus, string>),
+  }),
 })

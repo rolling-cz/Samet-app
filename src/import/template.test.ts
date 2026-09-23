@@ -11,6 +11,14 @@ describe('parseTemplate', () => {
     expect(variables).toEqual(['JMENO', 'PRIJMENI', 'S_Regime', 'R_Wealth'])
   })
 
+  it('reads markers escaped by the Google Docs markdown export', () => {
+    // Exactly how Docs exports `{BLOK B_Marie_2_Historie_1}` and `{S_Regime}`.
+    const { problems, blockIds, variables } = parseTemplate('**{BLOK B\\_Marie\\_2\\_Historie\\_1}**\n{S\\_Regime}\n')
+    expect(problems).toEqual([])
+    expect(blockIds).toEqual(['B_Marie_2_Historie_1'])
+    expect(variables).toEqual(['S_Regime'])
+  })
+
   it('records the line of every marker', () => {
     const { markers } = parseTemplate('prvni\n{BLOK B_1}\n\n{JMENO}')
     expect(markers.map((m) => [m.name, m.line])).toEqual([

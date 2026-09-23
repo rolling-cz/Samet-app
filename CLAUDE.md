@@ -20,7 +20,7 @@ v `documents/` to potvrzují.
 | Zastaralé místo           | Co říká                                                                    | Co platí                                                                                  |
 | ------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | §16, řádek 12             | značky `{BLOK}`…`{/BLOK}` jsou párové, nevybrané bloky se mažou ze šablony | **§8.2 + §8.4:** značky jsou **nepárové**, varianty textu žijí v listu `N_Content`        |
-| §16, řádek 11             | „PDF se negeneruje, tisk je v Google Docs"                                 | **§8.1 + §8.3 + §10.4:** aplikace **PDF generuje** z HTML nad schválenými `.md`           |
+| §16, řádek 11             | „PDF se negeneruje, tisk je v Google Docs"                                 | **§8.1 + §8.3 + §10.4:** aplikace **PDF generuje** z vygenerovaných `.md`                 |
 | §15                       | „nepiš parser, začni strukturovanými sloupci"                              | **§4.5:** ten návrh je výslovně **zrušen** — autor hlasoval tím, jak tabulku píše         |
 | §11 bod 6d                | příznaky (flags) jako samostatný nosič stavu                               | **§4.2 + §4.5:** listy ani jazyk podmínek příznaky neznají; stav nesou **škály a zdroje** |
 | §4.4 v textu o podmínkách | `S_Marie_Wealth_osobni >= 7`                                               | **§4.2 + §4.4:** zdroj má prefix `R_` a přípona osobního účtu je `_private`               |
@@ -156,17 +156,38 @@ z čeho se počítalo.
 | Import tabulek      | SheetJS (`xlsx`)                                                                                                                |
 | Výrazy v podmínkách | `jsep`                                                                                                                          |
 | Zip                 | `jszip`                                                                                                                         |
-| PDF                 | HTML šablona nad schváleným `.md`, render na serveru (§8.1)                                                                     |
+| PDF                 | `@react-pdf/renderer`: `.md` → AST (`marked`) → PDF na serveru, bez HTML mezikroku (§8.1)                                        |
 | Hosting             | Vercel, `git push` = nasazeno                                                                                                   |
 
 **Žádné Google API.** Verze 1 komunikuje se světem výhradně přes nahrané
 a stažené soubory: `.xlsx` a `.md` dovnitř, `.md`, `.pdf`, `.xlsx` a `.zip` ven.
 Napojení na Google je fáze 2 a **nikdy nenahradí** souborovou cestu — ta zůstává
-navždy funkční jako záložní režim.
+navždy funkční jako záložní režim. Jedinou výjimkou je stažení veřejného exportu
+karty Google Docs (níže); nejde o API a souborová cesta zůstává plnohodnotná.
 
-**PDF se generuje** (obrat proti dřívějšímu návrhu, §8.1): org potvrdí `.md`,
-z něj vznikne HTML a z HTML tři sloučené PDF podle typu dokumentu, aby se daly
-rychle vytisknout. Markdown zůstává mezistupněm, který jde ručně opravit.
+**Šablony z Google Docs (bez API a OAuth).** Nepovinný list `Templates`
+v `.xlsx` (`Character`, `Chapter`, `URL` karty s `?tab=`; **ne** `N_Templates`
+a ne v `CHAPTER_SHEET_KINDS`, jinak by přibyla kapitola) mapuje vlastníka
+a kapitolu na kartu dokumentu sdíleného „kdokoli s odkazem".
+
+- *Správa → Načíst z Google*: route `POST /beh/<runId>/sprava/sablony-google`
+  **nezapisuje nic**, vrátí zip (`<ID>_<kapitola>.md` + `_stazeni.json`), který
+  jde s formulářem běžným Zkontrolovat / Uložit — importní cesta zůstává jediná.
+- *Výstupy → Obnovit z Google*: stáhne karty podle archivovaného `.xlsx`; karta,
+  která by přidala chybu importu, se nepoužije. Co projde, se archivuje jako
+  Google zip s auditem. Šablony nevstupují do přepočtu, nic se neoznačí `dotčené`.
+- **Šablona z Googlu má vždy přednost** před nahranou (`templateWins`, pozná se
+  podle `_stazeni.json`), v kontrole i v archivu; nahrané soubory jsou záloha.
+- Export karty je nedokumentovaný, proto import hlídá, že značka míří na blok
+  **téhož vlastníka z `N_Content` téže kapitoly** (`foreign_template_block`).
+  Markdown z Docs escapuje `_` uvnitř značek; `parseTemplate` escapy ruší.
+  Podrobnosti stahování (SSRF, jediný sledovaný skok) jsou v komentářích
+  `src/core/services/download-google-templates.ts` a `classify-download.ts`.
+
+**PDF se generuje** (obrat proti dřívějšímu návrhu, §8.1): z potvrzeného
+přepočtu vznikne `.md` a z něj přímo dvě sloučená PDF podle typu (postavy,
+skupiny), aby se daly rychle vytisknout. Markdown zůstává mezistupněm, který jde
+ručně opravit.
 
 ## MUI (§15.1)
 
@@ -747,6 +768,13 @@ po druhém, takže na obrazovce má být právě ta postava, jejíž papír drž
 
 ## Výstupy
 
+**Výstupy kapitoly N jsou dokumenty pro kapitolu N+1**, naplněné ze stavu
+a variant po vydaném, jinak posledním potvrzeném přepočtu kapitoly N (rozhodnutí organizátora
+23. 9. 2026). Dokumenty kapitoly 1 jsou pevný text a aplikace je netiskne;
+**poslední kapitola sekci Výstupy nemá** (`chapterHasSection`,
+`outputsDocumentChapter` v `src/core/constants/routes.ts`). Zip i soubory nesou
+číslo kapitoly, **pro kterou** dokumenty jsou.
+
 Jeden zip na kapitolu (§10.4), název běhu je součástí názvu souboru:
 
 ```
@@ -761,7 +789,8 @@ beh-<nazev>_kapitola-<N>.zip
 ```
 
 Typy dokumentů (§8.6): **dokument postavy, dokument skupiny, sada otázek pro
-další kapitolu**. PDF se **slučují podle typu**, aby se daly rychle vytisknout.
+další kapitolu** (sada otázek zatím nemá zadání a negeneruje se). PDF se
+**slučují podle typu**, aby se daly rychle vytisknout.
 U každého dokumentu navíc tlačítko **„Kopírovat do schránky"** — org pak jen
 přepíná záložky a mačká Ctrl+V (§10.5).
 
@@ -864,6 +893,8 @@ Dál v tomhle pořadí; kroky 1–2 mají zadání v
    fixture projde `scripts/questionnaire-demo.ts` (`--empty` připraví jen běh
    k ručnímu proklikání).
 4. **Sekce Přepočet** — trace „proč", konflikty, náhled změn, editace.
+5. **Výstupy a dokumenty** — **hotovo** (mimo úpravu `.md` v aplikaci a sadu
+   otázek), žije v `src/documents/` a `src/features/vystupy/` (viz „Výstupy").
 
 Krok 2 je před dotazníkem, protože dotazník kapitoly 2+ je lookup ve vybraných
 variantách a stav pod ním je snapshot; bez uloženého přepočtu by šel napsat jen

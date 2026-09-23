@@ -1,0 +1,19 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mui-spacing) * 1.5);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mui-spacing) * 0.5);
+}
+
+.basis {
+  color: var(--mui-palette-text-secondary);
+}
+
+.tabs {
+  border-bottom: 1px solid var(--mui-palette-divider);
+}

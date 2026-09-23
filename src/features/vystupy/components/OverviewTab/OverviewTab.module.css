@@ -1,0 +1,29 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mui-spacing) * 1);
+}
+
+.table td {
+  vertical-align: top;
+}
+
+.owner {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.list li[data-undecided='true'] {
+  color: var(--mui-palette-error-main);
+}
+
+.muted {
+  color: var(--mui-palette-text-secondary);
+}

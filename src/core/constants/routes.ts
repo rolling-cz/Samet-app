@@ -57,5 +57,18 @@ export const chapterRoute = (
 export const sectionRoute = (runId: string, section: RunSection, chapter: number): Route =>
   section === ADMIN_SECTION ? adminRoute(runId) : chapterRoute(runId, chapter, section)
 
+/**
+ * Výstupy of chapter N are the documents **for chapter N+1**, filled from the
+ * state after N (§8.3): chapter 1's documents are fixed text printed before the
+ * game, and after the last chapter nothing is printed any more.
+ */
+export const OUTPUTS_SECTION: ChapterSection = 'vystupy'
+
+export const chapterHasSection = (section: ChapterSection, chapter: number, lastChapter: number): boolean =>
+  section !== OUTPUTS_SECTION || chapter < lastChapter
+
+/** The chapter whose documents the Výstupy of `chapter` show. */
+export const outputsDocumentChapter = (chapter: number): number => chapter + 1
+
 export const isChapterSection = (value: string | undefined): value is ChapterSection =>
   value !== undefined && (CHAPTER_SECTIONS as readonly string[]).includes(value)

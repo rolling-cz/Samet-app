@@ -8,7 +8,9 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { sprava } from '@/locales/cs/sprava'
 import { UPLOAD_ACCEPT, UPLOAD_FIELDS } from '../../constants/upload-fields'
+import { useGoogleTemplates } from '../../hooks/useGoogleTemplates'
 import { useUploadReport } from '../../hooks/useUploadReport'
+import { GoogleTemplates } from './components/GoogleTemplates/GoogleTemplates'
 import { UploadReportView } from './components/UploadReportView/UploadReportView'
 import styles from './UploadPanel.module.css'
 
@@ -19,7 +21,8 @@ interface UploadPanelProps {
 }
 
 export const UploadPanel = ({ runId, isConfigFrozen }: UploadPanelProps) => {
-  const { report, pending, canSave, handleCheck, handleSave } = useUploadReport()
+  const google = useGoogleTemplates(runId)
+  const { report, pending, canSave, handleCheck, handleSave } = useUploadReport(google.zip)
 
   return (
     <Paper variant="outlined" component="section" className={styles.panel} data-testid="upload-panel">
@@ -50,11 +53,14 @@ export const UploadPanel = ({ runId, isConfigFrozen }: UploadPanelProps) => {
           <input
             type="file"
             name={UPLOAD_FIELDS.config}
+            onChange={google.handleDiscard}
             accept={UPLOAD_ACCEPT.config}
             className={styles.fileInput}
             data-testid="upload-form--config"
           />
         </label>
+
+        <GoogleTemplates state={google.state} onFetch={google.handleFetch} onDiscard={google.handleDiscard} />
 
         <label className={styles.fileField}>
           <Typography variant="subtitle2" component="span">

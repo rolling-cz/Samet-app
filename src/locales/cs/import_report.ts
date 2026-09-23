@@ -87,5 +87,12 @@ export const importReport = Object.freeze({
     unreachable_variant: 'nedosažitelná varianta',
     scale_without_impact: 'škála bez dopadu',
     invalid_template_filename: 'neplatný název šablony',
+    foreign_template_block: 'značka na blok jiné postavy nebo kapitoly',
+    invalid_template_url: 'neplatná adresa šablony',
+    template_url_without_tab: 'adresa šablony bez karty',
+    duplicate_template_source: 'dvě adresy pro jednu šablonu',
+    shared_template_url: 'stejná adresa u dvou šablon',
+    owner_without_template_url: 'šablona bez adresy',
+    duplicate_template: 'dvě šablony pro jednu postavu a kapitolu',
   } satisfies Record<IssueCode, string>),
 })

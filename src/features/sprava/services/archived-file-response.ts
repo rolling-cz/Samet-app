@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { forRun, parseRunId } from '@/db'
 import { uploadedFiles } from '@/db/schema'
 import { archiveDownloadName, ARCHIVE_CONTENT_TYPES, FALLBACK_CONTENT_TYPE, HTTP_NOT_FOUND, UUID_PATTERN } from '../constants/archive-download'
-import { attachmentDisposition } from '../utils/content-disposition'
+import { attachmentDisposition } from '@/utils/content-disposition'
 
 const contentTypeFor = (filename: string): string =>
   ARCHIVE_CONTENT_TYPES[filename.split('.').at(-1)?.toLowerCase() ?? ''] ?? FALLBACK_CONTENT_TYPE

@@ -1,0 +1,23 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mui-spacing) * 1.5);
+}
+
+.bundles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--mui-spacing) * 1);
+}
+
+.count {
+  color: var(--mui-palette-text-secondary);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--mui-palette-divider);
+}

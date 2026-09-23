@@ -11,8 +11,16 @@
  */
 import type { ParsedTemplate, UploadedTemplate } from './types/parsed-template'
 
-/** Variables the filler knows (§8.4). */
-export const KNOWN_VARIABLES = Object.freeze(['JMENO', 'PRIJMENI', 'VEK', 'SKUPINA'] as const)
+/**
+ * Variables the filler knows (§8.4).
+ *
+ * Deliberately short. A character's age has no source — the `Characters` sheet
+ * carries no birth year and §4.6 keeps it that way, so a year of birth stays
+ * fixed template text. Group membership is not state either (§4.6), so there is
+ * no `SKUPINA` to fill. `NAZEV` is the group's own name, which §8.4 forbids
+ * hardcoding into the text.
+ */
+export const KNOWN_VARIABLES = Object.freeze(['JMENO', 'PRIJMENI', 'NAZEV'] as const)
 
 export interface TemplateMarker {
   kind: 'block' | 'variable'
@@ -48,6 +56,16 @@ const BRACE_GROUP = /\{([^{}]*)\}/g
 /** An opening brace with no closing one on the same line. */
 const UNCLOSED = /\{[^{}]*$/
 
+/**
+ * Google Docs' markdown export escapes punctuation — `{BLOK B_Marie_2_X}`
+ * arrives as `{BLOK B\_Marie\_2\_X}` (verified 23. 9. 2026). Inside a marker a
+ * backslash is never the author's, so a CommonMark escape is undone before the
+ * ID is read; the marker's raw text, escapes included, is still what gets replaced.
+ */
+const MARKDOWN_ESCAPE = /\\([!-/:-@[-`{-~])/g
+
+const unescapeMarkdown = (text: string): string => text.replace(MARKDOWN_ESCAPE, '$1')
+
 export const parseTemplate = (markdown: string): TemplateParse => {
   const markers: TemplateMarker[] = []
   const problems: TemplateMarkerProblem[] = []
@@ -59,7 +77,7 @@ export const parseTemplate = (markdown: string): TemplateParse => {
 
     for (const match of text.matchAll(BRACE_GROUP)) {
       const raw = match[0]
-      const inner = (match[1] ?? '').trim()
+      const inner = unescapeMarkdown(match[1] ?? '').trim()
 
       if (inner === '') {
         problems.push({ line, raw, detail: 'prázdná značka `{}`' })
@@ -132,6 +150,36 @@ export const parseTemplate = (markdown: string): TemplateParse => {
 }
 
 /**
+ * Replaces every marker in one pass (§8.3, step [2]).
+ *
+ * `resolve` returning `undefined` leaves the marker where it is, so the filler
+ * reports it as surviving instead of silently printing a blank — §8.4 lets no
+ * marker reach the finished document.
+ *
+ * Lives beside `parseTemplate` so both halves read the same braces.
+ */
+export const replaceMarkers = (
+  text: string,
+  resolve: (marker: TemplateMarker) => string | undefined,
+): string => {
+  // Its own instance: the callback re-enters `parseTemplate`, which matches on
+  // the shared one.
+  const braces = new RegExp(BRACE_GROUP.source, 'g')
+
+  return text
+    .split(/\r?\n/)
+    .map((line, index) =>
+      line.replace(braces, (raw) => {
+        const [marker] = parseTemplate(raw).markers
+        if (!marker) return raw
+
+        return resolve({ ...marker, line: index + 1, raw }) ?? raw
+      }),
+    )
+    .join('\n')
+}
+
+/**
  * Who a template belongs to, read from its file name (§10.2).
  *
  * `<ID postavy>_<kapitola>.md` or `<ID skupiny>_<kapitola>.md` — `Marie_2.md`,
@@ -164,7 +212,7 @@ export const parseTemplateFilename = (filename: string): TemplateFilename | unde
 export const blockMarkers = (text: string): string[] => parseTemplate(text).blockIds
 
 /** A template with its markers read, ready for validation. */
-export const toParsedTemplate = ({ filename, markdown }: UploadedTemplate): ParsedTemplate => {
+export const toParsedTemplate = ({ filename, markdown, fromGoogle }: UploadedTemplate): ParsedTemplate => {
   const parsed = parseTemplate(markdown)
   const name = parseTemplateFilename(filename)
 
@@ -173,6 +221,7 @@ export const toParsedTemplate = ({ filename, markdown }: UploadedTemplate): Pars
     chapter: name?.chapter,
     filename,
     markdown,
+    ...(fromGoogle ? { fromGoogle } : {}),
     blockIds: parsed.blockIds,
     variables: parsed.variables,
     problems: parsed.problems,

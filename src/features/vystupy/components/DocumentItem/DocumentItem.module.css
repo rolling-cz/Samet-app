@@ -1,0 +1,87 @@
+.item {
+  padding-block: calc(var(--mui-spacing) * 0.75);
+  border-bottom: 1px solid var(--mui-palette-divider);
+}
+
+.item[data-problems='true'] {
+  border-left: 3px solid var(--mui-palette-error-main);
+  padding-left: calc(var(--mui-spacing) * 1);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--mui-spacing) * 1);
+}
+
+.name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--mui-spacing) * 1);
+  min-width: 0;
+}
+
+.label {
+  font-weight: 500;
+}
+
+.file {
+  color: var(--mui-palette-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.problemCount {
+  color: var(--mui-palette-error-main);
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--mui-spacing) * 0.5);
+}
+
+.actions [data-copy='copied'] {
+  color: var(--mui-palette-success-main);
+}
+
+.actions [data-copy='failed'] {
+  color: var(--mui-palette-error-main);
+}
+
+.problems {
+  margin: calc(var(--mui-spacing) * 0.5) 0 0;
+  padding-left: calc(var(--mui-spacing) * 2.5);
+  color: var(--mui-palette-error-main);
+  font-size: 0.8125rem;
+}
+
+.markdown {
+  margin: calc(var(--mui-spacing) * 1) 0 0;
+  padding: calc(var(--mui-spacing) * 1.5);
+  max-height: 32rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  background: var(--mui-palette-action-hover);
+  border-radius: var(--mui-shape-borderRadius);
+}
+
+.origin {
+  margin: calc(var(--mui-spacing) * 0.25) 0 0;
+  color: var(--mui-palette-text-secondary);
+}
+
+.origin[data-google='true'] {
+  color: var(--mui-palette-success-main);
+}
+
+.origin a {
+  color: inherit;
+}

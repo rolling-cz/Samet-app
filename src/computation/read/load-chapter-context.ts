@@ -15,6 +15,8 @@ export type ChapterContext =
       chapterId: string
       /** Baseline computation of the chapter before; absent for chapter 1, which starts from the config. */
       baselineId?: string
+      /** Its version number, for a screen that says what it shows. */
+      baselineVersion?: number
     }
   | { _type: 'blocked'; missingChapter: number }
 
@@ -28,7 +30,7 @@ const buildChapterContext = async (scope: RunScope, chapter: number): Promise<Ch
   const baseline = await loadBaseline(scope, directory.chapters.toDb(previousChapter))
   if (!baseline) return { _type: 'blocked', missingChapter: previousChapter }
 
-  return { _type: 'open', config, directory, chapterId, baselineId: baseline.id }
+  return { _type: 'open', config, directory, chapterId, baselineId: baseline.id, baselineVersion: baseline.version }
 }
 
 /**

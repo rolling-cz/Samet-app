@@ -7,7 +7,7 @@ import AppBar from '@mui/material/AppBar'
 import Chip from '@mui/material/Chip'
 import Toolbar from '@mui/material/Toolbar'
 import Link from 'next/link'
-import { defaultChapterNumber, HOME_ROUTE, type ChapterSummary } from '@/core'
+import { defaultChapterNumber, HOME_ROUTE, lastChapterNumber, type ChapterSummary } from '@/core'
 import type { RunSummary } from '@/db'
 import { common } from '@/locales/cs/common'
 import { navigation } from '@/locales/cs/navigation'
@@ -26,7 +26,10 @@ interface AppHeaderProps {
   author: string
 }
 
-export const AppHeader = ({ run, runs, chapters = [], author }: AppHeaderProps) => (
+export const AppHeader = ({ run, runs, chapters = [], author }: AppHeaderProps) => {
+  const lastChapter = lastChapterNumber(chapters)
+
+  return (
   <AppBar position="static" className={styles.header} data-testid="app-header">
     <Toolbar className={styles.toolbar}>
       <Link href={HOME_ROUTE} className={styles.brand} data-testid="app-header--home">
@@ -45,13 +48,20 @@ export const AppHeader = ({ run, runs, chapters = [], author }: AppHeaderProps) 
         />
       )}
 
-      {run && chapters.length > 0 && <ChapterStatuses runId={run.id} chapters={chapters} />}
+      {run && chapters.length > 0 && <ChapterStatuses runId={run.id} chapters={chapters} lastChapter={lastChapter} />}
 
       <span className={styles.spacer} />
 
       <IdentityMenu author={author} />
     </Toolbar>
 
-    {run && <SectionNav runId={run.id} defaultChapter={defaultChapterNumber(chapters)} />}
+    {run && (
+      <SectionNav
+        runId={run.id}
+        defaultChapter={defaultChapterNumber(chapters)}
+        lastChapter={lastChapter}
+      />
+    )}
   </AppBar>
-)
+  )
+}

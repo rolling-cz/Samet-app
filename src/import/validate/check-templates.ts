@@ -3,7 +3,7 @@ import type { IssueCollector } from '../issue-collector'
 import { KNOWN_VARIABLES } from '../template'
 import type { ParsedConfig } from '../types/parsed-config'
 import type { ParsedTemplate } from '../types/parsed-template'
-import { templateCoverage } from '../template-upload'
+import { templateCoverage, templateWins } from '../template-upload'
 import { suggestClosest } from '../utils/suggest-closest'
 import { blocksDecidingQuestions } from './check-question-conditions'
 
@@ -12,6 +12,12 @@ const SCALE_VARIABLE_PREFIX = 'S_'
 
 /** `{R_Wealth}` prints a resource value. */
 const RESOURCE_VARIABLE_PREFIX = 'R_'
+
+/** Block IDs are `B_<Postava>_<Kapitola>_<Tema>_<Poradi>`. */
+const BLOCK_ID_PREFIX = 'B_'
+
+/** `{R_Wealth_private}` prints the personal account whatever the marital status (§4.4). */
+const PRIVATE_SUFFIX = '_private'
 
 /**
  * §8.4: a `{BLOK}` marker with no record in `N_Content` and a block in
@@ -28,8 +34,12 @@ export const checkTemplates = (
   issues: IssueCollector,
 ): void => {
   const allBlocks = new Map<string, number>()
+  const blockOwners = new Map<string, string | undefined>()
   for (const [chapter, blocks] of config.blocks) {
-    for (const block of blocks) allBlocks.set(block.externalId, chapter)
+    for (const block of blocks) {
+      allBlocks.set(block.externalId, chapter)
+      blockOwners.set(block.externalId, block.characterId ?? block.groupId)
+    }
   }
 
   const scaleKeys = new Set(config.scales.map((row) => row.key))
@@ -37,7 +47,9 @@ export const checkTemplates = (
 
   const knownVariables: string[] = [...KNOWN_VARIABLES]
   for (const key of scaleKeys) knownVariables.push(`${SCALE_VARIABLE_PREFIX}${key}`)
-  for (const key of resourceKeys) knownVariables.push(`${RESOURCE_VARIABLE_PREFIX}${key}`)
+  for (const key of resourceKeys) {
+    knownVariables.push(`${RESOURCE_VARIABLE_PREFIX}${key}`, `${RESOURCE_VARIABLE_PREFIX}${key}${PRIVATE_SUFFIX}`)
+  }
 
   const markedBlocks = blocksDecidingQuestions(config)
   for (const blocks of config.blocks.values()) {
@@ -62,7 +74,10 @@ export const checkTemplates = (
 
     for (const blockId of template.blockIds) {
       markedBlocks.add(blockId)
-      if (allBlocks.has(blockId)) continue
+      if (allBlocks.has(blockId)) {
+        checkBlockBelongs(template, blockId, allBlocks.get(blockId), blockOwners.get(blockId), issues)
+        continue
+      }
       issues.error(
         'marker_without_block',
         location,
@@ -76,10 +91,26 @@ export const checkTemplates = (
       const isScale =
         variable.startsWith(SCALE_VARIABLE_PREFIX) &&
         scaleKeys.has(variable.slice(SCALE_VARIABLE_PREFIX.length))
+      const resourceName = variable.startsWith(RESOURCE_VARIABLE_PREFIX)
+        ? variable.slice(RESOURCE_VARIABLE_PREFIX.length)
+        : undefined
       const isResource =
-        variable.startsWith(RESOURCE_VARIABLE_PREFIX) &&
-        resourceKeys.has(variable.slice(RESOURCE_VARIABLE_PREFIX.length))
+        resourceName !== undefined &&
+        (resourceKeys.has(resourceName) ||
+          (resourceName.endsWith(PRIVATE_SUFFIX) &&
+            resourceKeys.has(resourceName.slice(0, -PRIVATE_SUFFIX.length))))
       if (isKnown || isScale || isResource) continue
+
+      // `{B_Antonin_1_Historie_2}` — a block ID without the keyword, as the authors' drafts write it.
+      if (allBlocks.has(variable) || variable.startsWith(BLOCK_ID_PREFIX)) {
+        issues.error(
+          'invalid_template_marker',
+          location,
+          `Šablona \`${template.filename}\` obsahuje \`{${variable}}\` — vypadá to na blok, ale značce chybí slovo \`BLOK\`. Správně je \`{BLOK ${variable}}\`.`,
+          { value: variable, suggestion: `BLOK ${variable}` },
+        )
+        continue
+      }
 
       issues.error(
         'invalid_template_marker',
@@ -105,6 +136,33 @@ export const checkTemplates = (
 }
 
 /**
+ * A template of owner X and chapter N may only print X's blocks from
+ * `N_Content`. Beyond catching a wrong marker, this is the guard behind loading
+ * a Google Docs tab: that export is undocumented, and if it ever came back as
+ * the whole document, the other tabs' markers would land here and fail loudly
+ * instead of printing someone else's text.
+ */
+const checkBlockBelongs = (
+  template: ParsedTemplate,
+  blockId: string,
+  blockChapter: number | undefined,
+  blockOwner: string | undefined,
+  issues: IssueCollector,
+): void => {
+  if (template.ownerRef === undefined || template.chapter === undefined) return
+
+  const sameOwner = blockOwner !== undefined && blockOwner.toLowerCase() === template.ownerRef.toLowerCase()
+  if (sameOwner && blockChapter === template.chapter) return
+
+  issues.error(
+    'foreign_template_block',
+    { sheet: template.filename },
+    `Šablona \`${template.filename}\` (${template.ownerRef}, kapitola ${template.chapter}) obsahuje značku \`{BLOK ${blockId}}\`, ale ten blok patří \`${blockOwner ?? '?'}\` v listu \`${blockChapter ?? '?'}_Content\`. Šablona smí tisknout jen bloky svého vlastníka z listu své kapitoly.`,
+    { value: blockId },
+  )
+}
+
+/**
  * §10.2: the file name says who a template belongs to and for which chapter, so
  * a name that parses to nobody is a mistake the org can fix by renaming, and a
  * character or group missing a chapter's template has no document to print.
@@ -122,6 +180,16 @@ const checkCoverage = (
       { sheet: template.filename },
       `Šablona \`${template.filename}\` nepatří žádné postavě ani skupině — název musí být \`<ID>_<kapitola>.md\`, například \`Marie_2.md\`.`,
       { value: template.filename },
+    )
+  }
+
+  for (const { overridden, used } of coverage.duplicates) {
+    const which = templateWins(used, overridden) ? 'ta z Googlu — nahrané soubory jsou jen záloha' : 'ta nahraná později'
+    issues.warn(
+      'duplicate_template',
+      { sheet: overridden.filename },
+      `Pro \`${overridden.ownerRef}\`, kapitolu ${overridden.chapter}, přišly dvě šablony. Použije se ${which}: \`${used.filename}\`.`,
+      { value: `${overridden.ownerRef}_${overridden.chapter}` },
     )
   }
 

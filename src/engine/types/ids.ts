@@ -30,6 +30,9 @@ export const CHAPTER_NUMBERS = Object.freeze([1, 2, 3] as const)
 
 export type ChapterNumber = (typeof CHAPTER_NUMBERS)[number]
 
+export const isChapterNumber = (chapter: number): chapter is ChapterNumber =>
+  (CHAPTER_NUMBERS as readonly number[]).includes(chapter)
+
 /**
  * Computing chapter N produces the material for chapter N+1: the questionnaire
  * and the documents handed out at its start. That is why the workbook has

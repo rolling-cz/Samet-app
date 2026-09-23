@@ -25,6 +25,7 @@ import type { ResourceDefinition } from '../types/resource'
 import type { ScaleDefinition } from '../types/scale'
 import { compareIds } from '../utils/compareIds'
 import { householdExternalId } from '../utils/householdId'
+import { characterResourceReference } from '../utils/resourceRouting'
 import { splitHouseholdId } from '../utils/splitHouseholdId'
 
 export interface OptionEntry {
@@ -99,10 +100,7 @@ export const buildCatalog = (config: EngineConfig): Catalog => {
     if (!resourceScopes.has(key)) return undefined
 
     if (characters.has(owner)) {
-      if (forcedPrivate) return { kind: 'personal', characterId: owner, reason: 'forced_private' }
-      if (resourceScopes.get(key) === 'private') return { kind: 'personal', characterId: owner, reason: 'private_resource' }
-
-      return { kind: 'routed', characterId: owner }
+      return characterResourceReference(owner, key, resourceScopes.get(key) ?? 'household', forcedPrivate)
     }
 
     if (forcedPrivate) return undefined
