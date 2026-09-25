@@ -4,7 +4,7 @@ Testovací data, **ne skutečná hra**. Postavy, skupiny a texty jsou vymyšlen�
 
 | Soubor | K čemu |
 |---|---|
-| `fixture-platny.xlsx` + `sablony-platne.zip` | musí projít bez chyb (varování jsou povolená) |
+| `fixture-platny.xlsx` + `sablony-platne-vzor.zip` | musí projít bez chyb (varování jsou povolená) |
 | `fixture-vadny.xlsx` + `sablony-vadne.zip` | musí být odmítnutý; všechny chyby najednou |
 
 Šablony se nahrávají zvlášť (§10.2), proto jsou kontroly bloků vůči šablonám (§11.6, §11.9) rozdělené mezi xlsx a zip.

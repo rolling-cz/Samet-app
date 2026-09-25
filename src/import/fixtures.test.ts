@@ -41,7 +41,7 @@ describe('fixture-platny.xlsx', () => {
   let result: ImportResult
 
   beforeAll(async () => {
-    result = await load('fixture-platny.xlsx', 'sablony-platne.zip')
+    result = await load('fixture-platny.xlsx', 'sablony-platne-vzor.zip')
   })
 
   it('is usable — no errors', () => {

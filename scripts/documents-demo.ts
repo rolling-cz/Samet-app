@@ -1,6 +1,6 @@
 /**
  * Filling documents end to end, over `documents/fixture-platny.xlsx`,
- * `documents/sablony-platne.zip` and a real database:
+ * `documents/sablony-platne-vzor.zip` and a real database:
  *
  *   1. a run with the fixture config and the template zip archived as uploaded
  *   2. chapter 1 answered, computed and confirmed
@@ -43,7 +43,7 @@ import { wipeRun } from './lib/wipe-run'
 
 const RUN_ID = '2026-01-03_A'
 const AUTHOR = 'documents-demo'
-const TEMPLATES_PATH = 'documents/sablony-platne.zip'
+const TEMPLATES_PATH = 'documents/sablony-platne-vzor.zip'
 
 const configArg = process.argv.indexOf('--config')
 const CONFIG_PATH = configArg === -1 ? FIXTURE_PATH : (process.argv[configArg + 1] ?? FIXTURE_PATH)
@@ -74,7 +74,7 @@ const createDemoRun = async (): Promise<void> => {
     config: imported.config,
     issues: imported.issues,
     configFile: { filename: path.basename(CONFIG_PATH), content },
-    templateFiles: [{ filename: 'sablony-platne.zip', content: templates }],
+    templateFiles: [{ filename: 'sablony-platne-vzor.zip', content: templates }],
     author: AUTHOR,
   })
 }
