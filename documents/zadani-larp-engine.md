@@ -700,7 +700,7 @@ Po importu je zdrojem pravdy databáze aplikace. Do prvního přepočtu jde nahr
 
 Šablony jsou Google Docs se značkami (§8.4). Do aplikace se dostanou jako **Markdown soubory**: _Soubor → Stáhnout → Markdown_, pak nahrát do aplikace (víc souborů najednou nebo v zipu).
 
-**Šablona je zvlášť pro každou kapitolu, ale všechny se nahrávají najednou na začátku běhu.** Nahrávají se tedy **jednou za běh** (šablony všech tří kapitol dohromady).
+**Šablona je zvlášť pro každou kapitolu, ale všechny se nahrávají najednou na začátku běhu.** Nahrávají se tedy **jednou za běh** (šablony všech kapitol dohromady). **Kapitola 1 šablonu nepotřebuje** — její dokumenty jsou pevný text rozdaný předem a aplikace je netiskne (výstupy kapitoly N jsou dokumenty pro N+1). Soubor `_1.md` nebo řádek listu `Templates` pro kapitolu 1 nic neblokuje, jen se nepoužije (varování).
 
 **Pojmenování souboru [ROZHODNUTO]** určuje, komu a které kapitole šablona patří:
 
@@ -750,7 +750,7 @@ Sada automatických kontrol (list `Validations`), spuštitelná kdykoli:
    6i. **Vadný sloupec `Condition` v `N_Questions`** (§4.5): cokoli jiného než jediné `Variation ID` (výraz, ID odpovědi, porovnání škály, `RANDOM`, `DEFAULT`), `Variation ID`, které v `N_Content` téže kapitoly neexistuje, nebo které patří jiné postavě či skupině
 7. **Škály a zdroje** (`Scales`, `Resources`, §4.2): `Min` větší než `Max`, defaultní hodnota mimo rozsah `Min`–`Max`, postava neuvedená v registru `Characters`, duplicitní řádek postava × škála / zdroj, `Household` v `Characters`, které neodpovídá ID domácnosti dvou postav se stejnou hodnotou, řádek v `Resources` s ID domácnosti, která není ve sloupci `Household`, výchozí domácnost bez řádku v `Resources`
 8. **ID otázek a ankety** (§4.2, §6.6): `poll` bez vyplněného ID, `poll-answer` odkazující na neexistující anketu, `poll`, ve které v téže kapitole nikdo nehlasuje (bez hlasů by vyhrál první řádek a jeho efekty by se aplikovaly), duplicitní ID otázky (ručně zadané i automaticky doplněné), řádek odpovědi u `bool` otázky s textem jiným než `Ano` / `Ne`
-9. **Šablony** (§10.2): soubor, jehož název neodpovídá žádné dvojici postava / skupina × kapitola, a postava nebo skupina, které chybí šablona v některé kapitole (seznam skupin se bere z listu `Groups`)
+9. **Šablony** (§10.2): soubor, jehož název neodpovídá žádné dvojici postava / skupina × kapitola, a postava nebo skupina, které chybí šablona v některé tištěné kapitole, tj. od kapitoly 2 (seznam skupin se bere z listu `Groups`)
 10. **Efekty** (`Effects`, §4.4): neznámý efekt, špatný počet argumentů, argument, který není ID postavy z registru `Characters`, oba argumenty téže postavy
 
 ---

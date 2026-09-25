@@ -845,6 +845,25 @@ describe('templates are assigned by file name (§10.2)', () => {
     expect(byCode(result, 'owner_without_template').map((i) => i.value)).toContain('Mirek')
   })
 
+  it('wants no template for chapter 1, whose documents are never printed', () => {
+    const result = importWorkbook(buildWorkbook({ chapterOne: true }), defaultTemplates())
+    expect(result.config.chapters).toEqual([1, 2])
+    expect(byCode(result, 'owner_without_template')).toEqual([])
+    expect(byCode(result, 'template_not_printed')).toEqual([])
+  })
+
+  it('accepts a chapter 1 template with one warning and does not check it', () => {
+    const result = importWorkbook(buildWorkbook({ chapterOne: true }), [
+      ...defaultTemplates(),
+      { filename: 'Marie_1.md', markdown: '{BLOK B_Neexistuje}' },
+      { filename: 'Mirek_1.md', markdown: '# Mirek' },
+    ])
+    expect(byCode(result, 'template_not_printed')).toHaveLength(1)
+    expect(byCode(result, 'invalid_template_filename')).toEqual([])
+    expect(byCode(result, 'marker_without_block')).toEqual([])
+    expect(result.errors).toEqual([])
+  })
+
   it('reports a marker no block backs, which would survive into the document', () => {
     const result = importWorkbook(buildWorkbook(), [
       { filename: 'Marie_2.md', markdown: '{BLOK B_Marie_2_X}\n{BLOK B_Neexistuje}' },

@@ -7,6 +7,7 @@
  * still has none.
  */
 import JSZip from 'jszip'
+import { FIRST_CHAPTER } from '@/db/constants/chapters'
 import { personLabel } from '@/utils/person-label'
 import { DOWNLOAD_REPORT_FILE } from './constants/google-templates'
 import { toParsedTemplate } from './template'
@@ -71,6 +72,8 @@ export interface TemplateCoverage {
   assignments: TemplateAssignment[]
   /** Uploaded files whose name matches no character, group or chapter. */
   unmatched: ParsedTemplate[]
+  /** Templates of a chapter nothing is printed for; accepted and left unused. */
+  notPrinted: ParsedTemplate[]
   missingCount: number
   /** Templates replaced by a later one for the same owner and chapter. */
   duplicates: { overridden: ParsedTemplate; used: ParsedTemplate }[]
@@ -80,18 +83,20 @@ export interface TemplateCoverage {
  * Matches uploaded files to characters and groups by file name (§10.2), so the
  * org can see at a glance who still has no document.
  *
- * All three chapters are uploaded at the start of the run, so a character is
- * expected to have one template per chapter the workbook carries — a missing
- * one is a gap, not a "not yet".
+ * All templates are uploaded at the start of the run, so a character is
+ * expected to have one template per printed chapter — a missing one is a gap,
+ * not a "not yet".
  */
 export const templateCoverage = (
   config: ParsedConfig,
   templates: ParsedTemplate[],
 ): TemplateCoverage => {
+  const printed = printedChapters(config)
+  const notPrinted = templates.filter((t) => t.chapter === FIRST_CHAPTER)
   const byKey = new Map<string, ParsedTemplate>()
   const overridden: { key: string; template: ParsedTemplate }[] = []
   for (const template of templates) {
-    if (template.ownerRef === undefined || template.chapter === undefined) continue
+    if (template.ownerRef === undefined || template.chapter === undefined || notPrinted.includes(template)) continue
     const key = templateKey(template.ownerRef, template.chapter)
     const previous = byKey.get(key)
     if (previous && templateWins(previous, template)) {
@@ -110,7 +115,7 @@ export const templateCoverage = (
     ownerName: string,
     ownerKind: TemplateAssignment['ownerKind'],
   ) => {
-    for (const chapter of config.chapters) {
+    for (const chapter of printed) {
       const key = templateKey(ownerExternalId, chapter)
       const match = byKey.get(key)
       if (match) usedKeys.add(key)
@@ -136,8 +141,11 @@ export const templateCoverage = (
   return {
     assignments,
     unmatched: templates.filter(
-      (t) => t.ownerRef === undefined || t.chapter === undefined || !usedKeys.has(templateKey(t.ownerRef, t.chapter)),
+      (t) =>
+        !notPrinted.includes(t) &&
+        (t.ownerRef === undefined || t.chapter === undefined || !usedKeys.has(templateKey(t.ownerRef, t.chapter))),
     ),
+    notPrinted,
     missingCount: assignments.filter((a) => a.status !== 'assigned').length,
     duplicates: overridden.flatMap(({ key, template }) => {
       const winner = byKey.get(key)
@@ -146,6 +154,14 @@ export const templateCoverage = (
     }),
   }
 }
+
+/**
+ * Chapters whose documents the app prints. Chapter 1's documents are fixed text
+ * handed out before the game, and the outputs of chapter N are the documents
+ * for N + 1 (`outputsDocumentChapter`), so chapter 1 never needs a template.
+ */
+export const printedChapters = (config: Pick<ParsedConfig, 'chapters'>): number[] =>
+  config.chapters.filter((chapter) => chapter !== FIRST_CHAPTER)
 
 /**
  * Which of two templates for one owner and chapter is used (§10.2): one from

@@ -52,6 +52,7 @@ export type IssueCode =
   | 'shared_template_url'
   | 'owner_without_template_url'
   | 'duplicate_template'
+  | 'template_not_printed'
 
 /** Where in the uploaded file the problem sits. */
 export interface IssueLocation {

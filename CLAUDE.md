@@ -644,10 +644,14 @@ informaci a kontrolu šablon), `Scales`, `Resources`, `1_Questions` / `2_Questio
 - **Diakritika v ID, názvech listů a exportech musí projít bez poškození.**
 
 **Šablony** se nahrávají jako `.md` (víc souborů najednou nebo v zipu),
-**všechny tři kapitoly najednou na začátku běhu**. Komu a které kapitole patří,
+**všechny kapitoly najednou na začátku běhu**. Komu a které kapitole patří,
 určuje **název souboru**: `<ID postavy>_<kapitola>.md` (`Marie_2.md`),
 `<ID skupiny>_<kapitola>.md` (`Funkcionari_2.md`). Aplikace ukáže, která šablona
 komu patří a která chybí; seznam skupin bere z listu `Groups`.
+**Kapitola 1 šablonu nepotřebuje** — její dokumenty jsou pevný text a netisknou
+se (`printedChapters` v `src/import/template-upload.ts`); soubor `_1.md` i řádek
+`Templates` pro kapitolu 1 projdou s jedním varováním `template_not_printed`
+a nekontrolují se.
 
 **Co se ošetřuje tolerantně** (a hlásí jako varování, ne chyba) — vždycky proto,
 že jde o zvyk autora, který by jinak blokoval desítky řádků:
@@ -672,7 +676,7 @@ varianty, fallback varianta jinde než poslední, částečně vyplněná `Prior
 cyklus mezi bloky, `Condition` v `N_Questions`, které není `Variation ID` téže
 postavy a kapitoly, `Household` v `Characters`, které neodpovídá dvojici
 postav, řádek v `Resources` s domácností mimo `Household`, výchozí domácnost bez řádku
-v `Resources`, šablona bez adresáta a adresát bez šablony, neplatný
+v `Resources`, šablona bez adresáta a adresát bez šablony (od kapitoly 2), neplatný
 efekt (neznámá funkce, špatný počet argumentů, ID mimo registr).
 
 Výrazy v `Conditions` se v importu **jen načtou, uloží a zkontrolují syntakticky

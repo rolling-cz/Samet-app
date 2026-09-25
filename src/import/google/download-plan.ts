@@ -10,6 +10,7 @@
 import JSZip from 'jszip'
 import { personLabel } from '@/utils/person-label'
 import { DOWNLOAD_REPORT_FILE } from '../constants/google-templates'
+import { printedChapters } from '../template-upload'
 import type { ParsedConfig } from '../types/parsed-config'
 import type { DownloadOutcome } from './classify-download'
 import { googleDocEditUrl, googleDocExportUrl } from './google-doc-url'
@@ -61,6 +62,7 @@ export const planDownloads = (config: ParsedConfig): { jobs: DownloadJob[]; skip
     ...config.groups.map((group) => [group.externalId, group.name] as const),
   ])
 
+  const printed = printedChapters(config)
   const jobs: DownloadJob[] = []
   const seen = new Set<string>()
   let skippedRows = 0
@@ -68,7 +70,7 @@ export const planDownloads = (config: ParsedConfig): { jobs: DownloadJob[]; skip
   for (const source of config.templateSources ?? []) {
     const fileName = source.owner && `${source.owner.id}_${source.chapter}.md`
     // Invalid rows are errors of the config check already; a duplicate pair keeps its first row.
-    if (!source.owner || !source.ref || !fileName || !config.chapters.includes(source.chapter) || seen.has(fileName)) {
+    if (!source.owner || !source.ref || !fileName || !printed.includes(source.chapter) || seen.has(fileName)) {
       skippedRows++
       continue
     }

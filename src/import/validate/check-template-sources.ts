@@ -1,5 +1,6 @@
 import { TEMPLATES_SHEET } from '../constants/sheets'
 import type { IssueCollector } from '../issue-collector'
+import { printedChapters } from '../template-upload'
 import type { ParsedConfig } from '../types/parsed-config'
 import { suggestClosest } from '../utils/suggest-closest'
 
@@ -15,6 +16,7 @@ export const checkTemplateSources = (config: ParsedConfig, issues: IssueCollecto
   if (sources === undefined) return
 
   const knownOwners = [...config.characters.map((c) => c.externalId), ...config.groups.map((g) => g.externalId)]
+  const printed = printedChapters(config)
   const seen = new Map<string, number | undefined>()
   const byDocument = new Map<string, string>()
 
@@ -35,6 +37,16 @@ export const checkTemplateSources = (config: ParsedConfig, issues: IssueCollecto
         source.location,
         `Kapitola ${source.chapter} v konfiguraci není (listy \`N_Questions\` / \`N_Content\` jsou pro ${config.chapters.join(', ')}).`,
         { value: String(source.chapter) },
+      )
+      continue
+    }
+
+    if (!printed.includes(source.chapter)) {
+      issues.warn(
+        'template_not_printed',
+        source.location,
+        `Kapitola ${source.chapter} se netiskne (její dokumenty jsou předem dané), řádek se nestáhne.`,
+        { value: source.url },
       )
       continue
     }
@@ -69,7 +81,7 @@ export const checkTemplateSources = (config: ParsedConfig, issues: IssueCollecto
   }
 
   for (const owner of knownOwners) {
-    for (const chapter of config.chapters) {
+    for (const chapter of printed) {
       if (seen.has(`${owner}_${chapter}`)) continue
       issues.warn(
         'owner_without_template_url',

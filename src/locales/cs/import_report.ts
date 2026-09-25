@@ -94,5 +94,6 @@ export const importReport = Object.freeze({
     shared_template_url: 'stejná adresa u dvou šablon',
     owner_without_template_url: 'šablona bez adresy',
     duplicate_template: 'dvě šablony pro jednu postavu a kapitolu',
+    template_not_printed: 'šablona kapitoly, která se netiskne',
   } satisfies Record<IssueCode, string>),
 })

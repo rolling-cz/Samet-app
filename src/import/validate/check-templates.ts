@@ -3,7 +3,7 @@ import type { IssueCollector } from '../issue-collector'
 import { KNOWN_VARIABLES } from '../template'
 import type { ParsedConfig } from '../types/parsed-config'
 import type { ParsedTemplate } from '../types/parsed-template'
-import { templateCoverage, templateWins } from '../template-upload'
+import { printedChapters, templateCoverage, templateWins } from '../template-upload'
 import { suggestClosest } from '../utils/suggest-closest'
 import { blocksDecidingQuestions } from './check-question-conditions'
 
@@ -33,6 +33,10 @@ export const checkTemplates = (
   templates: ParsedTemplate[],
   issues: IssueCollector,
 ): void => {
+  // A template of an unprinted chapter is never filled, so its markers can mislead nobody.
+  const printed = printedChapters(config)
+  const used = templates.filter((template) => template.chapter === undefined || printed.includes(template.chapter))
+
   const allBlocks = new Map<string, number>()
   const blockOwners = new Map<string, string | undefined>()
   for (const [chapter, blocks] of config.blocks) {
@@ -60,7 +64,7 @@ export const checkTemplates = (
     }
   }
 
-  for (const template of templates) {
+  for (const template of used) {
     const location = { sheet: template.filename }
 
     for (const problem of template.problems) {
@@ -180,6 +184,16 @@ const checkCoverage = (
       { sheet: template.filename },
       `Šablona \`${template.filename}\` nepatří žádné postavě ani skupině — název musí být \`<ID>_<kapitola>.md\`, například \`Marie_2.md\`.`,
       { value: template.filename },
+    )
+  }
+
+  const [firstNotPrinted] = coverage.notPrinted
+  if (firstNotPrinted) {
+    issues.warn(
+      'template_not_printed',
+      { sheet: firstNotPrinted.filename },
+      `Šablony kapitoly ${firstNotPrinted.chapter} (${coverage.notPrinted.length}) se nepoužijí — dokumenty kapitoly ${firstNotPrinted.chapter} aplikace netiskne, jsou předem dané.`,
+      { value: coverage.notPrinted.map((template) => template.filename).join(', ') },
     )
   }
 

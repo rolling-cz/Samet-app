@@ -1,6 +1,7 @@
 /** The optional `Templates` sheet and the ownership guard on markers (§10.2, §8.4). */
 import { describe, expect, it } from 'vitest'
 import { TEMPLATE_SOURCE_COLUMNS, TEMPLATES_SHEET } from './constants/sheets'
+import { planDownloads } from './google/download-plan'
 import { importWorkbook } from './import-config'
 import { buildWorkbook, defaultTemplates } from './testing/build-workbook'
 import type { ImportResult } from './types/import-result'
@@ -53,6 +54,16 @@ describe('list Templates', () => {
 
     expect(missing.map((issue) => issue.value)).toEqual(['SrdceParty_2'])
     expect(missing[0]?.severity).toBe('warning')
+  })
+
+  it('kapitola 1 adresu nepotřebuje a její řádek se nestáhne', () => {
+    const result = importWorkbook(
+      buildWorkbook({ chapterOne: true, ...sheet(...ALL_OWNERS, ['Marie', '1', docUrl('marie1')]) }),
+    )
+
+    expect(byCode(result, 'owner_without_template_url')).toEqual([])
+    expect(byCode(result, 'template_not_printed').map((issue) => issue.severity)).toEqual(['warning'])
+    expect(planDownloads(result.config).jobs.map((job) => job.fileName)).not.toContain('Marie_1.md')
   })
 
   it('adresa bez karty je varování', () => {
