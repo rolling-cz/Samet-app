@@ -748,10 +748,34 @@ describe('conditions reference scales and resources (§4.5)', () => {
     expect(issue?.message).toContain('uzavírací závorka')
   })
 
-  it('reports an answer a condition invents', () => {
-    expect(byCode(condition('A_Marie_2_1_Mozna'), 'unknown_answer')[0]?.value).toBe(
-      'A_Marie_2_1_Mozna',
-    )
+  it('warns about an answer a condition invents, without blocking the config', () => {
+    const result = condition('A_Marie_2_1_Mozna')
+    expect(byCode(result, 'unknown_answer')[0]).toMatchObject({ severity: 'warning', value: 'A_Marie_2_1_Mozna' })
+    expect(result.errors).toEqual([])
+  })
+
+  it('warns about a ??? placeholder, bare or inside an ID', () => {
+    const result = condition('A_Ivan_1_???_Dari_Ne AND ???')
+    expect(byCode(result, 'unfinished_condition').map((i) => [i.severity, i.value])).toEqual([
+      ['warning', 'A_Ivan_1_???_Dari_Ne'],
+      ['warning', '???'],
+    ])
+    expect(result.errors).toEqual([])
+  })
+
+  it('refuses a ??? in a comparison, which has no "not chosen" to fall back on', () => {
+    expect(byCode(condition('S_Marie_??? >= 7'), 'invalid_expression')[0]?.message).toContain('???')
+  })
+
+  it('still refuses an answer of a later chapter', () => {
+    const result = run({
+      questions3: [{ Character: 'Marie', ID: 'Q_Marie_3_1', Type: 'bool', Text: 'Otázka?' }],
+      content: [
+        { Character: 'Marie', 'Block ID': 'B_Marie_2_X', 'Variation ID': 'V_A', Conditions: 'A_Marie_3_1_Ano' },
+        { 'Variation ID': 'V_B' },
+      ],
+    })
+    expect(byCode(result, 'unknown_answer')[0]?.severity).toBe('error')
   })
 })
 
@@ -818,8 +842,8 @@ describe('a broken workbook never takes the app down (§10.1)', () => {
     const codes = new Set(result.errors.map((e) => e.code))
     expect(codes).toContain('value_out_of_range')
     expect(codes).toContain('unknown_character')
-    expect(codes).toContain('unknown_answer')
     expect(codes).toContain('duplicate_priority')
+    expect(byCode(result, 'unknown_answer')[0]?.severity).toBe('warning')
   })
 })
 

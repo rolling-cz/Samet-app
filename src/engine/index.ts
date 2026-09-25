@@ -26,6 +26,8 @@ export * from './types/conflict'
 export * from './types/result'
 export * from './constants/effectPhases'
 export * from './constants/expressionLanguage'
+// The import's syntax check reads placeholders exactly as the engine does.
+export { identifierName, isPlaceholder, parseExpressionTree } from './expression/parseExpressionTree'
 export { householdExternalId } from './utils/householdId'
 // Reading a resource the way a condition would: the document prints values the
 // same rules chose the text by (§4.4).

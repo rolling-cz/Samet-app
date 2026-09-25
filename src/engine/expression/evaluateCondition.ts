@@ -103,6 +103,10 @@ export const evaluateCondition = (
 
         return won
       }
+      case 'unknown_answer':
+        readings.push({ reference: node.reference, value: false, unknown: true })
+
+        return false
       case 'random': {
         const roll = environment.roll(node.occurrence)
         readings.push({ reference: node.reference, value: roll ?? null })

@@ -487,7 +487,7 @@ describe('variants and question gates', () => {
     expect(byBlock.B_Funkcionari_1_Vedeni_1).toMatchObject({ groupId: 'Funkcionari', variationId: 'V_Funkcionari_1_Vedeni_1_B' })
   })
 
-  it('fails loudly on an unknown identifier instead of treating it as false (15)', () => {
+  it('reads an unknown answer or ??? as not chosen, marks it, and fails loudly on anything else (15)', () => {
     const config = configFrom({
       questions1: [single('Marie', 'S_Marie_Regime+1')],
       questions2: [single('Marie', '', 'Q_Marie_2_1')],
@@ -500,9 +500,25 @@ describe('variants and question gates', () => {
     if (!variation) throw new Error('fixture has no variation')
     const answers = [choose('Q_Marie_1_1', 'A_Marie_1_1_X')]
 
-    // The true left side would short-circuit a lazy evaluation; the typo must still surface.
-    variation.condition = 'A_Marie_1_1_X OR A_Marie_1_1_Neexistuje'
-    expect(() => run1(config, answers)).toThrow(/unknown_identifier.*A_Marie_1_1_Neexistuje/)
+    const firstEvaluation = (condition: string) => {
+      variation.condition = condition
+      const trace = ofKind(run1(config, answers).trace, 'variant').find((entry) => entry.blockId === 'B_Marie_1_X')
+
+      return trace?.evaluations[0]
+    }
+
+    expect(firstEvaluation('A_Marie_1_1_Neexistuje')).toMatchObject({
+      result: 'fails',
+      readings: [{ reference: 'A_Marie_1_1_Neexistuje', value: false, unknown: true }],
+    })
+    expect(firstEvaluation('!A_Ivan_1_???_Dari_Ne AND A_Marie_1_1_X')).toMatchObject({
+      result: 'holds',
+      readings: [{ reference: 'A_Ivan_1_???_Dari_Ne', unknown: true }, { reference: 'A_Marie_1_1_X', value: true }],
+    })
+    expect(firstEvaluation('???')?.result).toBe('fails')
+
+    variation.condition = 'S_Marie_??? >= 3'
+    expect(() => run1(config, answers)).toThrow(/invalid_expression.*unfinished/)
 
     variation.condition = 'S_Marie_Regme >= 3'
     expect(() => run1(config, answers)).toThrow(/unknown_identifier.*S_Marie_Regme/)

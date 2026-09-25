@@ -11,12 +11,8 @@
  * An identifier may also be a poll's winning answer, which is spelled like any
  * other answer (§6.6).
  */
-import jsep from 'jsep'
-
-// `AND` binds tighter than `OR`, matching how the author reads the sheet.
-// Registered once at module load; jsep keeps operators globally.
-jsep.addBinaryOp('AND', 2)
-jsep.addBinaryOp('OR', 1)
+import type jsep from 'jsep'
+import { AND_OPERATOR, identifierName, isPlaceholder, OR_OPERATOR, parseExpressionTree } from '@/engine'
 
 /**
  * Always-true fallback variant (§8.2); it stands last and is not an expression.
@@ -26,7 +22,8 @@ jsep.addBinaryOp('OR', 1)
  */
 export const DEFAULT_CONDITION = 'DEFAULT'
 
-export type ReferenceKind = 'answer' | 'scale' | 'resource' | 'unknown'
+/** `placeholder` is a `???` the author has yet to replace with a real ID. */
+export type ReferenceKind = 'answer' | 'scale' | 'resource' | 'placeholder' | 'unknown'
 
 export interface ExpressionReference {
   name: string
@@ -51,19 +48,12 @@ export interface ExpressionParse {
 
 /** ID prefixes from §4.2; anything else is reported rather than guessed at. */
 const classify = (name: string): ReferenceKind => {
+  if (isPlaceholder(name)) return 'placeholder'
   if (name.startsWith('A_')) return 'answer'
   if (name.startsWith('S_')) return 'scale'
   if (name.startsWith('R_')) return 'resource'
 
   return 'unknown'
-}
-
-/**
- * `=` is the author's equality operator (§4.5) but jsep only knows `==`.
- * Rewrites a lone `=` and leaves `<=`, `>=`, `!=` and `==` alone.
- */
-const normalizeEquals = (source: string): string => {
-  return source.replace(/(^|[^<>=!])=(?!=)/g, '$1==')
 }
 
 /** The only function a condition may call (§4.5). */
@@ -86,7 +76,7 @@ export const parseCondition = (cell: string | undefined | null): ExpressionParse
 
   let tree: jsep.Expression
   try {
-    tree = jsep(normalizeEquals(raw))
+    tree = parseExpressionTree(raw)
   } catch (cause) {
     return {
       raw,
@@ -106,7 +96,7 @@ export const parseCondition = (cell: string | undefined | null): ExpressionParse
   const visit = (node: jsep.Expression): void => {
     switch (node.type) {
       case 'Identifier': {
-        const name = String((node as jsep.Identifier).name)
+        const name = identifierName(node as jsep.Identifier)
         if (name === DEFAULT_CONDITION) {
           // `DEFAULT` inside a bigger expression is meaningless — it is always
           // true, so the rest of the expression could never change the outcome.
@@ -150,6 +140,13 @@ export const parseCondition = (cell: string | undefined | null): ExpressionParse
       }
       case 'BinaryExpression': {
         const binary = node as jsep.BinaryExpression
+        // Only an answer may wait for its `???`: a comparison has no "not chosen" to fall back on.
+        const operand = [binary.left, binary.right].find(
+          (side) => side.type === 'Identifier' && isPlaceholder(identifierName(side as jsep.Identifier)),
+        )
+        if (operand && binary.operator !== AND_OPERATOR && binary.operator !== OR_OPERATOR) {
+          error ??= `\`${identifierName(operand as jsep.Identifier)}\` v porovnání musí být dopsaná škála nebo zdroj — \`???\` smí jen místo odpovědi`
+        }
         visit(binary.left)
         visit(binary.right)
 

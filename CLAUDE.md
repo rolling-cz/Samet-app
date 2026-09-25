@@ -55,7 +55,13 @@ Volající kód načte data z databáze, zavolá `evaluate` a výsledek uloží.
   zánik neexistující domácnosti, rozdělení zůstatku, které nesedí.
   **Nezaokrouhluj a neodhaduj** — kde není jasné, co se má stát, vrať konflikt.
 - **Neznámý identifikátor ve výrazu je chyba, ne nepravda.** Tiché vyhodnocení
-  překlepu na `false` je nejhorší možné chování.
+  překlepu na `false` je nejhorší možné chování. **Jediná výjimka jsou odpovědi**
+  (rozhodnutí organizátora 25. 9. 2026): neznámé `A_…` i nedopsané `???`
+  (`A_Ivan_1_???_Dari_Ne`, samotné `???`) se čtou jako nevybraná odpověď —
+  autor píše podmínky jedné postavy dřív, než existují otázky ostatních. Import
+  hlásí každou jako varování (`unknown_answer`, `unfinished_condition`) a trace
+  ji označí (`unknown: true`). Neznámá škála, zdroj, `???` v porovnání
+  a odpověď z pozdější kapitoly zůstávají chybou.
 - **Engine vadná data neopravuje.** Chybějící odpověď, blok bez `DEFAULT`,
   neznámé ID — to patří do validace importu. Engine na ně spadne nahlas.
 - **Engine nikdy negeneruje náhodu.** Uložené hody dostane na vstupu a vrátí
@@ -399,6 +405,7 @@ jazyka je v `src/engine/constants/expressionLanguage.ts`, aby engine i import
 | Prvek           | Zápis                                 | Význam                                                         |
 | --------------- | ------------------------------------- | -------------------------------------------------------------- |
 | Odpověď         | `A_Marie_1_1_Karel`                   | postava odpověděla takto                                       |
+| Nedopsaný odkaz | `???`, `A_Ivan_1_???_Dari_Ne`         | jako nevybraná odpověď, import varuje                          |
 | Negace          | `!A_Marie_1_1_Karel`                  | neodpověděla                                                   |
 | Spojky          | `AND`, `OR`                           | `AND` váže silněji                                             |
 | Závorky         | `( )`                                 | priorita vyhodnocení                                           |
@@ -664,8 +671,8 @@ a nekontrolují se.
 | prázdné ID otázky                             | doplní se podle vzoru `Q_<Postava>_<Kapitola>_<Poradi>`                  |
 
 **Tolerantní naopak nebýt** u překlepu v ID škály nebo zdroje, chybějící šablony,
-hodnoty mimo rozsah, odkazu na neexistující blok, anketu nebo odpověď
-a nespárované závorky. Tam tolerance znamená špatná čísla v dokumentu — místo
+hodnoty mimo rozsah, odkazu na neexistující blok nebo anketu
+a nespárované závorky (neznámá odpověď v podmínce je výjimka, viz pravidlo 1). Tam tolerance znamená špatná čísla v dokumentu — místo
 toho nabídni „mysleli jste …?".
 
 **Nezapomenutelné validace** (§11): `Min > Max`, výchozí hodnota mimo rozsah,

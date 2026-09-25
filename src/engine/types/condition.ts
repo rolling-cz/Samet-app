@@ -45,6 +45,12 @@ export type CompiledCondition =
     }
   /** The winning option of a poll, spelled like any other answer (§6.6). */
   | { kind: 'poll'; reference: string; pollId: QuestionId; optionId: AnswerOptionId }
+  /**
+   * An answer the config does not know, or a `???` placeholder. The author
+   * asked for it to read as "not chosen" while the other characters' sheets
+   * are still being written; the import warns about every one.
+   */
+  | { kind: 'unknown_answer'; reference: string }
   | { kind: 'random'; reference: string; percent: number; occurrence: number }
   | { kind: 'not'; operand: CompiledCondition }
   | { kind: 'and' | 'or'; left: CompiledCondition; right: CompiledCondition }
@@ -69,4 +75,6 @@ export interface ConditionReading {
   value: boolean | number | null
   /** Which account a routed resource was read from (§4.4). */
   note?: string
+  /** The reference is an unknown answer or a placeholder, read as `false`. */
+  unknown?: true
 }

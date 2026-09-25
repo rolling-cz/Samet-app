@@ -742,7 +742,7 @@ Sada automatických kontrol (list `Validations`), spuštitelná kdykoli:
 6. Blok v šabloně bez odpovídajícího záznamu v `N_Content`, nebo blok v `N_Content`, na který nevede žádná značka (§8.4) **ani odkaz ze sloupce `Condition` v `N_Questions`** (§8.2)
    6b. **Blok bez fallback varianty** (s podmínkou `DEFAULT` nebo prázdnou) — hrozí, že neprojde žádná podmínka a blok nevrátí nic (§8.2)
    6c. **Syntakticky vadný výraz v `Conditions`** — chybějící závorka, neznámý operátor. V ukázkovém listu už jeden takový je: `!(A_Marie_2_3_Postava2 OR A_Marie_2_3_Postava3` bez uzavírací závorky.
-   6d. **Odkaz ve výrazu na neexistující odpověď, škálu nebo příznak**
+   6d. **Odkaz ve výrazu na neexistující škálu nebo zdroj** (chyba). Neexistující odpověď nebo nedopsané `???` je **varování** a čte se jako nevybraná odpověď — autor píše podmínky jedné postavy dřív, než existují otázky ostatních (rozhodnutí organizátora 25. 9. 2026). Odpověď z pozdější kapitoly zůstává chybou.
    6e. **Dvě varianty téhož bloku se stejnou `Priority`** — výsledek by závisel na pořadí řádků. Všechny varianty bez priority ("") jsou OK - autor chce, aby výsledek záležel na pořadí řádků.
    6f. **Fallback varianta (`DEFAULT` / prázdná podmínka) není poslední v pořadí vyhodnocení** — všechny varianty za ní jsou nedosažitelné (§8.2)
    6g. **Cyklus mezi bloky** — blok se přímo nebo přes jiné bloky odkazuje sám na sebe (§8.4). Blok, na který vede značka jen z `Variation Text` jiného bloku, se u kontroly 6 počítá jako dosažitelný.

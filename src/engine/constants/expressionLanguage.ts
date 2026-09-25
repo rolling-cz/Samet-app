@@ -25,6 +25,12 @@ export const ROLL_MIN = 1
 
 export const ROLL_MAX = 100
 
+/**
+ * `???` marks a reference the author has not written yet, as in
+ * `A_Ivan_1_???_Dari_Ne`. `?` means nothing else in the language.
+ */
+export const PLACEHOLDER_MARK = '?'
+
 /** ID prefixes from §4.2. */
 export const ANSWER_PREFIX = 'A_'
 

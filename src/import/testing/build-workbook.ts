@@ -26,6 +26,8 @@ export interface WorkbookParts {
   resources?: Row[]
   questions?: Row[]
   content?: Row[]
+  /** Adds `3_Questions` with these rows. */
+  questions3?: Row[]
   /** Adds an empty `1_Questions`, so the workbook carries chapter 1 too. */
   chapterOne?: boolean
   /** Sheets to add or replace outright, as raw grids. */
@@ -124,6 +126,7 @@ export const buildWorkbook = (parts: WorkbookParts = {}): Workbook => {
     ['2_Content', grid(CONTENT_COLUMNS, parts.content ?? DEFAULT_CONTENT)],
   ])
 
+  if (parts.questions3) workbook.set('3_Questions', grid(QUESTION_COLUMNS, parts.questions3))
   if (parts.chapterOne) workbook.set('1_Questions', grid(QUESTION_COLUMNS, []))
   for (const [name, cells] of Object.entries(parts.extra ?? {})) workbook.set(name, cells)
   for (const name of parts.omit ?? []) workbook.delete(name)

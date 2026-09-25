@@ -41,7 +41,7 @@ Všech pět `…_Questions_…` bloků má **prázdný `Variation Text`** a **ž
 
 ## Vadný
 
-**Očekávání:** import odmítnutý, **38 chyb v xlsx + 5 v šablonách** nahlášených najednou (každá s listem, řádkem, sloupcem a hodnotou). Stejná tolerovaná varování jako u platného (jen s jinými řádky) nebrání hlášení chyb.
+**Očekávání:** import odmítnutý, **37 chyb v xlsx + 5 v šablonách** (řádek 23 níže je od 25. 9. 2026 varování) nahlášených najednou (každá s listem, řádkem, sloupcem a hodnotou). Stejná tolerovaná varování jako u platného (jen s jinými řádky) nebrání hlášení chyb.
 
 ### Chyby v `fixture-vadny.xlsx`
 
@@ -69,7 +69,7 @@ Všech pět `…_Questions_…` bloků má **prázdný `Variation Text`** a **ž
 | 20 | `ORPHAN_ANSWER` | §11.1 | `1_Questions` | 31 | ID Answer | `A_Sirotek_1_1_X` | řádek odpovědi bez otázky (před ním je prázdný řádek) |
 | 21 | `COND_SYNTAX` | §11.6c | `2_Content` | 2 | Conditions | `A_Marie_1_1_Antonin AND OR S_Marie_Regime >= 5` | dva operátory za sebou (AND OR) |
 | 22 | `COND_SYNTAX` | §11.6c | `2_Content` | 3 | Conditions | `A_Marie_1_1_Antonin AND !(A_Marie_1_2_Mirek OR A_Marie_1_2_Antonin` | chybí uzavírací závorka |
-| 23 | `COND_REF` | §11.6d | `2_Content` | 12 | Conditions | `A_Antonin_1_1_Duchdo` | odpověď neexistuje, mysleli jste A_Antonin_1_1_Duchod? |
+| 23 | `COND_REF` | §11.6d | `2_Content` | 12 | Conditions | `A_Antonin_1_1_Duchdo` | odpověď neexistuje, mysleli jste A_Antonin_1_1_Duchod? — **od 25. 9. 2026 varování, ne chyba** (neznámá odpověď se čte jako nevybraná) |
 | 24 | `COND_REF` | §11.6d | `2_Content` | 18 | Conditions | `S_Antonin_Activty >= 5` | škála neexistuje, mysleli jste S_Antonin_Activity? |
 | 25 | `BLOCK_NO_FALLBACK` | §11.6b | `2_Content` | 25 | Block ID | `B_Mirek_1_Historie_2` | blok nemá fallback variantu (DEFAULT / prázdná podmínka) |
 | 26 | `BLOCK_DUP_PRIO` | §11.6e | `2_Content` | 28 | Priority | `1` | dvě varianty bloku mají Priority 1 (první výskyt: řádek 27) |

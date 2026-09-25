@@ -18,12 +18,15 @@ export const checkContent = (
   const scaleIds = knownScaleIds(config)
   const resourceIds = new Set([...knownResourceIds(config), ...householdResourceIds(config)])
 
+  const allAnswerIds = answersUpTo(config.questions, Number.POSITIVE_INFINITY)
+
   for (const [chapter, blocks] of config.blocks) {
     const scope: ReferenceScope = {
       chapter,
       // A character's state carries forward, so a chapter-2 condition may read a
       // chapter-1 answer — the spec's own example mixes chapters (§4.5).
       answerIds: answersUpTo(config.questions, chapter),
+      allAnswerIds,
       scaleIds,
       resourceIds,
     }

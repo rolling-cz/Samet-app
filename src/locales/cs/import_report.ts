@@ -95,5 +95,6 @@ export const importReport = Object.freeze({
     owner_without_template_url: 'šablona bez adresy',
     duplicate_template: 'dvě šablony pro jednu postavu a kapitolu',
     template_not_printed: 'šablona kapitoly, která se netiskne',
+    unfinished_condition: 'nedopsaná podmínka',
   } satisfies Record<IssueCode, string>),
 })

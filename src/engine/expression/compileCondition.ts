@@ -1,9 +1,11 @@
 /**
  * Expression text to a resolved `CompiledCondition` (§4.5).
  *
- * An unknown identifier is an error, never `false` — a typo that quietly
- * evaluates to "did not happen" is the worst possible behaviour, because the
- * documents keep looking right for a long time.
+ * An unknown scale, resource or anything without a known prefix is an error.
+ * An unknown answer (`A_…`) or a `???` placeholder is not: the author fills one
+ * character's sheet before the others exist, so it reads as "not chosen", the
+ * import warns about each one and the trace marks it (organizer's decision,
+ * 2026-09-25).
  */
 import type jsep from 'jsep'
 import type { Catalog } from '../catalog/buildCatalog'
@@ -22,7 +24,7 @@ import {
 import { fail } from '../errors/engineInputError'
 import type { CompiledCondition, CompiledNumber } from '../types/condition'
 import { splitImpactId } from '../utils/impactId'
-import { parseExpressionTree } from './parseExpressionTree'
+import { identifierName, isPlaceholder, parseExpressionTree } from './parseExpressionTree'
 
 export interface CompileScope {
   catalog: Catalog
@@ -63,7 +65,7 @@ const isComparison = (operator: string): operator is ComparisonOperator =>
 const toCondition = (node: jsep.Expression, scope: NodeScope): CompiledCondition => {
   switch (node.type) {
     case 'Identifier':
-      return identifierCondition(String((node as jsep.Identifier).name), scope)
+      return identifierCondition(identifierName(node as jsep.Identifier), scope)
     case 'UnaryExpression': {
       const unary = node as jsep.UnaryExpression
       if (unary.operator !== NOT_OPERATOR) return invalid(scope, `unsupported operator ${unary.operator}`)
@@ -101,8 +103,11 @@ const toCondition = (node: jsep.Expression, scope: NodeScope): CompiledCondition
 const identifierCondition = (name: string, scope: NodeScope): CompiledCondition => {
   if (name === DEFAULT_CONDITION) return invalid(scope, `${DEFAULT_CONDITION} must stand alone`)
 
+  if (isPlaceholder(name)) return { kind: 'unknown_answer', reference: name }
+
   if (name.startsWith(ANSWER_PREFIX)) {
-    const entry = scope.catalog.options.get(name) ?? unknown(scope, name, 'is not an answer option')
+    const entry = scope.catalog.options.get(name)
+    if (entry === undefined) return { kind: 'unknown_answer', reference: name }
     // A poll's option holds when it won the poll, not when somebody voted for it (§6.6).
     if (entry.question.type === 'poll') {
       return { kind: 'poll', reference: name, pollId: entry.question.id, optionId: name }
@@ -134,7 +139,8 @@ const toNumber = (node: jsep.Expression, scope: NodeScope): CompiledNumber => {
   }
   if (node.type !== 'Identifier') return invalid(scope, 'a comparison takes a scale, a resource or a number on each side')
 
-  const name = String((node as jsep.Identifier).name)
+  const name = identifierName(node as jsep.Identifier)
+  if (isPlaceholder(name)) return invalid(scope, `${name} is unfinished — only an answer may be left as ???`)
   const parts = splitImpactId(name) ?? unknown(scope, name, 'is not a scale or resource')
 
   if (parts.kind === 'scale') {

@@ -7,13 +7,18 @@ import { suggestClosest } from '../utils/suggest-closest'
 export interface ReferenceScope {
   chapter: number
   answerIds: Set<string>
+  /** Every chapter's answers: a later chapter's is a real mistake, not a gap. */
+  allAnswerIds: Set<string>
   scaleIds: Set<string>
   resourceIds: Set<string>
 }
 
 /**
  * §11.6d: an identifier a variant's condition invents is an error, never a
- * silent false. The `Condition` column of `N_Questions` is not an expression
+ * silent false — except an answer. One character's conditions are written
+ * before the other characters' questions exist, so an unknown answer or a
+ * `???` is a warning and reads as "not chosen" (organizer's decision,
+ * 2026-09-25). The `Condition` column of `N_Questions` is not an expression
  * and has its own check (§4.5).
  */
 export const checkConditionReferences = (
@@ -28,14 +33,30 @@ export const checkConditionReferences = (
       case 'answer':
         // A poll's winning answer is spelled like any other answer (§6.6), so
         // one lookup covers both.
-        if (!scope.answerIds.has(reference.name)) {
+        if (scope.answerIds.has(reference.name)) break
+        if (scope.allAnswerIds.has(reference.name)) {
           issues.error(
             'unknown_answer',
             location,
-            `${subject} odkazuje na odpověď \`${reference.name}\`, která neexistuje v kapitole ${scope.chapter} ani v žádné dřívější.`,
-            { value: reference.name, suggestion: suggestClosest(reference.name, scope.answerIds) },
+            `${subject} odkazuje na odpověď \`${reference.name}\` z pozdější kapitoly — v kapitole ${scope.chapter} ještě nikdo neodpověděl.`,
+            { value: reference.name },
           )
+          break
         }
+        issues.warn(
+          'unknown_answer',
+          location,
+          `${subject} odkazuje na odpověď \`${reference.name}\`, která zatím neexistuje v kapitole ${scope.chapter} ani v žádné dřívější. Než ji doplníš, počítá se jako nevybraná.`,
+          { value: reference.name, suggestion: suggestClosest(reference.name, scope.answerIds) },
+        )
+        break
+      case 'placeholder':
+        issues.warn(
+          'unfinished_condition',
+          location,
+          `${subject} má nedopsaný odkaz \`${reference.name}\`. Než ho doplníš, počítá se jako nevybraná odpověď.`,
+          { value: reference.name },
+        )
         break
       case 'scale':
         if (!scope.scaleIds.has(reference.name)) {
