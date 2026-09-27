@@ -11,6 +11,19 @@ export interface VariationDefinition {
   condition: string
   /** May be empty — the "nothing happened" variant (§8.2). */
   text: string
+  /**
+   * Lines for the document's `{ZIVOTOPIS}` (§8.2). Carried to the documents
+   * like `text`; evaluation never reads it.
+   */
+  biography?: BiographyEntry[]
+}
+
+export interface BiographyEntry {
+  year: number
+  /** Markdown; variables are filled in with the rest of the document. */
+  text: string
+  /** Sheet row: entries of the same year keep the author's order. */
+  order: number
 }
 
 /**

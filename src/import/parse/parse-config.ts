@@ -42,6 +42,8 @@ export const parseConfig = (workbook: Workbook, issues: IssueCollector): ParsedC
     derivedAnswerIds: 0,
     addedBoolAnswers: 0,
     semicolonSeparators: 0,
+    formattedCells: 0,
+    droppedFormattingCells: 0,
   }
 
   const characters = parseCharacters(workbook, issues, repairs)

@@ -464,6 +464,8 @@ Struktura listu `N_Content`:
 | `Variation ID`          | identifikátor varianty, `V_Marie_2_Historie_1_A`                                                       |
 | `Variation Description` | poznámka autora, do výstupu nejde                                                                      |
 | `Variation Text`        | text do dokumentu; **smí být prázdný** — varianta „nic se nestalo"; smí obsahovat značku dalšího bloku |
+| `Biography Year`        | **nepovinné**, rok bodu životopisu (celé číslo)                                                        |
+| `Biography Text`        | **nepovinné**, text bodu životopisu; proměnné ano, `{BLOK}` ani `{ZIVOTOPIS}` ne                        |
 | `Priority`              | **volitelné** číslo, nižší dřív                                                                        |
 | `Conditions`            | výraz podle §4.5; prázdná buňka = `DEFAULT`                                                            |
 
@@ -484,11 +486,34 @@ jejíž podmínka platí**.
 Z toho plyne: **mezi variantami nevznikají konflikty.** Priorita (nebo pořadí
 řádků) rozhoduje úplně a engine nemusí nic hlásit orgovi.
 
+**Body životopisu (§8.2).** Varianta smí nést rok + text; plní značku
+`{ZIVOTOPIS}`. Engine se jich netýká — jsou to jen texty vybraných variant.
+
+- **Rok i text jen spolu.** Další bod téže varianty je **pokračovací řádek**:
+  prázdné `Variation ID` a vyplněné jen oba sloupce životopisu. Cokoli dalšího
+  na takovém řádku je chyba, nikdy tiché přilepení k variantě nad ním.
+- **Blok jen pro životopis** (všechny varianty s prázdným `Variation Text`,
+  aspoň jeden bod) **nepotřebuje značku** v šabloně. Bod „vždy" = takový blok
+  s jedinou variantou s prázdnou podmínkou.
+- Použijí se body vybraných variant bloků, které se **v dokumentu rozvinuly**,
+  plus bloků jen pro životopis téhož vlastníka a kapitoly.
+- **Řazení: rok, pak pořadí řádků v `N_Content`** — ne místo v dokumentu. Jen
+  body téže kapitoly, dřívější kapitoly se neopakují.
+- Body nese `VariationDefinition.biography` (engine je nečte). `fillTemplate`
+  nahradí `{ZIVOTOPIS}` až **po rozvinutí všech bloků**, teprve pak ví, které
+  bloky dokument použil; řádky spojuje tvrdé zalomení `\`. Blok jen pro
+  životopis pozná `isBiographyOnly` (`src/import/template.ts`), jediná verze
+  pro import i dokumenty.
+
 ## Značky v šabloně jsou nepárové a smějí se zanořovat (§8.4)
 
 | Značka              | Význam                                           |
 | ------------------- | ------------------------------------------------ |
 | `{BLOK <Block ID>}` | nahradí se textem vybrané varianty z `N_Content` |
+| `{ZIVOTOPIS}`       | nahradí se seřazenými body životopisu (`**1985** text` na řádek) |
+
+- **`{ZIVOTOPIS}` nejvýš jednou a jen v šabloně**; bez bodů zmizí. Vlastník
+  s body a šablonou bez `{ZIVOTOPIS}` je varování importu.
 
 - **`{/BLOK}` neexistuje.** Text nese tabulka, ne šablona, takže není co uzavírat.
   Zavírací značka v šabloně je chyba validace.
@@ -649,6 +674,11 @@ informaci a kontrolu šablon), `Scales`, `Resources`, `1_Questions` / `2_Questio
 - Prázdné buňky, mezery navíc a nezlomitelné mezery ošetři tiše, ale **spočítej
   je a zmiň v přehledu importu.**
 - **Diakritika v ID, názvech listů a exportech musí projít bez poškození.**
+- **Tučné a kurzíva z buňky → Markdown** (`src/import/rich-text.ts`), ale **jen
+  v textových sloupcích** `Variation Text`, `Biography Text` a `Text` otázky —
+  parser je čte přes `readFormattedText`, všechno ostatní přes `row.get` (čistý
+  text), takže formátování nikdy nezmění ID ani podmínku. Formátování uvnitř
+  značky je chyba `formatting_in_marker`. Text otázky vykresluje `QuestionText`.
 
 **Šablony** se nahrávají jako `.md` (víc souborů najednou nebo v zipu),
 **všechny kapitoly najednou na začátku běhu**. Komu a které kapitole patří,

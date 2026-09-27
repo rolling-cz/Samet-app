@@ -78,6 +78,25 @@ export const CONTENT_COLUMNS = Object.freeze([
   'Conditions',
 ])
 
+/**
+ * Optional biography columns of `N_Content` (§8.2). A sheet without them is
+ * valid; an absent column reads as empty cells.
+ */
+export const BIOGRAPHY_YEAR_COLUMN = 'Biography Year'
+
+export const BIOGRAPHY_TEXT_COLUMN = 'Biography Text'
+
+/**
+ * Columns that make a row more than a continuation row — one that only adds a
+ * biography entry to the variant above it (§8.2).
+ */
+export const VARIATION_BODY_COLUMNS = Object.freeze([
+  'Variation Description',
+  'Variation Text',
+  'Priority',
+  'Conditions',
+])
+
 /** `Character` and `Block ID` are filled only on the first row of a group (§8.2). */
 export const CONTENT_FILL_DOWN_COLUMNS = Object.freeze(['Character', 'Block ID'])
 

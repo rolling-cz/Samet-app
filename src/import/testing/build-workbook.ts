@@ -9,6 +9,8 @@ import {
   ANSWER_BLOCKS_COLUMN,
   ANSWER_ID_COLUMN,
   ANSWER_LABEL_COLUMN,
+  BIOGRAPHY_TEXT_COLUMN,
+  BIOGRAPHY_YEAR_COLUMN,
   EFFECTS_COLUMN,
   IMPACT_COLUMN,
   QUESTION_CONDITION_COLUMN,
@@ -60,6 +62,8 @@ const CONTENT_COLUMNS = [
   'Variation ID',
   'Variation Description',
   'Variation Text',
+  BIOGRAPHY_YEAR_COLUMN,
+  BIOGRAPHY_TEXT_COLUMN,
   'Priority',
   'Conditions',
 ]

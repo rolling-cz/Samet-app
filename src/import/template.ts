@@ -19,8 +19,24 @@ import type { ParsedTemplate, UploadedTemplate } from './types/parsed-template'
  * fixed template text. Group membership is not state either (§4.6), so there is
  * no `SKUPINA` to fill. `NAZEV` is the group's own name, which §8.4 forbids
  * hardcoding into the text.
+ *
+ * `ZIVOTOPIS` is filled from the biography entries of the variants the
+ * document used (§8.2), not from `variablesFor`.
  */
-export const KNOWN_VARIABLES = Object.freeze(['JMENO', 'PRIJMENI', 'NAZEV'] as const)
+export const BIOGRAPHY_VARIABLE = 'ZIVOTOPIS'
+
+export const KNOWN_VARIABLES = Object.freeze(['JMENO', 'PRIJMENI', 'NAZEV', BIOGRAPHY_VARIABLE] as const)
+
+/**
+ * Every variant's text is empty and one carries a biography entry: the block
+ * fills `{ZIVOTOPIS}` and needs no marker (§8.2). Typed by shape, so the import's
+ * blocks and the engine config's both fit.
+ */
+export const isBiographyOnly = (block: {
+  variations: readonly { text: string; biography?: readonly unknown[] }[]
+}): boolean =>
+  block.variations.every((variation) => variation.text === '') &&
+  block.variations.some((variation) => (variation.biography ?? []).length > 0)
 
 export interface TemplateMarker {
   kind: 'block' | 'variable'

@@ -15,6 +15,7 @@ import { toAnswerWrite } from '../../../../utils/to-answer-write'
 import { ChoiceControl } from './components/ChoiceControl/ChoiceControl'
 import { NumberControl } from './components/NumberControl/NumberControl'
 import { OptionExtras } from './components/OptionExtras/OptionExtras'
+import { QuestionText } from './components/QuestionText/QuestionText'
 import { SaveStatusLine } from './components/SaveStatusLine/SaveStatusLine'
 import styles from './QuestionCard.module.css'
 
@@ -67,7 +68,8 @@ export const QuestionCard = memo(function QuestionCard({ question, context, hasI
           testId={`question-state--${question.id}`}
         />
         <Typography variant="body1" component="h2" id={`${question.id}--text`} className={styles.text}>
-          <span className={styles.ordinal}>{dotaznik.questionNumber(question.ordinal)}</span> {question.text}
+          <span className={styles.ordinal}>{dotaznik.questionNumber(question.ordinal)}</span>{' '}
+          <QuestionText text={question.text} />
         </Typography>
         {question.pollId !== undefined && <Chip variant="outlined" label={dotaznik.pollBadge} />}
         {question.source === 'org' && <Chip variant="outlined" label={dotaznik.orgBadge} />}

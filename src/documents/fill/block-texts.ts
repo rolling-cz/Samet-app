@@ -8,7 +8,16 @@
  * `selected_variations` again and no condition is evaluated a second time — the
  * engine decided this when the previous chapter was computed.
  */
-import type { BlockDefinition, ChapterNumber, EngineConfig, SelectedVariants, VariationDefinition } from '@/engine'
+import type {
+  BiographyEntry,
+  BlockDefinition,
+  ChapterNumber,
+  EngineConfig,
+  SelectedVariants,
+  VariationDefinition,
+} from '@/engine'
+// The module, not the `@/import` barrel, which would open a database connection.
+import { isBiographyOnly } from '@/import/template'
 import type { DocumentOwner } from '../types/document'
 
 /** One of an owner's blocks in a chapter, with the variant the computation chose — absent while a roll is missing. */
@@ -36,6 +45,15 @@ export interface BlockTexts {
   texts: Map<string, string>
   /** Blocks of this owner and chapter with no variant chosen — a missing roll (§7.4). */
   undecided: string[]
+  biography: BlockBiography
+}
+
+/** What `{ZIVOTOPIS}` is filled from (§8.2). */
+export interface BlockBiography {
+  /** Block ID → entries of the chosen variant; blocks without any are absent. */
+  entries: Map<string, BiographyEntry[]>
+  /** Blocks that count without a marker, because they exist only for the biography. */
+  biographyOnly: Set<string>
 }
 
 export const blockTextsFor = (
@@ -46,11 +64,17 @@ export const blockTextsFor = (
 ): BlockTexts => {
   const texts = new Map<string, string>()
   const undecided: string[] = []
+  const biography: BlockBiography = { entries: new Map(), biographyOnly: new Set() }
 
   for (const { block, variation } of ownerBlocks(config, selected, owner, chapter)) {
-    if (variation === undefined) undecided.push(block.id)
-    else texts.set(block.id, variation.text)
+    if (isBiographyOnly(block)) biography.biographyOnly.add(block.id)
+    if (variation === undefined) {
+      undecided.push(block.id)
+      continue
+    }
+    texts.set(block.id, variation.text)
+    if (variation.biography?.length) biography.entries.set(block.id, variation.biography)
   }
 
-  return { texts, undecided }
+  return { texts, undecided, biography }
 }

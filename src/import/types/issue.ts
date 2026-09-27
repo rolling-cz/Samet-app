@@ -54,6 +54,9 @@ export type IssueCode =
   | 'duplicate_template'
   | 'template_not_printed'
   | 'unfinished_condition'
+  | 'formatting_in_marker'
+  | 'invalid_biography'
+  | 'biography_without_marker'
 
 /** Where in the uploaded file the problem sits. */
 export interface IssueLocation {

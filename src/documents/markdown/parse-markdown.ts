@@ -23,6 +23,13 @@ export const parseMarkdown = (markdown: string): MdBlock[] => {
   return blocks
 }
 
+/**
+ * One line of inline Markdown — a question's text in the questionnaire. Lexed
+ * inline only, so a text that happens to start with `1.` or `-` stays text
+ * instead of turning into a list.
+ */
+export const parseInlineMarkdown = (text: string): MdInline[] => inlines(Lexer.lexInline(text))
+
 const collect = (token: Token, blocks: MdBlock[]): void => {
   switch (token.type) {
     case 'space':

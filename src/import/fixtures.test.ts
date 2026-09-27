@@ -20,7 +20,7 @@ import type { UploadedTemplate } from './types/parsed-template'
 import { readWorkbook } from './workbook'
 
 /** Mistakes the faulty workbook carries, per `fixtures-ocekavane-vysledky.md`. */
-const EXPECTED_WORKBOOK_ERRORS = 37
+const EXPECTED_WORKBOOK_ERRORS = 41
 
 /** Mistakes that only show once the templates are uploaded (§10.2). */
 const EXPECTED_TEMPLATE_ERRORS = 5
@@ -106,6 +106,20 @@ describe('fixture-platny.xlsx', () => {
     ])
     expect(result.issues.filter((i) => i.code === 'block_without_marker')).toEqual([])
   })
+
+  it('reads the biography entries, continuation row included, and lets biography-only blocks go unmarked', () => {
+    const entries = (result.config.blocks.get(2) ?? []).flatMap((block) =>
+      block.variations.flatMap((variation) => variation.biography.map((entry) => `${variation.externalId} ${entry.year}@${entry.row}`)),
+    )
+    expect(entries).toEqual([
+      'V_Marie_1_Historie_1_A 1986@2',
+      'V_Marie_1_Zivotopis_1_A 1986@33',
+      'V_Marie_1_Zivotopis_1_A 1987@34',
+      'V_Marie_1_Zivotopis_2_A 1985@36',
+    ])
+    // Marie_2.md carries {ZIVOTOPIS}, so nothing warns that the entries have nowhere to go.
+    expect(result.warnings.filter((i) => i.code === 'biography_without_marker')).toEqual([])
+  })
 })
 
 describe('fixture-vadny.xlsx', () => {
@@ -156,6 +170,7 @@ describe('fixture-vadny.xlsx', () => {
       'invalid_template_marker',
       'invalid_template_filename',
       'owner_without_template',
+      'invalid_biography',
     ]) {
       expect(codes).toContain(code)
     }
@@ -190,6 +205,23 @@ describe('fixture-vadny.xlsx', () => {
   it('says a household ID is simply the wrong way round', () => {
     const issue = result.errors.find((e) => e.code === 'household_order')
     expect(issue).toMatchObject({ value: 'MirekMarie', suggestion: 'MarieMirek' })
+  })
+
+  it('reports each broken biography entry at its own cell, and the template with nowhere to print them', () => {
+    const found = result.errors
+      .filter((e) => e.location.sheet === '2_Content' && (e.location.row ?? 0) >= 43)
+      .map((e) => `${e.location.row} ${e.location.column} ${e.code}`)
+
+    expect(found).toEqual([
+      '43 Biography Year invalid_biography',
+      '44 Biography Year missing_value',
+      '45 Biography Text invalid_biography',
+      '47 Variation ID missing_value',
+    ])
+    // The block keeps one valid entry, so it is biography-only and not an orphan on top.
+    expect(result.warnings.filter((e) => e.code === 'biography_without_marker').map((e) => e.value)).toEqual([
+      'Mirek_2.md',
+    ])
   })
 
   it('catches the answer row left behind a blank row', () => {

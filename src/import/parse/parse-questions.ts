@@ -35,6 +35,7 @@ import type {
 import { splitList } from '../utils/split-list'
 import { parseAnswerEffects } from './parse-answer-effects'
 import { readConfigSheet, requireColumns } from './read-config-sheet'
+import { readFormattedText } from './read-formatted-text'
 import { resolveOwner, resolveReferencedCharacter } from './resolve-character-refs'
 
 /** Question type used when the sheet's value is unknown; already reported as an error. */
@@ -210,7 +211,7 @@ const beginQuestion = (
     ordinal,
     // A vote carries its poll's ID in the `Text` column and shows the poll's
     // own text in the app (§6.6).
-    text: resolvedType === 'poll-answer' ? '' : row.get('Text'),
+    text: resolvedType === 'poll-answer' ? '' : readFormattedText(row, 'Text', repairs, issues),
     type: resolvedType,
     source: sourceRaw === ORG_SOURCE_WORD ? 'org' : 'player',
     isPrivate: isYes(row.get(QUESTION_PRIVATE_COLUMN)),

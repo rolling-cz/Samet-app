@@ -33,6 +33,10 @@ export interface ImportRepairs {
   addedBoolAnswers: number
   /** Impact cells separated by `;` rather than `,` — both are accepted. */
   semicolonSeparators: number
+  /** Text cells whose inline bold or italic became Markdown. */
+  formattedCells: number
+  /** Text cells whose underline or strikethrough was dropped — it has no Markdown form here. */
+  droppedFormattingCells: number
 }
 
 export interface ParsedConfig {

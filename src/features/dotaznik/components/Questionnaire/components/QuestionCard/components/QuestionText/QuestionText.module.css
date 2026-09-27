@@ -1,0 +1,10 @@
+/* The question itself is already semibold, so bold has to go further to show. */
+.part[data-emphasis='bold'],
+.part[data-emphasis='boldItalic'] {
+  font-weight: 800;
+}
+
+.part[data-emphasis='italic'],
+.part[data-emphasis='boldItalic'] {
+  font-style: italic;
+}

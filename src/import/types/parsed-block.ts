@@ -1,6 +1,15 @@
 import type { ExpressionParse } from '../expression'
 import type { Sourced } from './sourced'
 
+/** One line of the biography a variant contributes to `{ZIVOTOPIS}` (§8.2). */
+export interface ParsedBiographyEntry extends Sourced {
+  year: number
+  /** Markdown; may hold variables, never `{BLOK}` or `{ZIVOTOPIS}`. */
+  text: string
+  /** Sheet row — entries of the same year print in row order. */
+  row: number
+}
+
 export interface ParsedVariation extends Sourced {
   externalId: string
   /** Row order within the block, from 1 — the order when no priority is set. */
@@ -15,6 +24,8 @@ export interface ParsedVariation extends Sourced {
   condition: ExpressionParse
   /** True for the fallback: empty condition or `DEFAULT`. */
   isFallback: boolean
+  /** From the variant's own row and the continuation rows under it. */
+  biography: ParsedBiographyEntry[]
 }
 
 export interface ParsedBlock extends Sourced {

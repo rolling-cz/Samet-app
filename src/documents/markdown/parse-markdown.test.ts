@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseMarkdown } from './parse-markdown'
+import { parseInlineMarkdown, parseMarkdown } from './parse-markdown'
 
 const text = (markdown: string) =>
   parseMarkdown(markdown)
@@ -83,5 +83,35 @@ describe('parseMarkdown', () => {
 
   it('prázdný vstup nedá nic', () => {
     expect(parseMarkdown('')).toEqual([])
+  })
+})
+
+describe('parseInlineMarkdown', () => {
+  it('rozdělí text otázky na tučné a obyčejné části, i uprostřed slova', () => {
+    expect(parseInlineMarkdown('Kdo je L**ATE**R?')).toEqual([
+      { emphasis: 'none', text: 'Kdo je L' },
+      { emphasis: 'bold', text: 'ATE' },
+      { emphasis: 'none', text: 'R?' },
+    ])
+  })
+
+  it('text začínající číslem s tečkou nezačne seznam', () => {
+    expect(parseInlineMarkdown('1. máj slavíš?')).toEqual([{ emphasis: 'none', text: '1. máj slavíš?' }])
+  })
+})
+
+describe('parseMarkdown — životopis', () => {
+  it('zpětné lomítko na konci řádku zalomí řádek uvnitř odstavce', () => {
+    expect(parseMarkdown('**1985** a\\\n**1986** b\n')).toEqual([
+      {
+        kind: 'paragraph',
+        content: [
+          { emphasis: 'bold', text: '1985' },
+          { emphasis: 'none', text: ' a\n' },
+          { emphasis: 'bold', text: '1986' },
+          { emphasis: 'none', text: ' b' },
+        ],
+      },
+    ])
   })
 })

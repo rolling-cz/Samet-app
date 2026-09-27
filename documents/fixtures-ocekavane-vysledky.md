@@ -39,9 +39,23 @@ Sloupec `Condition` v `N_Questions` nese jen `Variation ID` z `N_Content` téže
 
 Všech pět `…_Questions_…` bloků má **prázdný `Variation Text`** a **žádnou značku v šabloně**. Osiřelé přesto nejsou — vede na ně odkaz ze sloupce `Condition` (§11, kontrola 6). To je hlavní věc, kterou platný fixture na nové kontrole ověřuje: importér nesmí hlásit `TPL_ORPHAN_BLOCK`.
 
+### Body životopisu (§8.2)
+
+`2_Content` má sloupce `Biography Year` a `Biography Text` mezi `Variation Text` a `Priority`. Nové řádky jsou až na konci listu, takže čísla řádků výše platí dál.
+
+| Řádek | Varianta | Rok | Co ověřuje |
+|---|---|---|---|
+| 2 | `V_Marie_1_Historie_1_A` | 1986 | bod u varianty bloku se značkou v šabloně |
+| 33 | `V_Marie_1_Zivotopis_1_A` | 1986 | blok jen pro životopis (prázdný `Variation Text`, bez značky) s podmínkou |
+| 34 | — (pokračovací řádek) | 1987 | druhý bod téže varianty; text s ručním `**{JMENO}**` |
+| 35 | `V_Marie_1_Zivotopis_1_B` | — | fallback bez bodu |
+| 36 | `V_Marie_1_Zivotopis_2_A` | 1985 | bod „vždy": jediná varianta s prázdnou podmínkou |
+
+`Marie_2.md` v `sablony-platne-vzor.zip` končí sekcí `## Životopis` se značkou `{ZIVOTOPIS}`. Očekává se **0 chyb a žádné varování `biography_without_marker`**; bloky `B_Marie_1_Zivotopis_*` osiřelé nejsou.
+
 ## Vadný
 
-**Očekávání:** import odmítnutý, **37 chyb v xlsx + 5 v šablonách** (řádek 23 níže je od 25. 9. 2026 varování) nahlášených najednou (každá s listem, řádkem, sloupcem a hodnotou). Stejná tolerovaná varování jako u platného (jen s jinými řádky) nebrání hlášení chyb.
+**Očekávání:** import odmítnutý, **41 chyb v xlsx + 5 v šablonách** (řádek 23 níže je od 25. 9. 2026 varování) nahlášených najednou (každá s listem, řádkem, sloupcem a hodnotou). Stejná tolerovaná varování jako u platného (jen s jinými řádky) nebrání hlášení chyb.
 
 ### Chyby v `fixture-vadny.xlsx`
 
@@ -85,6 +99,12 @@ Všech pět `…_Questions_…` bloků má **prázdný `Variation Text`** a **ž
 | 36 | `QCOND_NOT_VARIATION` | §11.6i | `2_Questions` | 14 | Condition | `DEFAULT` | `DEFAULT` v podmínce otázky nemá smysl (prázdná buňka = vždy) |
 | 37 | `QCOND_NOT_VARIATION` | §11.6i | `2_Questions` | 16 | Condition | `RANDOM(50)` | `RANDOM` smí jen v `Conditions` v `N_Content` (§7.4) |
 | 38 | `COND_REF` | §11.6d | `3_Content` | 9 | Conditions | `Q_Antonin_2_2_Ano` | odkaz začíná Q_ (ID otázky), v podmínce patří ID odpovědi A_Antonin_2_2_Ano |
+| 39 | `invalid_biography` | §11.6j | `2_Content` | 43 | Biography Year | `podzim 1985` | rok bodu životopisu není celé číslo |
+| 40 | `missing_value` | §11.6j | `2_Content` | 44 | Biography Year | — | text bodu bez roku |
+| 41 | `invalid_biography` | §11.6j | `2_Content` | 45 | Biography Text | `Viz {BLOK B_Mirek_1_Historie_1}.` | značka bloku v bodu životopisu |
+| 42 | `missing_value` | §11.6j | `2_Content` | 47 | Variation ID | `navíc` | pokračovací řádek má kromě bodu i `Variation Text` |
+
+Blok `B_Mirek_1_Zivotopis_1` (řádky 43–47) je jen pro životopis. Jeho fallback `V_Mirek_1_Zivotopis_1_D` (řádek 46) nese platný bod, takže blok **není osiřelý** a #31 zůstává jediným `TPL_ORPHAN_BLOCK`. `Mirek_2.md` v `sablony-vadne.zip` nemá `{ZIVOTOPIS}`, proto navíc přijde **varování** `biography_without_marker` (ne chyba).
 
 ### Chyby v `sablony-vadne.zip`
 

@@ -620,6 +620,8 @@ Struktura listu `N_Content`:
 | `Variation ID`          | Identifikátor varianty, např. `V_Marie_1_Historie_1_A`                                                                                                  |
 | `Variation Description` | Poznámka autora, do výstupu nejde                                                                                                                       |
 | `Variation Text`        | Text, který se vloží do dokumentu. Smí být prázdný — varianta „nic se nestalo".                                                                         |
+| `Biography Year`        | Nepovinné. Rok bodu životopisu, celé číslo (`1985`). Viz „Body životopisu" níže.                                                                        |
+| `Biography Text`        | Nepovinné. Text bodu životopisu; smí obsahovat proměnné (`{JMENO}`), ne `{BLOK …}` ani `{ZIVOTOPIS}`.                                                   |
 | `Priority`              | Volitelné číslo. Pokud ho varianty bloku mají, řadí se podle něj **vzestupně** (nižší číslo dřív). Pokud ho žádná nemá, řadí se podle **pořadí řádků**. |
 | `Conditions`            | Výraz, §4.5. **Prázdná buňka i výraz `DEFAULT` znamenají totéž** — fallback varianta.                                                                   |
 
@@ -641,6 +643,43 @@ Konvence pojmenování je `B_<Postava>_<Kapitola>_Questions_<N>`, ale rozhoduje 
 
 **Jeden blok = jedno rozhodnutí.** Blok vrací právě jednu variantu, takže na jeho variantách může viset víc otázek jen tehdy, když se navzájem vylučují. Nezávislé otázky potřebují každá svůj blok.
 
+#### Formátování textu v buňkách [ROZHODNUTO]
+
+**Tučné písmo a kurzíva napsané v Google Sheets se přenesou** (ověřeno na exportu 26. 9. 2026: Google zapíše i tučnou část slova). Import je převede na Markdown (`L**ATE**R`, `*kurzíva*`), který PDF i dotazník vykreslí.
+
+- Týká se **jen sloupců, které jdou do dokumentu nebo do dotazníku:** `Variation Text` a `Biography Text` v `N_Content` a `Text` otázky v `N_Questions` (ne `poll-answer`, kde je v `Text` ID ankety). Ve všech ostatních sloupcích se formátování ignoruje — ztučněné ID zůstává stejné ID.
+- Ručně napsané `**…**` a `*…*` funguje dál a obě cesty jdou kombinovat.
+- Mezera na kraji ztučněného úseku se přesune ven (`**Věra **` by Markdown nepoznal).
+- **Formátování, které začne nebo skončí uvnitř značky** (`{JM` tučně, `ENO}` ne), je chyba importu. Celá ztučněná značka (`**{JMENO}**`) je v pořádku.
+- Podtržení a přeškrtnutí se zahodí a přehled importu je spočítá. Barva, písmo a velikost se ignorují bez hlášení — Google je píše ke každému úseku.
+- **Tučná celá buňka nastavená formátem buňky** (ne označením textu) se nepřenese; SheetJS ji v úsecích nevidí.
+
+#### Body životopisu [ROZHODNUTO]
+
+Varianta smí nést **body životopisu** (rok + text). Po naplnění dokumentu se posbírají body použitých variant a vypíšou se na místo značky `{ZIVOTOPIS}` (§8.4). Autor tak nepíše do šablony všechny verze životopisu k ručnímu škrtání — napíše je k variantám, ke kterým patří.
+
+- **Oba sloupce jsou nepovinné.** List `N_Content` bez nich je platný. Poloha sloupců nehraje roli, čtou se podle názvu (typicky mezi `Variation Text` a `Priority`).
+- **Rok i text patří k sobě** — vyplněný jen jeden z nich je chyba.
+- **Víc bodů u jedné varianty = pokračovací řádek:** řádek s prázdným `Variation ID`, na kterém jsou vyplněné **jen** `Biography Year` a `Biography Text`, patří k variantě nad ním. Pokračovací řádek s čímkoli dalším (text, podmínka, priorita), nebo na začátku bloku, je chyba — nesmí se tiše přilepit k cizí variantě.
+- **Blok jen pro životopis:** všechny jeho varianty mají prázdný `Variation Text` a aspoň jedna nese bod. Takový blok **nepotřebuje značku v šabloně** — je „použitý" tím, že plní `{ZIVOTOPIS}` (obdoba bloku, který rozhoduje o otázce).
+- **Bod „vždy"** (nezávislý na odpovědích) je blok jen pro životopis s **jedinou variantou s prázdnou podmínkou**.
+- **Které body se použijí:** bod vybrané varianty, jejíž blok se v dokumentu rozvinul (značka v šabloně nebo ve vybrané variantě jiného bloku), a bod vybrané varianty bloku jen pro životopis téhož vlastníka a kapitoly. Body bloku zanořeného v nevybrané variantě se nepoužijí.
+- **Pořadí:** podle roku vzestupně, při shodě roku **podle pořadí řádků v `N_Content`** — ne podle místa v dokumentu. Chce-li autor jiné pořadí bodů téhož roku, prohodí řádky.
+- **Jen body téže kapitoly.** Dokument kapitoly 3 neopakuje body z kapitoly 2.
+
+Příklad (bod „vždy", varianta se dvěma body, další bod „vždy"):
+
+| Block ID            | Variation ID          | Variation Text | Biography Year | Biography Text                          | Conditions      |
+| ------------------- | --------------------- | -------------- | -------------- | --------------------------------------- | --------------- |
+| B_Tonda_2_Neter_1   | V_Tonda_2_Neter_1_A   |                | 1985           | Věřina neteř se vrací z emigrace …       |                 |
+| B_Tonda_2_Vedouci_1 | V_Tonda_2_Vedouci_1_A | …              | 1985           | Jan se začíná zaučovat na vedoucího …    | A_Tonda_1_2_Jan |
+|                     |                       |                | 1986           | Antonín jde do důchodu a Jan …           |                 |
+|                     | V_Tonda_2_Vedouci_1_B | …              | 1985           | Vladimír se začíná zaučovat …            | DEFAULT         |
+|                     |                       |                | 1986           | Antonín jde do důchodu a Vladimír …      |                 |
+| B_Tonda_2_Vera_1    | V_Tonda_2_Vera_1_A    |                | 1985           | na podzim umírá Věra …                   |                 |
+
+Výsledek při odpovědi `A_Tonda_1_2_Jan`: neteř 1985 → Jan 1985 → Věra 1985 → Jan 1986. Podmínky vedoucího se píšou jednou, nic se neopisuje.
+
 ### 8.3 Naplnění dokumentu [ROZHODNUTO]
 
 Šablona je Markdown se značkami. Aplikace v ní **nahradí značky textem vybraných variant** a proměnné hodnotami.
@@ -651,6 +690,9 @@ Konvence pojmenování je `B_<Postava>_<Kapitola>_Questions_<N>`, ale rozhoduje 
       - u každé značky {BLOK B_...} vybere variantu podle priority a podmínek
       - vloží její Variation Text (prázdný text = značka zmizí beze stopy)
       - opakuje, dokud text obsahuje nějakou značku {BLOK ...} (zanořené bloky)
+      - posbírá body životopisu použitých variant, seřadí je (rok, pak řádek
+        v N_Content) a vloží je místo {ZIVOTOPIS}; proměnné v nich se dosadí
+        stejně jako ve zbytku dokumentu (§8.2)
 [3] Org potvrdí převod na pdf. Vygenerují se 3 pdf soubory - sloučí se dokumenty dle typu, ať se lehce a rychle tisknou (viz 8.6).
 ```
 
@@ -659,6 +701,7 @@ Konvence pojmenování je `B_<Postava>_<Kapitola>_Questions_<N>`, ale rozhoduje 
 | Značka              | Význam                                           |
 | ------------------- | ------------------------------------------------ |
 | `{BLOK <Block ID>}` | Nahradí se textem vybrané varianty z `N_Content` |
+| `{ZIVOTOPIS}`       | Nahradí se seřazenými body životopisu (§8.2)     |
 
 Značky jsou **jednoduché, nepárové** — text nese tabulka, ne šablona.
 
@@ -667,6 +710,7 @@ Pravidla:
 - **Žádná značka nesmí přežít do výsledného dokumentu.** Zbylá značka = chyba, aplikace ji nahlásí před uložením.
 - Blok, který je v šabloně a chybí v `N_Content`, i blok v `N_Content`, na který nevede značka = chyba validace (§11).
 - Text mimo značky je fixní část šablony a aplikace se ho nedotkne. Sem patří charakterizace postavy, která se nemění (§4.6).
+- **`{ZIVOTOPIS}`** smí stát v šabloně **nejvýš jednou** a jen v šabloně (ne ve `Variation Text` ani v bodu životopisu). Každý bod se vypíše na vlastní řádek jako `**<rok>** <text>`; nadpis sekce je pevný text šablony. Bez bodů značka zmizí beze stopy. Platí pro postavy i skupiny.
 
 #### Zanořené bloky [ROZHODNUTO]
 
@@ -748,6 +792,7 @@ Sada automatických kontrol (list `Validations`), spuštitelná kdykoli:
    6g. **Cyklus mezi bloky** — blok se přímo nebo přes jiné bloky odkazuje sám na sebe (§8.4). Blok, na který vede značka jen z `Variation Text` jiného bloku, se u kontroly 6 počítá jako dosažitelný.
    6h. **Blok, kde má `Priority` jen část variant** — pořadí není jednoznačné (§8.2). Buď mají číslo všechny varianty bloku, nebo žádná.
    6i. **Vadný sloupec `Condition` v `N_Questions`** (§4.5): cokoli jiného než jediné `Variation ID` (výraz, ID odpovědi, porovnání škály, `RANDOM`, `DEFAULT`), `Variation ID`, které v `N_Content` téže kapitoly neexistuje, nebo které patří jiné postavě či skupině
+   6j. **Body životopisu** (§8.2, §8.4): `Biography Year`, které není celé číslo; rok bez textu nebo text bez roku; pokračovací řádek s čímkoli jiným než bodem nebo na začátku bloku; `{BLOK …}` nebo `{ZIVOTOPIS}` v `Biography Text`; `{ZIVOTOPIS}` víckrát v šabloně nebo ve `Variation Text`. **Varování:** vlastník má v kapitole body životopisu, ale jeho šablona nemá `{ZIVOTOPIS}` — body by se nikam nevypsaly.
 7. **Škály a zdroje** (`Scales`, `Resources`, §4.2): `Min` větší než `Max`, defaultní hodnota mimo rozsah `Min`–`Max`, postava neuvedená v registru `Characters`, duplicitní řádek postava × škála / zdroj, `Household` v `Characters`, které neodpovídá ID domácnosti dvou postav se stejnou hodnotou, řádek v `Resources` s ID domácnosti, která není ve sloupci `Household`, výchozí domácnost bez řádku v `Resources`
 8. **ID otázek a ankety** (§4.2, §6.6): `poll` bez vyplněného ID, `poll-answer` odkazující na neexistující anketu, `poll`, ve které v téže kapitole nikdo nehlasuje (bez hlasů by vyhrál první řádek a jeho efekty by se aplikovaly), duplicitní ID otázky (ručně zadané i automaticky doplněné), řádek odpovědi u `bool` otázky s textem jiným než `Ano` / `Ne`
 9. **Šablony** (§10.2): soubor, jehož název neodpovídá žádné dvojici postava / skupina × kapitola, a postava nebo skupina, které chybí šablona v některé tištěné kapitole, tj. od kapitoly 2 (seznam skupin se bere z listu `Groups`)

@@ -130,8 +130,8 @@ const fillOne = (
   googleUrl: string | undefined,
 ): GeneratedDocument => {
   const { markdown } = archived.template
-  const { texts } = blockTextsFor(config, state.selectedVariants, owner, chapter)
-  const filled = fillTemplate({ markdown, blockTexts: texts, variables: variablesFor(config, state, owner) })
+  const { texts, biography } = blockTextsFor(config, state.selectedVariants, owner, chapter)
+  const filled = fillTemplate({ markdown, blockTexts: texts, variables: variablesFor(config, state, owner), biography })
 
   return {
     owner,

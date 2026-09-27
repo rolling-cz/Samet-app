@@ -94,3 +94,82 @@ describe('fillTemplate', () => {
     expect(fill(markdown).markdown).toBe(markdown)
   })
 })
+
+describe('fillTemplate — {ZIVOTOPIS} (§8.2)', () => {
+  const entry = (year: number, text: string, order: number) => ({ year, text, order })
+
+  const fillWithBiography = (
+    markdown: string,
+    blocks: Record<string, string>,
+    entries: Record<string, ReturnType<typeof entry>[]>,
+    biographyOnly: string[] = [],
+    variables: Record<string, string> = {},
+  ) =>
+    fillTemplate({
+      markdown,
+      blockTexts: new Map(Object.entries(blocks)),
+      variables,
+      biography: { entries: new Map(Object.entries(entries)), biographyOnly: new Set(biographyOnly) },
+    })
+
+  it('vypíše body rozvinutých bloků a bloků jen pro životopis, seřazené rokem a řádkem', () => {
+    const result = fillWithBiography(
+      '{BLOK B_Vedouci}\n\n## Životopis\n\n{ZIVOTOPIS}\n',
+      { B_Vedouci: 'Stal se vedoucím.', B_Vera: '' },
+      {
+        B_Vedouci: [entry(1985, 'Zaučuje se.', 18), entry(1986, 'Je vedoucí.', 19)],
+        B_Vera: [entry(1985, 'Umírá Věra.', 28)],
+      },
+      ['B_Vera'],
+    )
+
+    expect(result.problems).toEqual([])
+    expect(result.markdown).toBe(
+      'Stal se vedoucím.\n\n## Životopis\n\n**1985** Zaučuje se.\\\n**1985** Umírá Věra.\\\n**1986** Je vedoucí.\n',
+    )
+  })
+
+  it('body bloku zanořeného v nevybrané variantě se nevypíšou', () => {
+    // B_Uvnitr stands only in a variant that lost, so its marker never appears.
+    const result = fillWithBiography(
+      '{BLOK B_Venku}\n\n{ZIVOTOPIS}',
+      { B_Venku: 'Vyhrála varianta bez zanoření.', B_Uvnitr: 'Nikdy.' },
+      { B_Uvnitr: [entry(1985, 'Nemá se vypsat.', 5)] },
+    )
+
+    expect(result.markdown).not.toContain('Nemá se vypsat')
+    expect(result.problems).toEqual([])
+  })
+
+  it('body zanořeného bloku, který se rozvinul, se vypíšou', () => {
+    const result = fillWithBiography(
+      '{BLOK B_Venku}\n\n{ZIVOTOPIS}',
+      { B_Venku: 'Venku {BLOK B_Uvnitr}', B_Uvnitr: 'uvnitř.' },
+      { B_Uvnitr: [entry(1985, 'Vypíše se.', 5)] },
+    )
+
+    expect(result.markdown).toBe('Venku uvnitř.\n\n**1985** Vypíše se.\n')
+  })
+
+  it('dosadí proměnné v bodech', () => {
+    const result = fillWithBiography('{ZIVOTOPIS}', { B_Vera: '' }, { B_Vera: [entry(1985, '{JMENO} truchlí.', 2)] }, ['B_Vera'], {
+      JMENO: 'Antonín',
+    })
+
+    expect(result.markdown).toBe('**1985** Antonín truchlí.\n')
+    expect(result.problems).toEqual([])
+  })
+
+  it('bez bodů značka zmizí beze stopy', () => {
+    const result = fill('Před.\n\n{ZIVOTOPIS}\n\nPo.\n')
+
+    expect(result.markdown).toBe('Před.\n\nPo.\n')
+    expect(result.problems).toEqual([])
+  })
+
+  it('šablona bez {ZIVOTOPIS} body nevypisuje', () => {
+    const result = fillWithBiography('{BLOK B_Vera}', { B_Vera: 'Text.' }, { B_Vera: [entry(1985, 'Bod.', 2)] })
+
+    expect(result.markdown).toBe('Text.\n')
+  })
+})

@@ -8,6 +8,8 @@ export const COUNTED_REPAIR_KINDS = Object.freeze([
   'derivedAnswerIds',
   'addedBoolAnswers',
   'semicolonSeparators',
+  'formattedCells',
+  'droppedFormattingCells',
 ] as const)
 
 export type CountedRepairKind = (typeof COUNTED_REPAIR_KINDS)[number]

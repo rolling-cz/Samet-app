@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { KNOWN_VARIABLES } from '@/import/template'
+import { BIOGRAPHY_VARIABLE, KNOWN_VARIABLES } from '@/import/template'
 import { runFixture } from '@/testing/fixture-run'
 import { variablesFor } from './variables'
 
@@ -53,6 +53,8 @@ describe('variablesFor', () => {
     const group = variablesFor(fixture.config, marriedState, { kind: 'group', id: 'Funkcionari' })
 
     for (const name of KNOWN_VARIABLES) {
+      // `fillTemplate` fills it from the biography entries, see its own tests.
+      if (name === BIOGRAPHY_VARIABLE) continue
       expect(character[name] ?? group[name], `proměnná {${name}} nemá odkud brát hodnotu`).toBeTypeOf('string')
     }
   })

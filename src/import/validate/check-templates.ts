@@ -1,9 +1,9 @@
 import { chapterSheetName } from '../constants/sheets'
 import type { IssueCollector } from '../issue-collector'
-import { KNOWN_VARIABLES } from '../template'
+import { BIOGRAPHY_VARIABLE, isBiographyOnly, KNOWN_VARIABLES, parseTemplate } from '../template'
 import type { ParsedConfig } from '../types/parsed-config'
 import type { ParsedTemplate } from '../types/parsed-template'
-import { printedChapters, templateCoverage, templateWins } from '../template-upload'
+import { printedChapters, templateCoverage, templateKey, templateWins } from '../template-upload'
 import { suggestClosest } from '../utils/suggest-closest'
 import { blocksDecidingQuestions } from './check-question-conditions'
 
@@ -58,6 +58,8 @@ export const checkTemplates = (
   const markedBlocks = blocksDecidingQuestions(config)
   for (const blocks of config.blocks.values()) {
     for (const block of blocks) {
+      // It fills `{ZIVOTOPIS}` and has no text to place, so it needs no marker (§8.2).
+      if (isBiographyOnly(block)) markedBlocks.add(block.externalId)
       for (const variation of block.variations) {
         for (const nested of variation.nestedBlocks) markedBlocks.add(nested)
       }
@@ -73,6 +75,18 @@ export const checkTemplates = (
         { ...location, row: problem.line },
         `Šablona \`${template.filename}\`, řádek ${problem.line}: ${problem.detail}.`,
         { value: problem.raw },
+      )
+    }
+
+    const biographyMarkers = parseTemplate(template.markdown).markers.filter(
+      (marker) => marker.kind === 'variable' && marker.name === BIOGRAPHY_VARIABLE,
+    )
+    if (biographyMarkers.length > 1) {
+      issues.error(
+        'invalid_template_marker',
+        { ...location, row: biographyMarkers[1]?.line },
+        `Šablona \`${template.filename}\` má \`{${BIOGRAPHY_VARIABLE}}\` ${biographyMarkers.length}× (řádky ${biographyMarkers.map((marker) => marker.line).join(', ')}) — životopis se vypisuje jen jednou.`,
+        { value: `{${BIOGRAPHY_VARIABLE}}` },
       )
     }
 
@@ -137,6 +151,22 @@ export const checkTemplates = (
   }
 
   checkCoverage(config, templates, issues)
+}
+
+/** `templateKey` of every owner with a biography entry in that chapter's sheet. */
+const ownersWithBiography = (config: ParsedConfig): Set<string> => {
+  const owners = new Set<string>()
+  for (const [chapter, blocks] of config.blocks) {
+    for (const block of blocks) {
+      const owner = block.characterId ?? block.groupId
+      if (owner === undefined) continue
+      if (block.variations.some((variation) => variation.biography.length > 0)) {
+        owners.add(templateKey(owner, chapter))
+      }
+    }
+  }
+
+  return owners
 }
 
 /**
@@ -204,6 +234,22 @@ const checkCoverage = (
       { sheet: overridden.filename },
       `Pro \`${overridden.ownerRef}\`, kapitolu ${overridden.chapter}, přišly dvě šablony. Použije se ${which}: \`${used.filename}\`.`,
       { value: `${overridden.ownerRef}_${overridden.chapter}` },
+    )
+  }
+
+  // Only the template that will be filled counts; an overridden duplicate prints nothing.
+  const overridden = new Set(coverage.duplicates.map(({ overridden: template }) => template))
+  const withBiography = ownersWithBiography(config)
+  for (const template of templates) {
+    if (template.ownerRef === undefined || template.chapter === undefined) continue
+    if (overridden.has(template) || coverage.notPrinted.includes(template)) continue
+    if (!withBiography.has(templateKey(template.ownerRef, template.chapter))) continue
+    if (template.variables.includes(BIOGRAPHY_VARIABLE)) continue
+    issues.warn(
+      'biography_without_marker',
+      { sheet: template.filename },
+      `\`${template.ownerRef}\` má v listu \`${chapterSheetName(template.chapter, 'Content')}\` body životopisu, ale šablona \`${template.filename}\` nemá značku \`{${BIOGRAPHY_VARIABLE}}\` — body se nikam nevypíšou.`,
+      { value: template.filename },
     )
   }
 

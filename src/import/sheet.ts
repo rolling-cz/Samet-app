@@ -7,6 +7,7 @@
  * but every repair is counted so the import report can say what was cleaned up.
  */
 import { MAX_HEADER_ROW_INDEX } from './constants/spreadsheet'
+import type { FormattedCell } from './rich-text'
 import type { IssueLocation } from './types/issue'
 import { columnLetter } from './utils/column-letter'
 
@@ -29,6 +30,11 @@ export interface SheetRow {
    * next.
    */
   raw(column: string): string
+  /**
+   * The cell's inline bold and italic as Markdown, normalised like `get`;
+   * `undefined` when the cell has none. Read it only in text columns.
+   */
+  formatted(column: string): FormattedCell | undefined
   /**
    * A blank row stood directly above this one.
    *
@@ -54,7 +60,17 @@ export interface SheetReadResult {
 }
 
 /** Raw grid: array of rows, each an array of cell strings. */
-export type Grid = string[][]
+export type Grid = string[][] & {
+  /**
+   * Cells with inline bold or italic, keyed by `formattedCellKey`. Kept beside
+   * the plain text rather than in it: only the columns that reach a document
+   * or the questionnaire read it, so a bold ID stays the same ID.
+   */
+  formatted?: ReadonlyMap<string, FormattedCell>
+}
+
+/** 0-based position in the grid. */
+export const formattedCellKey = (rowIndex: number, columnIndex: number): string => `${rowIndex}:${columnIndex}`
 
 /**
  * Normalises one cell: trims, collapses inner runs of whitespace, and turns the
@@ -121,6 +137,7 @@ export const readSheet = (
   bodyRows.forEach((rawRow, bodyIndex) => {
     const rowNumber = headerRowIndex + bodyIndex + 2
     const values: Record<string, string> = {}
+    const formatted: Record<string, FormattedCell> = {}
     let anyValue = false
 
     for (const [header, columnIndex] of headerIndex) {
@@ -129,6 +146,9 @@ export const readSheet = (
       if (raw !== undefined && raw !== null && String(raw) !== clean) repairs.trimmedCells++
       values[header] = clean
       if (clean !== '') anyValue = true
+
+      const rich = grid.formatted?.get(formattedCellKey(headerRowIndex + 1 + bodyIndex, columnIndex))
+      if (rich) formatted[header] = { ...rich, markdown: normalizeCell(rich.markdown) }
     }
 
     if (!anyValue) {
@@ -153,7 +173,7 @@ export const readSheet = (
       }
     }
 
-    rows.push(makeRow(sheetName, rowNumber, values, rawValues, headerIndex, afterBlank))
+    rows.push(makeRow(sheetName, rowNumber, values, rawValues, formatted, headerIndex, afterBlank))
     afterBlank = false
   })
 
@@ -213,6 +233,7 @@ const makeRow = (
   rowNumber: number,
   values: Record<string, string>,
   rawValues: Record<string, string>,
+  formatted: Record<string, FormattedCell>,
   headerIndex: Map<string, number>,
   precededByBlank: boolean,
 ): SheetRow => {
@@ -222,6 +243,7 @@ const makeRow = (
     precededByBlank,
     get: (column) => values[column] ?? '',
     raw: (column) => rawValues[column] ?? '',
+    formatted: (column) => formatted[column],
     at: (column) => {
       const index = headerIndex.get(column)
 

@@ -94,6 +94,9 @@ const toBlock = (block: ParsedBlock): BlockDefinition | undefined => {
         text: variation.text,
       }
       if (variation.priority !== undefined) item.priority = variation.priority
+      if (variation.biography.length > 0) {
+        item.biography = variation.biography.map(({ year, text, row }) => ({ year, text, order: row }))
+      }
 
       return item
     }),

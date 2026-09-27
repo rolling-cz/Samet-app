@@ -26,6 +26,9 @@ export const importReport = Object.freeze({
   derivedAnswerIds: (count: number) => `${count}× odvozeno ID odpovědi z textu Ano/Ne`,
   addedBoolAnswers: (count: number) => `${count}× doplněna odpověď Ano/Ne bez efektů`,
   semicolonSeparators: (count: number) => `${count}× středník místo čárky mezi dopady`,
+  formattedCells: (count: number) => `${count}× převedeno tučné písmo nebo kurzíva z buňky`,
+  droppedFormattingCells: (count: number) =>
+    `${count}× zahozeno podtržení nebo přeškrtnutí — přenáší se jen tučné písmo a kurzíva`,
   ignoredSheets: (sheets: string[]) => `nepoužité listy: ${sheets.join(', ')}`,
 
   errorsTitle: (count: number) => `Chyby (${count})`,
@@ -96,5 +99,8 @@ export const importReport = Object.freeze({
     duplicate_template: 'dvě šablony pro jednu postavu a kapitolu',
     template_not_printed: 'šablona kapitoly, která se netiskne',
     unfinished_condition: 'nedopsaná podmínka',
+    formatting_in_marker: 'formátování uvnitř značky',
+    invalid_biography: 'vadný bod životopisu',
+    biography_without_marker: 'životopis bez značky v šabloně',
   } satisfies Record<IssueCode, string>),
 })
